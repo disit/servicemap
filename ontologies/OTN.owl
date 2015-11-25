@@ -1,0 +1,3164 @@
+<?xml version="1.0"?>
+<rdf:RDF
+    xmlns:protege="http://protege.stanford.edu/plugins/owl/protege#"
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns="http://www.pms.ifi.uni-muenchen.de/OTN#"
+    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+    xmlns:owl="http://www.w3.org/2002/07/owl#"
+    xmlns:daml="http://www.daml.org/2001/03/daml+oil#"
+    xmlns:p1="http://www.pms.ifi.uni-muenchen.de/OTN#Traditional_Woodland/"
+  xml:base="http://www.pms.ifi.uni-muenchen.de/OTN">
+  <owl:Ontology rdf:about=""/>
+  <owl:Class rdf:ID="Beach_Dune_And_Sand_Plain">
+    <rdfs:comment>Beaches, dunes and expanses of sand or pebbles in coastal or continental locations, including beds of stream channels with torrebtial regime.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Open_Space_With_Little_Or_No_Vegetation"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Airport_Area">
+    <rdfs:comment>Area covered with airport installations: runways, buildings and associated land.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Industrial_Commercial_And_Transport_Unit"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Dump_Site">
+    <rdfs:comment>Area covered with Landfill or mine dump sites, industrial or public.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Mine_Dump_And_Construction_Site"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Prohibited_Manoeuvre">
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Manoeuvre"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Composite_Attributes"/>
+  <owl:Class rdf:ID="Speed_Restriction">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="maximum_Speed_Allowed"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Urban_Fabric">
+    <rdfs:comment>Area where most of the land is covered by buildings, roads and artificially surfaced areas</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Artificial_Surface"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Average_Vehicle_Speed">
+    <rdfs:comment>The average speed of vehicles travelling along a Road Element (km/h)</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Transfer_Point">
+    <rdfs:comment>This will be typical place where one can change transport mode or access a feature in a mutli-modal environment, e.g. stations, airports or car parks.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Museum">
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Education"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>A building or place for the preservation and/or exhibition of artistic, historic or scientific objects.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="University_Or_College">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Education"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>An institution of higher education.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Forest">
+    <rdfs:comment>Vegetation formation composed principally of trees, including shrub and bush understories.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Forest_and_Semi-Natural_Area"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Special_Restriction">
+    <rdfs:comment>Special legal restrictions placed upon the use of a particular Road Element</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="public_Accessible"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Validity_Period">
+    <rdfs:comment>The period, for which a value defined in a attribute is valid</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="starting_Date"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="time_duration"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Toll">
+    <rdfs:comment>Fee to be paid in a certain currency to travel on (a section of) a toll road</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="toll_Charge"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="currency"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Relationship"/>
+  <owl:Class rdf:ID="Road_Surface">
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="paved"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Service">
+    <rdfs:comment>Service is a generic term for an activity at a specific location. It is important to notice that a Service represents an ACTIVITY and NOT the building in which this activity (possibly) takes place.
+Many services are particulary relevant to the road environement, szcg as recreation, vehicle maintenance, emergency services or cargo, customs and retail services.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Feature"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:minCardinality>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="alternate_Name"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:ID="is_Accessible_At"/>
+        </owl:onProperty>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:minCardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Form_Of_Way">
+    <rdfs:comment>Certain aspects of the physical form that a Road Element takes. It is based on a number of certain physical and traffic properties.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Road_And_Rail_Network_And_Associated_Land">
+    <rdfs:comment>Areas covered with motorways, railways, including associated installations (stations, platforms, embankments).</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Industrial_Commercial_And_Transport_Unit"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Car_Dealership">
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Shopping"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>An establishment that sells cars.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Ski_Lift_Station">
+    <rdfs:comment>The start point of a ski lifr.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Entertainment"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Transport_Company">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Shopping"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>A transport company's offices or cargo points where transport services of cargo on road, rail, water or air are offered.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Emergency">
+    <rdfs:subClassOf rdf:resource="#Service"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Public_Phone">
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Other"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>A phone which is available for public use. It may be within a building or on the street. It might be coin-operated or card-operated.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Maximum_Total_Weight_Allowed">
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:comment>The maximum total weight of a vehicle that may use the Feature.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Emergency_Medical_Service">
+    <rdfs:comment>A location where mobile medical help is stationed.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Emergency"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Blocked_Passage">
+    <rdfs:comment>Indication of a physical barrier on a Road Element</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="blocked_Passage_Type"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="blocked_Passage_Location"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Shrubs_Or_Herbaceous_Vegeation_Association">
+    <rdfs:comment>Bushy vegetation, generally with low cover and with no or scattered trees.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Forest_and_Semi-Natural_Area"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Maximum_Length_Allowed">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="centimetres"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>The legal maximum length of a vehicle that may use the Feature</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Restaurant">
+    <rdfs:comment>Any establishment offering meals for payment including site down meals or fast food take-aways. Hotels or Public Houses may be included in this Feature.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Food_And_Housing"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Frontier_Crossing">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Other"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>A border post between two countries.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Recreation_Facility">
+    <rdfs:comment>An outdoor area of land designated as open to the public for general recreation.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Entertainment"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Timetable">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="loop_Time"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>A timetable contains information about all departure times for public transportation or ferry vehicles on a Route Section, or on a Ferry Connection. 
+Beside the start time, the timetable also contains information about the waiting time and the duration needed to travel along this section.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:ID="validity_Period"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom>
+          <owl:Class rdf:ID="Stop_Point"/>
+        </owl:allValuesFrom>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:ID="starts_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="travel_Time"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Coach_And_Lorry_Parking">
+    <rdfs:comment>A car park restricted for Coach and Lorry use only.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Parking"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:about="#Industrial_Commercial_And_Transport_Unit">
+    <rdfs:comment>Artifical surface and infrastructure associated with transportation and/or an industrial activity.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Artificial_Surface"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Caravan_Sites">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Food_And_Housing"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>An official site where a caravan may be pitched. The site need not be for sole use by caravans.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Railways">
+    <rdfs:comment>Railways are similar to roads in that their constituent elements together form a network. A railway network may therefore be considered to be made up pf o number of Railway Elements that are connected by means Railway Element Junctions.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Feature"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Restricted_Manoeuvre">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Manoeuvre"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Intersection">
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Node"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom>
+          <owl:Class rdf:ID="Junction"/>
+        </owl:allValuesFrom>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:ID="contains"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>The Level 2 representation of a crossing which bounds a Road or a Ferry.  It is a Complex Feature composed of one or more Level 1 Junctions, Road Elements and Enclosed Traffic Areas.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Road_and_Ferry_Feature"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:minCardinality>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Transfer_Point"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Sclerophyllous_vegatation">
+    <rdfs:subClassOf rdf:resource="#Shrubs_Or_Herbaceous_Vegeation_Association"/>
+    <rdfs:comment>Bushy sclerophyllous vegetation. Includes maquis and garrigue.
+Marquis: a dense vegetation associated composed of a number of shrubs associated with siliceous soils in the Mediterranean environment.
+Garrigue:
+discontinous bushy associations of Mediterranean clcareous plateaus. Generally composed of kermes oaks, arbutus, lavender, thyme, cistus, etc. Many include a few isolated trees.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Port_Area">
+    <rdfs:comment>Area covered with infrstructure of Port Area, including quays, dockyards and marinas.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Industrial_Commercial_And_Transport_Unit"/>
+  </owl:Class>
+  <owl:Class rdf:about="#Traditional_Woodland/Shrubs">
+    <rdfs:comment>Bushy or herbaceous vegetation with scattered trees. Can represent either woodland degradation or forest regeneration/colonization.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Shrubs_Or_Herbaceous_Vegeation_Association"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Artifical_Non-Agricultural_Vegetated_Area">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Artificial_Surface"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>Cultivated area with vegetation dedicated to leisure, sports and recreation activities or used as cemetry.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Accident">
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:comment>Information about an accident registered by an appropiate organization</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Roadside_Diner">
+    <rdfs:subClassOf rdf:resource="#Restaurant"/>
+    <rdfs:comment>A roadside location where parking is available and meals are served.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Zoo">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Entertainment"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>A location where wild animals are kept for educational reasons, and which is open for the public.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Motoring_Organisation_Office">
+    <rdfs:comment>A national club or subscription-based organisation offering services and facilities for motorists.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Other"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Travel_Agency">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Shopping"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>An office that sells tickets for travel by rail, road, air or water for local, national or international travel.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Railway_Station">
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Transfer_Service"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>A facility for loading and unloading passengers and goods travelling on a rail network.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Stop_Area"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Fire_Brigade">
+    <rdfs:subClassOf rdf:resource="#Emergency"/>
+    <rdfs:comment>A location where mobile crews and vehicles for firefighting and rescue operations are stationed.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Ferry_Terminal">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Other"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>The access point or check-in area for a given ferry company.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Vantage_Point">
+    <rdfs:comment>A location specifically designated as having a scenic view.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Tourism"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Priority_Manoeuvre">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Manoeuvre"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Location_Reference">
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:minCardinality>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="location_Reference_Code"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="location_Reference_Type"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>The location reference code of a certain location according to a certain location referencing system</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Marina">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Other"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>A docking and service facility for pleasure craft.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Maximum_Width_Allowed">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:about="#centimetres"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:comment>The maximum width limit of a vehicle that may use the Feature. The limit is normally set by a physical obstruction such as a bridge or a legal restriction</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Tourist_Attraction">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Tourism"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>Any phsical or natural Feature that may be of interest to a tourist.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Road_Element">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:ID="ends_at"/>
+        </owl:onProperty>
+        <owl:allValuesFrom>
+          <owl:Class rdf:about="#Junction"/>
+        </owl:allValuesFrom>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="width"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="length"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>A linear section of the earth which is designed for or the result of vehicular movement.  It serves as the smallest unit of the road network at Level 1 that is independent and having a Junction at each end.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#starts_at"/>
+        </owl:onProperty>
+        <owl:allValuesFrom>
+          <owl:Class rdf:about="#Junction"/>
+        </owl:allValuesFrom>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Edge"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Transfer_Point"/>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Road_and_Ferry_Feature"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="official_Name"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:ID="form_of_Way"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Address_Area_Boundry_Element">
+    <rdfs:comment>An Adress Area Boundry Element describes the outer confinement of an Address Area. An Adress Area Boundry Element is start and end bounded with the road network.
+At least one of the edges defining the complete boundry of an Address Area has also to be referenced by a Road Element which is connected to the rest of the road network</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom>
+          <owl:Class rdf:about="#Junction"/>
+        </owl:allValuesFrom>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#starts_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#ends_at"/>
+        </owl:onProperty>
+        <owl:allValuesFrom>
+          <owl:Class rdf:about="#Junction"/>
+        </owl:allValuesFrom>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Edge"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Road_and_Ferry_Feature"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:ID="house_Number_Range"/>
+        </owl:onProperty>
+        <owl:maxCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >2</owl:maxCardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Railway_Element_Junction">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Node"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Railways"/>
+    <rdfs:comment>The location where three or more Railway Elements meet or where Railway Elements ends.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Bus_Station">
+    <rdfs:comment>A terminus where a person may board either a local bus service or a long distance or a national/international coach.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Stop_Area"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Transfer_Service"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Public_Transport_Junction">
+    <rdfs:comment>A Public Transportation Junction is located at the intersection of two or more Route Links, or at the end of a dead end Route Link. A Public Transportation Junction should be introduced at the location where three or more Route Links meet. This happens when e.g. two Routes branch off.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Node"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Public_Transport"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Business_Facility">
+    <rdfs:comment>Location where the main activities of a particular business activity are concentrated</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Public_Buildings"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Route_Section">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#ends_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Public_Transport"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>A Route_Section is the way between two Stop Points in a route.
+It is added to the GDF-Scheme to have the possibility to add timetables to Routes.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#ends_at"/>
+        </owl:onProperty>
+        <owl:allValuesFrom>
+          <owl:Class rdf:about="#Stop_Point"/>
+        </owl:allValuesFrom>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#starts_at"/>
+        </owl:onProperty>
+        <owl:allValuesFrom>
+          <owl:Class rdf:about="#Stop_Point"/>
+        </owl:allValuesFrom>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:minCardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#starts_at"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom>
+          <owl:Class rdf:ID="Route_Link"/>
+        </owl:allValuesFrom>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Roundabout">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >2</owl:minCardinality>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Road_and_Ferry_Feature"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom rdf:resource="#Road_Element"/>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Hotel_Or_Motel">
+    <rdfs:comment>An establishement where lodging is available to all memebers of the public for one or more nights. The nature of the establishement need not be strictly a hotel. Places such as public houses, guesthouses and inns with available rooms may be included in this feature. It excludes establishments offering accomondations to special needs groups such as socially disadvantaged persons. Also exluded are prival rental accomondation establishments and holiday homes.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Restaurant"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Swimming_Pool">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Entertainment"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>A facility specially designed for swimming or related water activities.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Emergency_Call_Station">
+    <rdfs:subClassOf rdf:resource="#Emergency"/>
+    <rdfs:comment>A free emergency telephone with direct line to an emergeny service centre.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Bank">
+    <rdfs:comment>An institute for the transaction of the monetary services. 
+In some countries the building societies and some post offices may be incorparated into this category</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Public_Buildings"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:about="#Mine_Dump_And_Construction_Site">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Artificial_Surface"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>Surface resulting from excavation, mine dump or landfill.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Police_Station">
+    <rdfs:comment>An office or facility for the police.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Emergency"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Wetland">
+    <rdfs:comment>Inland or coastal area seasonally, tidally or permanently waterlogged.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Land_Cover_And_Use"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="City_Centre">
+    <rdfs:comment>This Position which adequately describes a central activity point of a settlement. It will typically be the town hall, central train station or other central activity centre (i.e. church or pedestrian district).</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Public_Buildings"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Stadium">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Entertainment"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>An athletic or sports ground with tiers of seats for spectactors.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:about="#Public_Buildings">
+    <rdfs:subClassOf rdf:resource="#Service"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Sports_Centre">
+    <rdfs:comment>An indoor sports facility or an outdoor location where any sport such as golf, riding, sailing etc. may be enjoyed.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Entertainment"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:about="#Public_Transport">
+    <rdfs:subClassOf rdf:resource="#Feature"/>
+    <rdfs:comment>All elements regarding the public transportation network are grouped ina Feature Theme called Public Transport. Thise theme contains all the public transport basic Features that can be related with a geometrical position.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:about="#Tourism">
+    <rdfs:subClassOf rdf:resource="#Service"/>
+  </owl:Class>
+  <owl:Class rdf:about="#Node">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="x"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Geometric"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="y"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:about="#Entertainment">
+    <rdfs:subClassOf rdf:resource="#Service"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Glacier_And_Prepetual_Snow">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Open_Space_With_Little_Or_No_Vegetation"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>Land covered with glaciers or permanent snowfields.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:about="#Parking">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Transfer_Service"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Enclosed_Traffic_Area"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Tourist_Office">
+    <rdfs:comment>A location where advice can be obtained on local or national tourist attractions.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Tourism"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Direction_of_Traffic_Flow">
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="traffic_flow_Direction"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>The direction(s) of traffic flow allowed on a Feature</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:about="#Edge">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#ends_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom rdf:resource="#Node"/>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#starts_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#starts_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#ends_at"/>
+        </owl:onProperty>
+        <owl:allValuesFrom rdf:resource="#Node"/>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Geometric"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Emergency_Vehicle_Lane">
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:comment>Indicates that the associated Road Element has a seperate Emergency Vehicle Lane</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Exhibition_Or_Conference_Centre">
+    <rdfs:subClassOf rdf:resource="#Public_Buildings"/>
+    <rdfs:comment>Large buildings where large public shows, or large groups of people whould meet for consultation or discussion.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:about="#Artificial_Surface">
+    <rdfs:comment>Surface modified by humans, usually resulting from construction activities, and created to serve dedicated purposes.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Land_Cover_And_Use"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Government_Office">
+    <rdfs:subClassOf rdf:resource="#Public_Buildings"/>
+    <rdfs:comment>An office for local, regional or national government activities.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Post_Office">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Shopping"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>A public facility that provides postal or telecommunication services.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Adress_Area">
+    <rdfs:comment>An area containing addresses which cannot be related to one ore more Road Element.
+
+- In certain situations addresses are defined in a square, which has a name that is different from the name of the Road Element representing the road network on that square.
+- The addresses are defined according to building blocks. In these cases a building block has a name which differs from the name of an adjancent building vlock and of the Road Element which possibly divides the two building blocks.
+An Adress Area should always have a connection with the road network</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Face"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Road_and_Ferry_Feature"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:ID="bounding_Edge"/>
+        </owl:onProperty>
+        <owl:allValuesFrom rdf:resource="#Address_Area_Boundry_Element"/>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:about="#Junction">
+    <rdfs:subClassOf rdf:resource="#Transfer_Point"/>
+    <rdfs:subClassOf rdf:resource="#Node"/>
+    <rdfs:comment>A feature that bounds a Road Element or a Ferry Connection.  A Road Element or Ferry Connection always forms a connection between two Junctions and, a Road Element or Ferry Connection is always bounded by exactly two Junctions.  A Junction feature represents the physical connection between it’s adjoining Road Elements and Ferry Connections.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Road_and_Ferry_Feature"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:about="#Education">
+    <rdfs:subClassOf rdf:resource="#Service"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Hospital_Or_Polyclinic">
+    <rdfs:comment>A place where medical and surgical treatment is provided for ill and injured persons.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Emergency"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Historical_Monument">
+    <rdfs:subClassOf rdf:resource="#Tourism"/>
+    <rdfs:comment>A building, monument, or site with important historical or cultural value.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Temperature">
+    <rdfs:subClassOf>
+      <owl:Class rdf:ID="Meteorology"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Face"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Cargo_Centre">
+    <rdfs:comment>An access point for non-passenger goods, such as within an airport.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Public_Buildings"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Amusement_Park">
+    <rdfs:comment>A park that contains rides or other entertainment which may be based on a central theme.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Entertainment"/>
+  </owl:Class>
+  <owl:Class rdf:about="#Land_Cover_And_Use">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Face"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>Land Cover And Use provide contextual information about the coverage of the earth's surface. Many of the Land Cover And Use types are hierarchical in structure, being further subdivided into subtypes.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Feature"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Sparsely_Vegetated_Area">
+    <rdfs:comment>Includes steppes, tundra and badlands. Scattered high-attitude vegetation.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Open_Space_With_Little_Or_No_Vegetation"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:about="#Stop_Point">
+    <rdfs:subClassOf rdf:resource="#Transfer_Point"/>
+    <rdfs:subClassOf rdf:resource="#Public_Transport_Junction"/>
+    <rdfs:comment>Stop Points are modelled differently than Public Transport Points because of their relation to Road Elements and Services. This will be typical place where one can change transport mode in a mutli-modal environment.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Department_Store">
+    <rdfs:comment>A large shop which sells different types of goods from within the one shop.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Shopping"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Parking_Garage">
+    <rdfs:comment>A car park typically within a building. May be subterranean or multi-storey.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Parking"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#is_Accessible_At"/>
+        </owl:onProperty>
+        <owl:someValuesFrom>
+          <owl:Class rdf:about="#Road_and_Ferry_Feature"/>
+        </owl:someValuesFrom>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Mineral_Extraction_Site">
+    <rdfs:subClassOf rdf:resource="#Mine_Dump_And_Construction_Site"/>
+    <rdfs:comment>Areas with open-pit extraction of industrial minerals (sandpits, quarries) or other minerals (open cast mines). Includes flooded gravel pits, except for river-bed extraction.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="ATM">
+    <rdfs:subClassOf rdf:resource="#Public_Buildings"/>
+    <rdfs:comment>A computer terminal that allows bank customers to deposit, withdraw, or transfer funds without the assistance of a bank teller.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Agricultural_Area">
+    <rdfs:comment>Vegetated area that is cultivated to grow crops or fruits, or used for grazing.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Land_Cover_And_Use"/>
+  </owl:Class>
+  <owl:Class rdf:about="#Shopping">
+    <rdfs:subClassOf rdf:resource="#Service"/>
+  </owl:Class>
+  <owl:Class rdf:about="#Food_And_Housing">
+    <rdfs:subClassOf rdf:resource="#Service"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Line">
+    <rdfs:comment>In most cases, the complex Featue Line consists of two Routes, one for each direction on the Line. If alternative routes are defined a Line can have more than two Routes</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:minCardinality>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="public_Transport_Mode"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Public_Transport"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom>
+          <owl:Class rdf:ID="Route"/>
+        </owl:allValuesFrom>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Toll_Location">
+    <rdfs:comment>The location where a fee is paid to travel on a road.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Other"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Burnt-Area">
+    <rdfs:comment>Areas affected by recent fires, still mainly black.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Open_Space_With_Little_Or_No_Vegetation"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:about="#Stop_Area">
+    <rdfs:subClassOf rdf:resource="#Public_Transport"/>
+    <rdfs:comment>Stop Areas are defined as a collection of stop points where passangers can change lines at walking distance. Typically stop areas are bus stations or several bus stops at a single intersection</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Transfer_Point"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom rdf:resource="#Stop_Point"/>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Pharmacy">
+    <rdfs:subClassOf rdf:resource="#Shopping"/>
+    <rdfs:comment>Where general drugs and remedies to the general public are saled.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Road">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#starts_at"/>
+        </owl:onProperty>
+        <owl:allValuesFrom rdf:resource="#Intersection"/>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#ends_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#ends_at"/>
+        </owl:onProperty>
+        <owl:allValuesFrom rdf:resource="#Intersection"/>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom rdf:resource="#Road_Element"/>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Edge"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#starts_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Road_and_Ferry_Feature"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="intermediate_coordinates"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >0</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Transfer_Point"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Green_Urban_Area">
+    <rdfs:subClassOf rdf:resource="#Artifical_Non-Agricultural_Vegetated_Area"/>
+    <rdfs:comment>Area with vegetation within urban fabric. Includes parks and cemetries with vegetation.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="park_Type"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Library">
+    <rdfs:comment>A place in which literary, musical, artists, or reference materials are kept for use and circulation, but are not for sale.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Education"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Camping">
+    <rdfs:comment>An official site where a tent may be pitched. The site need not be for sole use by tents.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Food_And_Housing"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Kindergarten">
+    <rdfs:subClassOf rdf:resource="#Education"/>
+    <rdfs:comment>A location for pre-school education.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Construction_Site">
+    <rdfs:comment>Spaces under construction development, soil or bedrock excavations, earthworks.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Mine_Dump_And_Construction_Site"/>
+  </owl:Class>
+  <owl:Class rdf:about="#Forest_and_Semi-Natural_Area">
+    <rdfs:subClassOf rdf:resource="#Land_Cover_And_Use"/>
+    <rdfs:comment>Vegetated area covered with trees and/or bushy vegetation.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Weather">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Meteorology"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Face"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Construction_Status">
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="construction_stage"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>Whether a Feature is currently under construction or in the planning stage</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Divider">
+    <rdfs:comment>Information about the existence of a physical or legal divieder along a Road Element which is not expressed by the individual Features.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="divided"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Public_Transport_Point">
+    <rdfs:subClassOf rdf:resource="#Node"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="type_of_Public_Transportation_Point"/>
+        </owl:onProperty>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:minCardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Public_Transport"/>
+    <rdfs:comment>All public transportation locations can be described by Public Transport Points. This point can have a clear physical meaning, like an activation point or a measuring point, but this is not required. The Attribute Public Transport Point Type will indicate the point type.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Maximum_Height_Allowed">
+    <rdfs:comment>The maximum height limit of a vehicle that may use the Feature. The limit is normally set by a physical obstruction such as a bridge or tunnel, or a legal restriction</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:about="#centimetres"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Winery">
+    <rdfs:comment>A facility for wine making, which also include wine tasting, wine sales, and winery tours.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Shopping"/>
+  </owl:Class>
+  <owl:Class rdf:about="#Meteorology">
+    <rdfs:comment>Meteorology is the scientific study of the atmosphere that focuses on weather processes and forecasting.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Feature"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Bare_Rock">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Open_Space_With_Little_Or_No_Vegetation"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>Scree, cliffs, rocks and outcrops.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Enclosed_Traffic_Area_Boundry">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#ends_at"/>
+        </owl:onProperty>
+        <owl:allValuesFrom rdf:resource="#Junction"/>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Edge"/>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Road_and_Ferry_Feature"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom rdf:resource="#Junction"/>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#starts_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>An Enclosed Traffic Area Boundry describes the outer confinement of an Enclosed Traffic Area. An Enclosed Traffic is start and end bounded with the road network.
+At least one of the edges defining the complete boundry of an Enclosed Traffic has also to be referenced by a Road Element which is connected to the rest of the road network</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Theatre">
+    <rdfs:comment>A building or an outdoor area where performances of drama are given.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Entertainment"/>
+  </owl:Class>
+  <owl:Class rdf:about="#Enclosed_Traffic_Area">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Face"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Road_and_Ferry_Feature"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Transfer_Point"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom rdf:resource="#Enclosed_Traffic_Area_Boundry"/>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#bounding_Edge"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="First_Aid_Post">
+    <rdfs:comment>A location where First Aid is available.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Emergency"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Aggregated_Way">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Road_and_Ferry_Feature"/>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom rdf:resource="#Road_Element"/>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >2</owl:minCardinality>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:about="#Route">
+    <rdfs:subClassOf rdf:resource="#Public_Transport"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:minCardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>A route is a grouping of Route Sections in order to form physical path that a public transport vehicle can follow. A public transport line will normally have one Route in each direction. Alternative routes could be defined for the exceptional circumstances (e.g. one day a week when the bus follows a different path)</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+        <owl:allValuesFrom rdf:resource="#Route_Section"/>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Petrol_Station">
+    <rdfs:comment>A garage or service station offering petrol for sale.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Shopping"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Vehicle_Repair_Facility">
+    <rdfs:subClassOf rdf:resource="#Shopping"/>
+    <rdfs:comment>A garage or service station open to the public where repairs on a vehicle are carried out.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Building">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="building_Class_Name"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>Man made structure or structure occupied by people or goods. 
+Building is included to represent the physical presence of these structures. Neighbouring buildings can be grouped into one single building Feature.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Transfer_Point"/>
+    <rdfs:subClassOf rdf:resource="#Land_Cover_And_Use"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Island">
+    <rdfs:comment>An area surrounded by water, possibly connected to other land by means of a bridge or tunnel accessible by ferry.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Land_Cover_And_Use"/>
+  </owl:Class>
+  <owl:Class rdf:ID="School">
+    <rdfs:subClassOf rdf:resource="#Education"/>
+    <rdfs:comment>A building or location used for instructional classes. (See also Unversity or College).</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:about="#Face">
+    <rdfs:subClassOf rdf:resource="#Geometric"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:minCardinality>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#bounding_Edge"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#bounding_Edge"/>
+        </owl:onProperty>
+        <owl:allValuesFrom rdf:resource="#Edge"/>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Free_Port">
+    <rdfs:subClassOf rdf:resource="#Shopping"/>
+    <rdfs:comment>A shop or facility where products can be purchased under a reduced tarif structure.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Mountain_Pass_Summit">
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Other"/>
+    </rdfs:subClassOf>
+    <rdfs:comment>Point of greatest altitude of a mountain pass.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Ferry">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+        <owl:allValuesFrom>
+          <owl:Class rdf:ID="Ferry_Connection"/>
+        </owl:allValuesFrom>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:minCardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Class rdf:about="#Road_and_Ferry_Feature"/>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Community_Centre">
+    <rdfs:subClassOf rdf:resource="#Entertainment"/>
+    <rdfs:comment>Facilities and activites for the benefit of local community only. They typically cater to special interest groups, such as youth, elderly, or 'handicapped'.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Golf_Course">
+    <rdfs:subClassOf rdf:resource="#Entertainment"/>
+    <rdfs:comment>A facility designated and maintained for playing golf.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:about="#Road_and_Ferry_Feature">
+    <rdfs:subClassOf rdf:resource="#Feature"/>
+    <rdfs:comment>The road network is seen here primarily from the viewport of transportation and traffic. Ferry connections are therefore placed together with  road network elements in one theme.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Number_of_Lanes">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="lanes"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>The Number of Lanes Attribute refers to the total number of lanes associated with one particular driving direction which are present on a certain Road Element. If this Attribute appears once with one Road Element without a side indication, it indicates that both driving directions have the same number of lanes or, in case there is only one driving direction, the total number of lanes. In case two different driving directions on a Road Element have a differernt number of lanes, each number can be specified by a different Attribute Value in combination with side indication</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Travel_Time">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:about="#time_duration"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>The one-way travel time that a Ferry Connection takes to complete journey</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Natural_Grassland">
+    <rdfs:comment>Low productivity grassland. Often situated in areas of rough uneven ground. Frequently includes rocky areas, briars and heathland.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Shrubs_Or_Herbaceous_Vegeation_Association"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Moors_And_Heatland">
+    <rdfs:comment>Vegetation with low and closed cover, dominated by bushes,shrubs and herbaceaous plants (heath, briars, broom, gorse, laburnum, etc.).</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Shrubs_Or_Herbaceous_Vegeation_Association"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Casino">
+    <rdfs:comment>An establishemnt whose primary purpose is providing facilities for gambling.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Entertainment"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Ski_Resort">
+    <rdfs:comment>A down hill or cross-country ski facility</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Entertainment"/>
+  </owl:Class>
+  <owl:Class rdf:ID="House_Number_Range">
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="house_Number_Structure"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="street_Side"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="last_House_Number"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>The set of house numbers that is related to one side of a particular road element or to a particular Address Area Boundry Element.
+It is a comma seperated list of numbers from the first to the last house number of the element, excluding the first and last number.</rdfs:comment>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:ID="first_House_Number"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Cinema">
+    <rdfs:subClassOf rdf:resource="#Entertainment"/>
+    <rdfs:comment>A facility used for showing movies to a large audience.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:about="#Transfer_Service">
+    <rdfs:subClassOf rdf:resource="#Service"/>
+    <rdfs:subClassOf rdf:resource="#Transfer_Point"/>
+    <rdfs:comment>This is a service where one can change transport mode in a mutli-modal environment, e.g. stations, airports or car parks.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:about="#Manoeuvre">
+    <rdfs:subClassOf rdf:resource="#Relationship"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:ID="atJunction"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:ID="startRoadElement"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="endRoadElement"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="Rent-a-Car_Pickup_Or_Return">
+    <rdfs:subClassOf rdf:resource="#Shopping"/>
+    <rdfs:comment>Site where to pick up or return rental cars.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Industrial_Or_Commercial_Unit">
+    <rdfs:subClassOf rdf:resource="#Industrial_Commercial_And_Transport_Unit"/>
+    <rdfs:comment>Artifically surfaced areas (with concrete, asphalt, tarmacadam, or stabilised, eg. beaten earth) devoid of vegetation, occupy most of the area in question, which also contains biuldings and/or vegetated areas.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Airport">
+    <rdfs:subClassOf rdf:resource="#Transfer_Service"/>
+    <rdfs:comment>An airfield which accomodates either cargo or passenger traffix of a commercial or private nature</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Stop_Area"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Interchange">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:minCardinality>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#contains"/>
+        </owl:onProperty>
+        <owl:allValuesFrom rdf:resource="#Road_Element"/>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Road_and_Ferry_Feature"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Rest_Area">
+    <rdfs:subClassOf rdf:resource="#Food_And_Housing"/>
+    <rdfs:comment>A service located along freeways offering ine or more recreational facilites or service functions to the car driver.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:about="#Open_Space_With_Little_Or_No_Vegetation">
+    <rdfs:comment>Area with little or no vegetation, such as sandy or rocky areas, permanent ice or snow, or sparsely vegetated high altitude areas.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Forest_and_Semi-Natural_Area"/>
+  </owl:Class>
+  <owl:Class rdf:about="#Ferry_Connection">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#starts_at"/>
+        </owl:onProperty>
+        <owl:allValuesFrom rdf:resource="#Junction"/>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Edge"/>
+    <rdfs:subClassOf rdf:resource="#Road_and_Ferry_Feature"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:about="#length"/>
+        </owl:onProperty>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom rdf:resource="#Junction"/>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#ends_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+  </owl:Class>
+  <owl:Class rdf:ID="City_Hall">
+    <rdfs:subClassOf rdf:resource="#Public_Buildings"/>
+    <rdfs:comment>City or Town Council Offices</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Open_Parking_Area">
+    <rdfs:subClassOf rdf:resource="#Parking"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:someValuesFrom rdf:resource="#Road_and_Ferry_Feature"/>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#is_Accessible_At"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>Ground-level car and commercial vehicle parking locations.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Shopping_Centre">
+    <rdfs:subClassOf rdf:resource="#Shopping"/>
+    <rdfs:comment>A large purpose-built building within many individual shops trade.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:about="#Other">
+    <rdfs:subClassOf rdf:resource="#Service"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Sport_And_Leisure_Facility">
+    <rdfs:comment>Area with camping ground, sport ground, leisure park, golf course, racecourse.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Artifical_Non-Agricultural_Vegetated_Area"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Warehouse">
+    <rdfs:comment>A large building within which any goods or items may be stored for the short or long term.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Shopping"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Court_House">
+    <rdfs:subClassOf rdf:resource="#Public_Buildings"/>
+    <rdfs:comment>A building that houses courts of law.</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Railway_Element">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom rdf:resource="#Railway_Element_Junction"/>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#ends_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>A Railway Element is the smallest independant part of the railway network, and is bounded by two Railway Element Junctions.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Edge"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom rdf:resource="#Railway_Element_Junction"/>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#starts_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Railways"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Bowling_Center">
+    <rdfs:subClassOf rdf:resource="#Entertainment"/>
+    <rdfs:comment>A facility designed for bowling</rdfs:comment>
+  </owl:Class>
+  <owl:Class rdf:ID="Embassy">
+    <rdfs:comment>The office or residence of the ambassador and entourage of a foreign country.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Public_Buildings"/>
+  </owl:Class>
+  <owl:Class rdf:about="#Route_Link">
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:DatatypeProperty rdf:about="#public_Transport_Mode"/>
+        </owl:onProperty>
+        <owl:minCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:minCardinality>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:allValuesFrom rdf:resource="#Public_Transport_Junction"/>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#starts_at"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty>
+          <owl:ObjectProperty rdf:about="#ends_at"/>
+        </owl:onProperty>
+        <owl:allValuesFrom rdf:resource="#Public_Transport_Junction"/>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:subClassOf rdf:resource="#Public_Transport"/>
+    <rdfs:comment>A Route Link can be part of serveral public transport routes. A Route Link has one Public Transport Junction at each end. Since Route Links are the smallest unit of the Public Transport network, they may not overlap with other Route Links. In the case where two or more routes share the same physical path, only one Route Links should be defined. This Route Link will be shared by multiple Routes.
+Compared to the original GDF-Format a Stop Point is also a Public Transport Junction. Thus a Route Link in GDF is splitted at each Stop Point into two parts. With this movement along a part can be realised.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Edge"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Place_Of_Worship">
+    <rdfs:comment>A building where a member of the general public may go for prayer or to take part in a religious service.</rdfs:comment>
+    <rdfs:subClassOf rdf:resource="#Public_Buildings"/>
+  </owl:Class>
+  <owl:Class rdf:ID="Traffic_Jam_Sensitivity">
+    <rdfs:subClassOf rdf:resource="#Composite_Attributes"/>
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:cardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#int"
+        >1</owl:cardinality>
+        <owl:onProperty>
+          <owl:FunctionalProperty rdf:ID="traffic_Jam_Probability"/>
+        </owl:onProperty>
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>Probability of a traffic jam on a Road Element</rdfs:comment>
+  </owl:Class>
+  <owl:ObjectProperty rdf:ID="average_Vehicle_Speed">
+    <rdfs:range rdf:resource="#Average_Vehicle_Speed"/>
+    <rdfs:domain rdf:resource="#Road_Element"/>
+    <rdfs:comment>See Average_Vehicle_Speed</rdfs:comment>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="#form_of_Way">
+    <rdfs:comment>See Form_of_Way</rdfs:comment>
+    <rdfs:range rdf:resource="#Form_Of_Way"/>
+    <rdfs:domain rdf:resource="#Road_Element"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="#ends_at">
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Edge"/>
+          <owl:Class rdf:about="#Route_Section"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:range rdf:resource="#Node"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="direction_of_Traffic_Flow">
+    <rdfs:comment>See Direction_of_Traffic_Flow</rdfs:comment>
+    <rdfs:domain rdf:resource="#Road_Element"/>
+    <rdfs:range rdf:resource="#Direction_of_Traffic_Flow"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="construction_Status">
+    <rdfs:domain rdf:resource="#Road_Element"/>
+    <rdfs:range rdf:resource="#Construction_Status"/>
+    <rdfs:comment>See Construction_Status</rdfs:comment>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="#atJunction">
+    <rdfs:domain rdf:resource="#Manoeuvre"/>
+    <rdfs:range rdf:resource="#Junction"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="blocked_Passage">
+    <rdfs:range rdf:resource="#Blocked_Passage"/>
+    <rdfs:comment>see Blocked_Passage</rdfs:comment>
+    <rdfs:domain rdf:resource="#Road_Element"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="accident">
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Road_Element"/>
+          <owl:Class rdf:about="#Junction"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:comment>see Accident</rdfs:comment>
+    <rdfs:range rdf:resource="#Accident"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="divider">
+    <rdfs:comment>See Divider</rdfs:comment>
+    <rdfs:domain rdf:resource="#Road_Element"/>
+    <rdfs:range rdf:resource="#Divider"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="special_Restriction">
+    <rdfs:range rdf:resource="#Special_Restriction"/>
+    <rdfs:domain rdf:resource="#Road_Element"/>
+    <rdfs:comment>See Special_Restriction</rdfs:comment>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="#house_Number_Range">
+    <rdfs:comment>See House_Number_Range</rdfs:comment>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Road_Element"/>
+          <owl:Class rdf:about="#Address_Area_Boundry_Element"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:range rdf:resource="#House_Number_Range"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="emergency_Vehicle_Lane">
+    <rdfs:comment>See Emergency_Vehicle_Lane</rdfs:comment>
+    <rdfs:range rdf:resource="#Emergency_Vehicle_Lane"/>
+    <rdfs:domain rdf:resource="#Road_Element"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="number_of_Lanes">
+    <rdfs:comment>See Number_of_Lanes</rdfs:comment>
+    <rdfs:domain rdf:resource="#Road_Element"/>
+    <rdfs:range rdf:resource="#Number_of_Lanes"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="maximum_Total_Weight_Allowed">
+    <rdfs:range rdf:resource="#Maximum_Total_Weight_Allowed"/>
+    <rdfs:comment>See Maximum_Total_Weight_Allowed</rdfs:comment>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Road_Element"/>
+          <owl:Class rdf:about="#Ferry_Connection"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="timetable">
+    <rdfs:comment>see Timetable</rdfs:comment>
+    <rdfs:range rdf:resource="#Timetable"/>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Ferry_Connection"/>
+          <owl:Class rdf:about="#Route"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="is_Displayed_at">
+    <rdfs:domain rdf:resource="#Service"/>
+    <rdfs:range rdf:resource="#Node"/>
+    <rdfs:comment>The position where the specific information (icon, image, text) is displayed on the map. It has only a graphical aspect.</rdfs:comment>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="#starts_at">
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Edge"/>
+          <owl:Class rdf:about="#Route_Section"/>
+          <owl:Class rdf:about="#Timetable"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:range rdf:resource="#Node"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="opening_Period">
+    <rdfs:domain rdf:resource="#Service"/>
+    <rdfs:range rdf:resource="#Validity_Period"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="first_Route_Section">
+    <rdfs:domain rdf:resource="#Route"/>
+    <rdfs:range rdf:resource="#Route_Section"/>
+    <rdfs:comment>if the route is a circular route, two different Route_Sections join at the given route_Start_Stop_Point. So if the route is a circular route, this attribute must be given to determin which of those two route_Sections is the first.</rdfs:comment>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="traffic_Jam_Sensitivity">
+    <rdfs:domain rdf:resource="#Road_Element"/>
+    <rdfs:comment>See Traffic_Jam_Sensitivity</rdfs:comment>
+    <rdfs:range rdf:resource="#Traffic_Jam_Sensitivity"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="maximum_Number_of_Lanes">
+    <rdfs:range rdf:resource="#Number_of_Lanes"/>
+    <rdfs:comment>See Maximum_Number_of_Lanes</rdfs:comment>
+    <rdfs:domain rdf:resource="#Road_Element"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="toll">
+    <rdfs:domain rdf:resource="#Road_Element"/>
+    <rdfs:range rdf:resource="#Toll"/>
+    <rdfs:comment>See Toll</rdfs:comment>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="maximum_Height_Allowed">
+    <rdfs:range rdf:resource="#Maximum_Height_Allowed"/>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Road_Element"/>
+          <owl:Class rdf:about="#Ferry_Connection"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:comment>See Maximum_Height_Allowed</rdfs:comment>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="#validity_Period">
+    <rdfs:comment>See Validity_Period</rdfs:comment>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Average_Vehicle_Speed"/>
+          <owl:Class rdf:about="#Blocked_Passage"/>
+          <owl:Class rdf:about="#Form_Of_Way"/>
+          <owl:Class rdf:about="#Special_Restriction"/>
+          <owl:Class rdf:about="#Speed_Restriction"/>
+          <owl:Class rdf:about="#Toll"/>
+          <owl:Class rdf:about="#Traffic_Jam_Sensitivity"/>
+          <owl:Class rdf:about="#Construction_Status"/>
+          <owl:Class rdf:about="#Direction_of_Traffic_Flow"/>
+          <owl:Class rdf:about="#Divider"/>
+          <owl:Class rdf:about="#Emergency_Vehicle_Lane"/>
+          <owl:Class rdf:about="#Number_of_Lanes"/>
+          <owl:Class rdf:about="#Maximum_Height_Allowed"/>
+          <owl:Class rdf:about="#Maximum_Total_Weight_Allowed"/>
+          <owl:Class rdf:about="#Maximum_Width_Allowed"/>
+          <owl:Class rdf:about="#Travel_Time"/>
+          <owl:Class rdf:about="#Maximum_Length_Allowed"/>
+          <owl:Class rdf:about="#Timetable"/>
+          <owl:Class rdf:about="#Service"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:range rdf:resource="#Validity_Period"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="#contains">
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Road"/>
+          <owl:Class rdf:about="#Intersection"/>
+          <owl:Class rdf:about="#Aggregated_Way"/>
+          <owl:Class rdf:about="#Ferry"/>
+          <owl:Class rdf:about="#Line"/>
+          <owl:Class rdf:about="#Route"/>
+          <owl:Class rdf:about="#Stop_Area"/>
+          <owl:Class rdf:about="#Route_Section"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="#is_Accessible_At">
+    <rdfs:comment>the Transfer_Point where a Feature is accessible at walking distance. It might e.g. be a Stop_Point, a Building, or even a Road_Element or a Junction, when already beeing walking, or driving with taxi.</rdfs:comment>
+    <rdfs:range rdf:resource="#Transfer_Point"/>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Land_Cover_And_Use"/>
+          <owl:Class rdf:about="#Service"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="location_Reference">
+    <rdfs:range rdf:resource="#Location_Reference"/>
+    <rdfs:comment>See Location_Reference</rdfs:comment>
+    <rdfs:domain rdf:resource="#Feature"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="minimum_Number_of_Lanes">
+    <rdfs:comment>See Minimum_Number_of_Lanes</rdfs:comment>
+    <rdfs:range rdf:resource="#Number_of_Lanes"/>
+    <rdfs:domain rdf:resource="#Road_Element"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="#bounding_Edge">
+    <rdfs:domain rdf:resource="#Face"/>
+    <rdfs:range rdf:resource="#Edge"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="maximum_Length_Allowed">
+    <rdfs:comment>See Maximum_Length_Allowed</rdfs:comment>
+    <rdfs:range rdf:resource="#Maximum_Length_Allowed"/>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Road_Element"/>
+          <owl:Class rdf:about="#Ferry_Connection"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:about="#startRoadElement">
+    <rdfs:range rdf:resource="#Road_Element"/>
+    <rdfs:domain rdf:resource="#Manoeuvre"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:ObjectProperty>
+  <owl:ObjectProperty rdf:ID="maximum_Width_Allowed">
+    <rdfs:range rdf:resource="#Maximum_Width_Allowed"/>
+    <rdfs:comment>See Maximum_Width_Allowed</rdfs:comment>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Road_Element"/>
+          <owl:Class rdf:about="#Ferry_Connection"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+  </owl:ObjectProperty>
+  <owl:DatatypeProperty rdf:ID="route_Number">
+    <rdfs:comment>The route Number is the ID-number of a particular route in a given road network as Attributed by a national, sub-national or international organization.</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:domain rdf:resource="#Road_Element"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="road_Surface_Type">
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:first>Rigid</rdf:first>
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:first>Flexible</rdf:first>
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:first>Gravel</rdf:first>
+                <rdf:rest rdf:parseType="Resource">
+                  <rdf:first>Dirt</rdf:first>
+                  <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+                </rdf:rest>
+              </rdf:rest>
+              <rdf:first>Blocks</rdf:first>
+            </rdf:rest>
+          </rdf:rest>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:comment>The type of surface a paved Road Element has.
+Concrete is a rigid surface
+Asphalt is a flexible surface
+Cobblestone is a  block surface</rdfs:comment>
+    <rdfs:domain rdf:resource="#Road_Surface"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="sand_Area_Type">
+    <rdfs:comment>The type of Beaches/Dune and Sand_Plains</rdfs:comment>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:first>Beach/Dune</rdf:first>
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+              <rdf:first>Other</rdf:first>
+            </rdf:rest>
+            <rdf:first>Desert</rdf:first>
+          </rdf:rest>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:domain rdf:resource="#Beach_Dune_And_Sand_Plain"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#divided">
+    <rdfs:domain rdf:resource="#Divider"/>
+    <rdfs:comment>An Indication of the presence of a physical or legal divider which seperates opposing lanes of traffic.</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="vehicle_Type">
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Average_Vehicle_Speed"/>
+          <owl:Class rdf:about="#Speed_Restriction"/>
+          <owl:Class rdf:about="#Direction_of_Traffic_Flow"/>
+          <owl:Class rdf:about="#Toll"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:comment>The type of vehicle for which the information is.
+Not meens every vehicle except that vehicle</rdfs:comment>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:rest rdf:parseType="Resource">
+                  <rdf:rest rdf:parseType="Resource">
+                    <rdf:rest rdf:parseType="Resource">
+                      <rdf:first>not_Transportation_Truck</rdf:first>
+                      <rdf:rest rdf:parseType="Resource">
+                        <rdf:rest rdf:parseType="Resource">
+                          <rdf:first>not_Pedestrian</rdf:first>
+                          <rdf:rest rdf:parseType="Resource">
+                            <rdf:first>Bicycle</rdf:first>
+                            <rdf:rest rdf:parseType="Resource">
+                              <rdf:rest rdf:parseType="Resource">
+                                <rdf:rest rdf:parseType="Resource">
+                                  <rdf:first>not_Motorcyle</rdf:first>
+                                  <rdf:rest rdf:parseType="Resource">
+                                    <rdf:rest rdf:parseType="Resource">
+                                      <rdf:first>not_Moped</rdf:first>
+                                      <rdf:rest rdf:parseType="Resource">
+                                        <rdf:first>Emergency_Vehicle</rdf:first>
+                                        <rdf:rest rdf:parseType="Resource">
+                                          <rdf:rest rdf:parseType="Resource">
+                                            <rdf:first>Taxi</rdf:first>
+                                            <rdf:rest rdf:parseType="Resource">
+                                              <rdf:rest rdf:parseType="Resource">
+                                                <rdf:rest rdf:parseType="Resource">
+                                                  <rdf:first>not_Public_Bus</rdf:first>
+                                                  <rdf:rest rdf:parseType="Resource">
+                                                    <rdf:first
+                                                    >Facility_Vehicle</rdf:first>
+                                                    <rdf:rest rdf:parseType="Resource">
+                                                      <rdf:first
+                                                      >not_Facility_Vehicle</rdf:first>
+                                                      <rdf:rest rdf:parseType="Resource">
+                                                        <rdf:rest rdf:parseType="Resource">
+                                                          <rdf:rest rdf:parseType="Resource">
+                                                            <rdf:first
+                                                            >Employee_vehicle</rdf:first>
+                                                            <rdf:rest rdf:parseType="Resource">
+                                                              <rdf:first
+                                                              
+                                                              >not_Employee_vehicle</rdf:first>
+                                                              <rdf:rest rdf:parseType="Resource">
+    <rdf:first>High_Occupancy_Vehicle</rdf:first>
+    <rdf:rest rdf:parseType="Resource">
+      <rdf:rest rdf:parseType="Resource">
+        <rdf:rest rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:first>Car_with_Trailer</rdf:first>
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:first>not_Car_with_Trailer</rdf:first>
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:first>Private_Bus</rdf:first>
+                <rdf:rest rdf:parseType="Resource">
+                  <rdf:rest rdf:parseType="Resource">
+                    <rdf:first>Farm_Vehicle</rdf:first>
+                    <rdf:rest rdf:parseType="Resource">
+                      <rdf:first>not_Farm_Vehicle</rdf:first>
+                      <rdf:rest rdf:parseType="Resource">
+                        <rdf:first>Vehicles_with_an_explosive_load</rdf:first>
+                        <rdf:rest rdf:parseType="Resource">
+                          <rdf:first>not_Vehicles_with_an_explosive_load</rdf:first>
+                          <rdf:rest rdf:parseType="Resource">
+                            <rdf:rest rdf:parseType="Resource">
+                              <rdf:rest rdf:parseType="Resource">
+                                <rdf:first>Vehicles_with_other_dangerous_loads</rdf:first>
+                                <rdf:rest rdf:parseType="Resource">
+                                  <rdf:rest rdf:parseType="Resource">
+                                    <rdf:first>Trolley_Bus</rdf:first>
+                                    <rdf:rest rdf:parseType="Resource">
+                                      <rdf:rest rdf:parseType="Resource">
+                                        <rdf:rest rdf:parseType="Resource">
+                                          <rdf:first>not_Light_Rail</rdf:first>
+                                          <rdf:rest rdf:parseType="Resource">
+                                            <rdf:rest rdf:parseType="Resource">
+                                              <rdf:first>not_School_Bus</rdf:first>
+                                              <rdf:rest rdf:parseType="Resource">
+                                                <rdf:rest rdf:parseType="Resource">
+                                                  <rdf:rest rdf:parseType="Resource">
+                                                    <rdf:first
+                                                    >Vehicle_carrying_snow_chains</rdf:first>
+                                                    <rdf:rest rdf:parseType="Resource">
+                                                      <rdf:rest rdf:parseType="Resource">
+                                                        <rdf:first
+                                                        >Mail_Vehicle</rdf:first>
+                                                        <rdf:rest rdf:parseType="Resource">
+                                                          <rdf:first
+                                                          >not_Mail_Vehicle</rdf:first>
+                                                          <rdf:rest rdf:parseType="Resource">
+                                                            <rdf:first
+                                                            >Tanker</rdf:first>
+                                                            <rdf:rest rdf:parseType="Resource">
+                                                              <rdf:first
+                                                              
+                                                              >not_Tanker</rdf:first>
+                                                              <rdf:rest rdf:parseType="Resource">
+    <rdf:rest rdf:parseType="Resource">
+      <rdf:first>not_Vehicle_for_disabled_persons</rdf:first>
+      <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+    </rdf:rest>
+    <rdf:first>Vehicle_for_disabled_persons</rdf:first>       </rdf:rest>
+                                                            </rdf:rest>
+                                                          </rdf:rest>
+                                                        </rdf:rest>
+                                                      </rdf:rest>
+                                                      <rdf:first
+                                                      >not_Vehicle_carrying_snow_chains</rdf:first>
+                                                    </rdf:rest>
+                                                  </rdf:rest>
+                                                  <rdf:first>not_4_Wheel_Drive_Vehicle</rdf:first>
+                                                </rdf:rest>
+                                                <rdf:first>4_Wheel_Drive_Vehicle</rdf:first>
+                                              </rdf:rest>
+                                            </rdf:rest>
+                                            <rdf:first>School_Bus</rdf:first>
+                                          </rdf:rest>
+                                        </rdf:rest>
+                                        <rdf:first>Light_Rail</rdf:first>
+                                      </rdf:rest>
+                                      <rdf:first>not_Trolley_Bus</rdf:first>
+                                    </rdf:rest>
+                                  </rdf:rest>
+                                  <rdf:first>not_Vehicles_with_other_dangerous_loads</rdf:first>
+                                </rdf:rest>
+                              </rdf:rest>
+                              <rdf:first>not_Vehicles_with_a_water-polluting_load</rdf:first>
+                            </rdf:rest>
+                            <rdf:first>Vehicles_with_a_water-polluting_load</rdf:first>
+                          </rdf:rest>
+                        </rdf:rest>
+                      </rdf:rest>
+                    </rdf:rest>
+                  </rdf:rest>
+                  <rdf:first>not_Private_Bus</rdf:first>
+                </rdf:rest>
+              </rdf:rest>
+            </rdf:rest>
+          </rdf:rest>
+          <rdf:first>not_Military_Vehicle</rdf:first>
+        </rdf:rest>
+        <rdf:first>Military_Vehicle</rdf:first>
+      </rdf:rest>
+      <rdf:first>not_High_Occupancy_Vehicle</rdf:first>
+    </rdf:rest>                                               </rdf:rest>
+                                                            </rdf:rest>
+                                                          </rdf:rest>
+                                                          <rdf:first
+                                                          >not_Residential</rdf:first>
+                                                        </rdf:rest>
+                                                        <rdf:first
+                                                        >Residential</rdf:first>
+                                                      </rdf:rest>
+                                                    </rdf:rest>
+                                                  </rdf:rest>
+                                                </rdf:rest>
+                                                <rdf:first>Public_Bus</rdf:first>
+                                              </rdf:rest>
+                                              <rdf:first>not_Taxi</rdf:first>
+                                            </rdf:rest>
+                                          </rdf:rest>
+                                          <rdf:first>not_Emergency_Vehicle</rdf:first>
+                                        </rdf:rest>
+                                      </rdf:rest>
+                                    </rdf:rest>
+                                    <rdf:first>Moped</rdf:first>
+                                  </rdf:rest>
+                                </rdf:rest>
+                                <rdf:first>Motorcyle</rdf:first>
+                              </rdf:rest>
+                              <rdf:first>not_Bicycle</rdf:first>
+                            </rdf:rest>
+                          </rdf:rest>
+                        </rdf:rest>
+                        <rdf:first>Pedestrian</rdf:first>
+                      </rdf:rest>
+                    </rdf:rest>
+                    <rdf:first>Transportation_Truck</rdf:first>
+                  </rdf:rest>
+                  <rdf:first>not_Delivery_Truck</rdf:first>
+                </rdf:rest>
+                <rdf:first>Delivery_Truck</rdf:first>
+              </rdf:rest>
+              <rdf:first>not_Passenger_Cars</rdf:first>
+            </rdf:rest>
+            <rdf:first>Passenger_Cars</rdf:first>
+          </rdf:rest>
+          <rdf:first>All_Vehicles</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="height_of_Pass">
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Mountain_Pass_Summit"/>
+          <owl:Class rdf:about="#Road_Element"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    <rdfs:comment>The maximum altitude in metres of any point along a given Road_Element, if it has been identified as a mountain pass.</rdfs:comment>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#maximum_Speed_Allowed">
+    <rdfs:domain rdf:resource="#Speed_Restriction"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+    <rdfs:comment>The maximum speed limit allocated to a Road Element (km /h)</rdfs:comment>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#location_Reference_Code">
+    <rdfs:domain rdf:resource="#Location_Reference"/>
+    <rdfs:comment>The identification of a location according to a certain location referencing system</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#type_of_Public_Transportation_Point">
+    <rdfs:domain rdf:resource="#Public_Transport_Point"/>
+    <rdfs:comment>The functional siginficance of a Public Transportation Point</rdfs:comment>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:first>Timing_Point</rdf:first>
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:first>Activation_Point</rdf:first>
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:rest rdf:parseType="Resource">
+                  <rdf:rest rdf:parseType="Resource">
+                    <rdf:rest rdf:parseType="Resource">
+                      <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+                      <rdf:first>Relief_Point</rdf:first>
+                    </rdf:rest>
+                    <rdf:first>Parking_Point</rdf:first>
+                  </rdf:rest>
+                  <rdf:first>Break_Facility</rdf:first>
+                </rdf:rest>
+                <rdf:first>Turn_Station</rdf:first>
+              </rdf:rest>
+            </rdf:rest>
+            <rdf:first>Traffic_Control_Point</rdf:first>
+          </rdf:rest>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="Snack_Served">
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+            <rdf:first>Not_Available</rdf:first>
+          </rdf:rest>
+          <rdf:first>Available</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:domain rdf:resource="#Restaurant"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#location_Reference_Type">
+    <rdfs:comment>The type of location referencing system employed for the associated Location Reference Code</rdfs:comment>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:first>TMC</rdf:first>
+                <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+              </rdf:rest>
+              <rdf:first>Other</rdf:first>
+            </rdf:rest>
+            <rdf:first>VICS</rdf:first>
+          </rdf:rest>
+          <rdf:first>RDS</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:domain rdf:resource="#Location_Reference"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="external_Identifier">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:domain rdf:resource="#Feature"/>
+    <rdfs:comment>A unique alphanumeric Identifier ascribed to a particular Feature</rdfs:comment>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#loop_Time">
+    <rdfs:comment>The time between two public transportation vehicles, moving along a route in a line.</rdfs:comment>
+    <rdfs:domain rdf:resource="#Timetable"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#duration"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="has_Emergency_Vehicle_Lane">
+    <rdfs:comment>indicates whether a Road_Element has an Emergency_Vehicle_Lane or not.</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+    <rdfs:domain rdf:resource="#Emergency_Vehicle_Lane"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="Breakfast">
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:first>Available</rdf:first>
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:first>Not_Available</rdf:first>
+            <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+          </rdf:rest>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:domain rdf:resource="#Restaurant"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="intermediate_House_Numbers">
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+    <rdfs:domain rdf:resource="#House_Number_Range"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>The main intention of Intermediate House Numbers is to add detail when the House Number Structure is irregular. It stores all the numbers of one side of the Road Element / Adress Boundry Element between the First and Last House Number</rdfs:comment>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="postal_Code">
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Road_Element"/>
+          <owl:Class rdf:about="#Adress_Area"/>
+          <owl:Class rdf:about="#Address_Area_Boundry_Element"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:comment>The official code of a postal area as defined by the national postal organisation</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#last_House_Number">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:domain rdf:resource="#House_Number_Range"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#centimetres">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Maximum_Length_Allowed"/>
+          <owl:Class rdf:about="#Maximum_Width_Allowed"/>
+          <owl:Class rdf:about="#Maximum_Height_Allowed"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="road_Gradient">
+    <rdfs:domain rdf:resource="#Road_Element"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+    <rdfs:comment>The road gradient percentage value on the Road Element.
+The gradient shall be expressed in the form of percentage incline. Negative values describe downhill gradients, positive values describe uphill gradients. 
+Only the maximum gradient value at any position along the Road Element need be stored. In case the gradient relates to the entire Road Element, only the maximum gradient value at any position along the Road Element need be stored.
+Uphill and downhill should be defined relative to the orientation of the Road Element when travelling from start to end point</rdfs:comment>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#currency">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:domain rdf:resource="#Toll"/>
+    <rdfs:comment>The national currency in which a certain payment can be made</rdfs:comment>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="free_Parking">
+    <rdfs:domain rdf:resource="#Parking"/>
+    <rdfs:comment>whether one can park free or the parking facility is charged</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="accident_Date">
+    <rdfs:comment>The date of an accident</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#dateTime"/>
+    <rdfs:domain rdf:resource="#Accident"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#paved">
+    <rdfs:domain rdf:resource="#Road_Surface"/>
+    <rdfs:comment>An indication of improvement applied to the Road Surface.
+Gravel covered roads considered to be unpaved</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="Diner">
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+            <rdf:first>Not_Available</rdf:first>
+          </rdf:rest>
+          <rdf:first>Available</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:domain rdf:resource="#Restaurant"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="way_Type">
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:first>Multiple_Carriageway_which_is_not_a_motorway</rdf:first>
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:rest rdf:parseType="Resource">
+                  <rdf:first>Traffic_Square</rdf:first>
+                  <rdf:rest rdf:parseType="Resource">
+                    <rdf:first>Enclodes_Traffic_Area</rdf:first>
+                    <rdf:rest rdf:parseType="Resource">
+                      <rdf:first>Slip_Road</rdf:first>
+                      <rdf:rest rdf:parseType="Resource">
+                        <rdf:first>Service_Road</rdf:first>
+                        <rdf:rest rdf:parseType="Resource">
+                          <rdf:first>Entrance_or_exit_to_a_car_park</rdf:first>
+                          <rdf:rest rdf:parseType="Resource">
+                            <rdf:rest rdf:parseType="Resource">
+                              <rdf:first>Pedestrian_Zone</rdf:first>
+                              <rdf:rest rdf:parseType="Resource">
+                                <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+                                <rdf:first>Walkway_not_passable_for_Vehicles</rdf:first>
+                              </rdf:rest>
+                            </rdf:rest>
+                            <rdf:first>Entrance_or_exit_to_Service</rdf:first>
+                          </rdf:rest>
+                        </rdf:rest>
+                      </rdf:rest>
+                    </rdf:rest>
+                  </rdf:rest>
+                </rdf:rest>
+                <rdf:first>Roundabout_Circle</rdf:first>
+              </rdf:rest>
+              <rdf:first>Single_Carriageway</rdf:first>
+            </rdf:rest>
+          </rdf:rest>
+          <rdf:first>Motorway</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:domain rdf:resource="#Form_Of_Way"/>
+    <rdfs:comment>See Form_Of_Way</rdfs:comment>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#lanes">
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+    <rdfs:domain rdf:resource="#Number_of_Lanes"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    <rdfs:comment>number of lanes</rdfs:comment>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#traffic_flow_Direction">
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:first>Both_Directions</rdf:first>
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:first>Negative_Direction</rdf:first>
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+                <rdf:first>No_Direction</rdf:first>
+              </rdf:rest>
+            </rdf:rest>
+            <rdf:first>Positive_Direction</rdf:first>
+          </rdf:rest>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:domain rdf:resource="#Direction_of_Traffic_Flow"/>
+    <rdfs:comment>See direction_of_Traffic_Flow</rdfs:comment>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#official_Name">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Road_Element"/>
+          <owl:Class rdf:about="#Road"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:comment>The name assigned to any particular Feature by the official organisation responsible for the existence and the maintance of the Feature</rdfs:comment>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#alternate_Name">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>The name of a Feature that has no official status but is used or known by the general public</rdfs:comment>
+    <rdfs:domain rdf:resource="#Feature"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#time_duration">
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Validity_Period"/>
+          <owl:Class rdf:about="#Travel_Time"/>
+          <owl:Class rdf:about="#Meteorology"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#x">
+    <rdfs:domain rdf:resource="#Node"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#public_Transport_Mode">
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Line"/>
+          <owl:Class rdf:about="#Route_Link"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:first rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+              >Underground</rdf:first>
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:first rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+                >Rail</rdf:first>
+                <rdf:rest rdf:parseType="Resource">
+                  <rdf:first rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+                  >Airplane</rdf:first>
+                  <rdf:rest rdf:parseType="Resource">
+                    <rdf:first rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+                    >Urban_Rail</rdf:first>
+                    <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+                  </rdf:rest>
+                </rdf:rest>
+              </rdf:rest>
+            </rdf:rest>
+            <rdf:first rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+            >Light_Rail</rdf:first>
+          </rdf:rest>
+          <rdf:first rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+          >Bus</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:comment>The type of public transport that is travelling along the line.</rdfs:comment>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="lane_Dependant_Validity">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Average_Vehicle_Speed"/>
+          <owl:Class rdf:about="#Blocked_Passage"/>
+          <owl:Class rdf:about="#Construction_Status"/>
+          <owl:Class rdf:about="#Emergency_Vehicle_Lane"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdfs:comment>For which of the lanes of an associated Road_Element the attribute holds or does not hold.
+A string with a length which at maximum equals the number of lanes present on the associated Road Element + 1, wherby the character on the (n+1)th position refers to the nth lane. 
+
+The allowed characters on the first position of the string are:
+L: Indicating that the lanes are counted from the left side of the Road Element
+R: Indicating that the lanes are counted from the right side of the Road Element
+
+The allowed characters on the nth (n>1) position of the string are:
+0: Indicating that the associated attribute is not valid for this lane
+1: Indicating that the associated attribute is valid for this lane
+
+The left and right side of the Road Element are defined by considering the orientation of the Road Element as defined by start and end bounding point Feature.
+The number of characters does not necessarily have to equal the number of lanes of the associated Road Element +1. In this case th npt represented lanes should be considered as not collected.</rdfs:comment>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="divider_Width">
+    <rdfs:comment>The width of the divider along the Road_Element expressed in meters</rdfs:comment>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+    <rdfs:domain rdf:resource="#Divider"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="junction_Type">
+    <rdfs:comment>The classification of a Junction</rdfs:comment>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:first>Border_Crossing</rdf:first>
+              <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+            </rdf:rest>
+            <rdf:first>Railway_Crossing</rdf:first>
+          </rdf:rest>
+          <rdf:first>Mini-Roundabout</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+    <rdfs:domain rdf:resource="#Junction"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#first_House_Number">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:domain rdf:resource="#House_Number_Range"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#starting_Date">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Meteorology"/>
+          <owl:Class rdf:about="#Validity_Period"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="parking_Facilities_Available">
+    <rdfs:domain rdf:resource="#Parking"/>
+    <rdfs:comment>The number of parking places available.</rdfs:comment>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#positiveInteger"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#intermediate_coordinates">
+    <rdfs:comment>a space seperated list of coordinates relative to the start-node, e.g. 12,23 45,23</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:domain rdf:resource="#Edge"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:about="#blocked_Passage_Type">
+    <rdfs:comment>The type of a blocked passage as an indication of the fact whether it is removable</rdfs:comment>
+    <rdfs:domain rdf:resource="#Blocked_Passage"/>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:first>removable</rdf:first>
+            <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+          </rdf:rest>
+          <rdf:first>permanently_fixed</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="accepted_Credit_Cards">
+    <rdfs:domain rdf:resource="#Service"/>
+    <rdfs:comment>A list of recogniced credit cards accepted by the service</rdfs:comment>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:first>Maestro</rdf:first>
+              <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+            </rdf:rest>
+            <rdf:first>Mastercard</rdf:first>
+          </rdf:rest>
+          <rdf:first>VISA</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="number_of_Rooms">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    <rdfs:domain rdf:resource="#Hotel_Or_Motel"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="road_Surface_Condition">
+    <rdfs:domain rdf:resource="#Road_Surface"/>
+    <rdfs:comment>An indication of the quality for transportation purposes of the surface of a Road Element.
+What is considered good and what pure shall be defined from the viewpoint of a car transportation.</rdfs:comment>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:first>Pure</rdf:first>
+            <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+          </rdf:rest>
+          <rdf:first>Good</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="z">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+    <rdfs:domain rdf:resource="#Node"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="external_Link">
+    <rdfs:comment>A link to an external ressource containing further informations</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#anyURI"/>
+    <rdfs:domain rdf:resource="#Feature"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:DatatypeProperty rdf:ID="park_And_Ride">
+    <rdfs:comment>whether the parking facility is provided with Park and Ride facility</rdfs:comment>
+    <rdfs:domain rdf:resource="#Parking"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
+  </owl:DatatypeProperty>
+  <owl:FunctionalProperty rdf:about="#traffic_Jam_Probability">
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:domain rdf:resource="#Traffic_Jam_Sensitivity"/>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:first>Very_High</rdf:first>
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:first>No</rdf:first>
+                <rdf:rest rdf:parseType="Resource">
+                  <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+                  <rdf:first>Medium</rdf:first>
+                </rdf:rest>
+              </rdf:rest>
+              <rdf:first>Low</rdf:first>
+            </rdf:rest>
+            <rdf:first>High</rdf:first>
+          </rdf:rest>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="Business_Lunch">
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:first>Not_Available</rdf:first>
+            <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+          </rdf:rest>
+          <rdf:first>Available</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:domain rdf:resource="#Restaurant"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="suitable_for_disabled">
+    <rdfs:domain rdf:resource="#Service"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#construction_stage">
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:first>Under_Construction-Open</rdf:first>
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+              <rdf:first>Planned</rdf:first>
+            </rdf:rest>
+            <rdf:first>Under-Construction-Closed</rdf:first>
+          </rdf:rest>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:domain rdf:resource="#Construction_Status"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:comment>see Construction_Status</rdfs:comment>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#public_Accessible">
+    <rdfs:domain rdf:resource="#Special_Restriction"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="road_Surface">
+    <rdfs:domain rdf:resource="#Road_Element"/>
+    <rdfs:comment>see Road_Surface</rdfs:comment>
+    <rdfs:range rdf:resource="#Road_Surface"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#ObjectProperty"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#length">
+    <rdfs:comment>Length expressed in metres</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#Road_Element"/>
+          <owl:Class rdf:about="#Ferry_Connection"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#travel_Time">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#duration"/>
+    <rdfs:domain rdf:resource="#Timetable"/>
+    <rdfs:comment>The one-way travel time that a vehicle takes traveling to the next stop point on the route.</rdfs:comment>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#street_Side">
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+            <rdf:first>Right</rdf:first>
+          </rdf:rest>
+          <rdf:first>Left</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:comment>the side of a line Feature for which an Attribute applies</rdfs:comment>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:domain>
+      <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+          <owl:Class rdf:about="#House_Number_Range"/>
+          <owl:Class rdf:about="#Number_of_Lanes"/>
+        </owl:unionOf>
+      </owl:Class>
+    </rdfs:domain>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="enclosed_Traffic_Area_Type">
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:comment>The type of the enclosed Traffic Area</rdfs:comment>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:first>Parking_Place</rdf:first>
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:first>Unstructured_Traffic_Square</rdf:first>
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+                <rdf:first>Another_Type</rdf:first>
+              </rdf:rest>
+            </rdf:rest>
+            <rdf:first>Parking_Building</rdf:first>
+          </rdf:rest>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:domain rdf:resource="#Enclosed_Traffic_Area"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="weight">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    <rdfs:domain rdf:resource="#Maximum_Total_Weight_Allowed"/>
+    <rdfs:comment>Weight in tenths of a metric ton</rdfs:comment>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="accident_Id">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:comment>A unique alphanumeric identifier, ascribing to an Accident</rdfs:comment>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:domain rdf:resource="#Accident"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="specific_color">
+    <rdfs:domain rdf:resource="#Line"/>
+    <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string"
+    >The specific color for this featrue which is displayed on a map.</rdfs:comment>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#blocked_Passage_Location">
+    <rdfs:domain rdf:resource="#Blocked_Passage"/>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:first>between_Start_and_End_Junction</rdf:first>
+              <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+            </rdf:rest>
+            <rdf:first>at_End_Junction</rdf:first>
+          </rdf:rest>
+          <rdf:first>at_Start_Junction</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:comment>Indication of a phyisical obstruction on a Road Element.</rdfs:comment>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="houseNumber">
+    <rdfs:comment>any number or number range that specifies the house number(s) associated to a Service.
+Any combination of numbers, letters or punctation which forms a valid house number within an address, e.g. 12, 39B, 2300-2360</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:domain rdf:resource="#Service"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="carDealerType">
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:first>Repair_Facility</rdf:first>
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+              <rdf:first>Sales_And_Repair_Facility</rdf:first>
+            </rdf:rest>
+          </rdf:rest>
+          <rdf:first>Sales_Facility</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:domain rdf:resource="#Car_Dealership"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#building_Class_Name">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+    <rdfs:domain rdf:resource="#Building"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:comment>The functional or architectural description of the Building, e.g. Church or Tower.</rdfs:comment>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#endRoadElement">
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#ObjectProperty"/>
+    <rdfs:range rdf:resource="#Road_Element"/>
+    <rdfs:domain rdf:resource="#Manoeuvre"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="is_Military">
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#boolean"/>
+    <rdfs:domain rdf:resource="#Airport"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="divider_Type">
+    <rdfs:domain rdf:resource="#Divider"/>
+    <rdfs:comment>Classification of the divider along the Road Element.
+
+Tram tracks which divide opposing lanes of traffic and which have no curbs should be classified as "Physical_divider;Crossable"
+
+A solid painted line dividing opposing lanes of traffic should be classified as "Legal Divider"
+
+The divider dividing the carriageways of a Motorway should be classified as "Physical_divider;Not_Crossable"</rdfs:comment>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:first>Legal_Divider</rdf:first>
+              <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+            </rdf:rest>
+            <rdf:first>Physical_divider;Crossable</rdf:first>
+          </rdf:rest>
+          <rdf:first>Physical_divider;Not_Crossable</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#park_Type">
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:first>Regional_Park</rdf:first>
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:first>Country_Park</rdf:first>
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:rest rdf:parseType="Resource">
+                  <rdf:rest rdf:parseType="Resource">
+                    <rdf:first>Cemetry</rdf:first>
+                    <rdf:rest rdf:parseType="Resource">
+                      <rdf:first>Other</rdf:first>
+                      <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+                    </rdf:rest>
+                  </rdf:rest>
+                  <rdf:first>National_Park</rdf:first>
+                </rdf:rest>
+                <rdf:first>State/Provincial_Park</rdf:first>
+              </rdf:rest>
+            </rdf:rest>
+          </rdf:rest>
+          <rdf:first>City_Park</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdfs:domain rdf:resource="#Green_Urban_Area"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:comment>An indication of the type of a Park</rdfs:comment>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="speed">
+    <rdfs:domain rdf:resource="#Average_Vehicle_Speed"/>
+    <rdfs:comment>speed in (km/h)</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#y">
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+    <rdfs:domain rdf:resource="#Node"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#toll_Charge">
+    <rdfs:domain rdf:resource="#Toll"/>
+    <rdfs:comment>Fee to be paid to travel on (section of) a toll road</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="movedRoadElement">
+    <rdfs:domain rdf:resource="#Manoeuvre"/>
+    <rdfs:range rdf:resource="#Road_Element"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#ObjectProperty"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="waiting_Time">
+    <rdfs:domain rdf:resource="#Timetable"/>
+    <rdfs:comment>The average waiting time at this stop_point.</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#duration"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="degree">
+    <rdfs:comment>the temperature in degrees</rdfs:comment>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float"/>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:domain rdf:resource="#Temperature"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#house_Number_Structure">
+    <rdfs:domain rdf:resource="#House_Number_Range"/>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:first>Regular_with_odd_numbers</rdf:first>
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:first>Regular_with_even_numbers</rdf:first>
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:rest rdf:parseType="Resource">
+                  <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+                  <rdf:first>Irregular</rdf:first>
+                </rdf:rest>
+                <rdf:first>Regular_with_odd_and_even_numbers</rdf:first>
+              </rdf:rest>
+            </rdf:rest>
+          </rdf:rest>
+          <rdf:first>No_House_Numbers</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:comment>The type of house numbering method that is applied to one side of a particular Road Element or to a particular Adress Boundry Element</rdfs:comment>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="ferry_Type">
+    <rdfs:domain rdf:resource="#Ferry_Connection"/>
+    <rdfs:comment>The subclass of, or the type of a Ferry Connection</rdfs:comment>
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:first>Train</rdf:first>
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:first>Hovercraft</rdf:first>
+              <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+            </rdf:rest>
+          </rdf:rest>
+          <rdf:first>Ship</rdf:first>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:about="#width">
+    <rdfs:comment>The width of a Feature expressed in centimetres</rdfs:comment>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#int"/>
+    <rdfs:domain rdf:resource="#Road_Element"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="first_Stop_Point">
+    <rdfs:domain rdf:resource="#Route"/>
+    <rdfs:range rdf:resource="#Stop_Point"/>
+    <rdfs:comment>Indication of the Stop_Point the Route starts at. It is necessary to follow the path of the route in OWL</rdfs:comment>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#ObjectProperty"/>
+  </owl:FunctionalProperty>
+  <owl:FunctionalProperty rdf:ID="wetherType">
+    <rdfs:range>
+      <owl:DataRange>
+        <owl:oneOf rdf:parseType="Resource">
+          <rdf:first>snow</rdf:first>
+          <rdf:rest rdf:parseType="Resource">
+            <rdf:rest rdf:parseType="Resource">
+              <rdf:rest rdf:parseType="Resource">
+                <rdf:rest rdf:parseType="Resource">
+                  <rdf:rest rdf:parseType="Resource">
+                    <rdf:first>shiver</rdf:first>
+                    <rdf:rest rdf:parseType="Resource">
+                      <rdf:first>storm</rdf:first>
+                      <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+                    </rdf:rest>
+                  </rdf:rest>
+                  <rdf:first>rain</rdf:first>
+                </rdf:rest>
+                <rdf:first>dew</rdf:first>
+              </rdf:rest>
+              <rdf:first>hail</rdf:first>
+            </rdf:rest>
+            <rdf:first>sleet</rdf:first>
+          </rdf:rest>
+        </owl:oneOf>
+      </owl:DataRange>
+    </rdfs:range>
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#DatatypeProperty"/>
+    <rdfs:domain rdf:resource="#Weather"/>
+  </owl:FunctionalProperty>
+</rdf:RDF>
+
+<!-- Created with Protege (with OWL Plugin 1.2, Build 161)  http://protege.stanford.edu -->
