@@ -23,9 +23,13 @@
 	"Services_Categories_R": "Services Categories",
 	"Select_All_R": "De/Select All",
 	"Num_Results_dx_R": "N. results",
+        "Filter_Results_dx_R": "Filter",
+        "Filter_Results_dx_T": "Filter",
 	"Search_Range_R": "Search Range",
+	"Search_Area_R": "Search Area",
 	"Num_Results_dx_T": "N. results for each",
 	"Search_Range_T": "Search Range",
+	"Search_Area_T": "Search Area",
 	"Services_Categories_T": "Services Categories",
 	"Select_All_T": "De/Select All",
 	"Search_Results": "Search Results",
@@ -47,5 +51,13 @@
 	"park_open": "Parking Open",
 	"parking_data": "Occupation data of the parking",
 	"show_on_map": "Show on map",
-	"remove_from_map": "Remove from map"
+	"remove_from_map": "Remove from map",
+        "timetable_showing": "Showing page",
+        "timetable_display": "Display ",
+        "timetable_records": " Bus per page",
+        "timetable_of": "of",
+        "timetable_search": "Search",
+        "timetable_time": "Time",
+        "timetable_line": "Line",
+        "timetable_direction": "Direction"
 }

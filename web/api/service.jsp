@@ -34,15 +34,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-  Repository repo = new SPARQLRepository(sparqlEndpoint);
-  repo.initialize();
-  RepositoryConnection con = repo.getConnection();
+  RepositoryConnection con = ServiceMap.getSparqlConnection();
   String idService = "";
   idService = request.getParameter("serviceUri");
-  String ip = request.getRemoteAddr();
+  String ip = ServiceMap.getClientIpAddress(request);
   String ua = request.getHeader("User-Agent");
-
-  logAccess(ip, null, ua, null, null, idService, "ui-service-info", null, null, null, null, null, null);
+  //System.out.println("MIC-----------------  "+idService);
+  logAccess(ip, null, ua, null, null, idService, "ui-service-info", null, null, null, null, null, null, null);
 
   String queryString = "";
   String filtroQuery = "";
@@ -51,7 +49,73 @@
 
   List<String> types = ServiceMap.getTypes(con, idService);
   try {
-    if (types.contains("BusStop")) {
+    if ((types.contains("BusStop") || types.contains("Tram_stops") || types.contains("Train_station") || types.contains("Ferry_stop")) && !types.contains("DigitalLocation")) {
+      String nomeFermata = "";
+      String queryStringBusStop = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
+              + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
+              + "PREFIX schema:<http://schema.org/#>\n"
+              + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
+              + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
+              + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+              + "PREFIX omgeo:<http://www.ontotext.com/owlim/geo#>\n"
+              + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
+              + "SELECT distinct ?nomeFermata ?bslat ?bslong ?agname WHERE {\n"
+              + "	<" + idService + "> \n"
+              + "	 foaf:name ?nomeFermata;\n"
+              + "	 geo:lat ?bslat;\n"
+              + "	 geo:long ?bslong.\n"
+              + "  {?st gtfs:stop <"+idService+">.}UNION{?st gtfs:stop [owl:sameAs <"+idService+">]}" 
+              + "  ?st gtfs:trip ?t."
+              +"   ?t gtfs:route/gtfs:agency ?ag."
+              +"   ?ag foaf:name ?agname."
+              + "}LIMIT 1";
+      //System.out.println("MIC service.jsp -----------------  "+queryStringBusStop);
+
+      TupleQuery tupleQueryBusStop = con.prepareTupleQuery(QueryLanguage.SPARQL, queryStringBusStop);
+      TupleQueryResult busStopResult = tupleQueryBusStop.evaluate();
+      out.println("{ "
+              + "\"type\": \"FeatureCollection\", "
+              + "\"features\": [ ");
+      try {
+        i = 0;
+        while (busStopResult.hasNext()) {
+          BindingSet bindingSetBusStop = busStopResult.next();
+          String valueOfBSLat = bindingSetBusStop.getValue("bslat").stringValue();
+          String valueOfBSLong = bindingSetBusStop.getValue("bslong").stringValue();
+          nomeFermata = bindingSetBusStop.getValue("nomeFermata").stringValue();
+          String agency = bindingSetBusStop.getValue("agname").stringValue();
+          if (i != 0) {
+            out.println(", ");
+          }
+          float[] avgServiceStars = ServiceMap.getAvgServiceStars(idService);
+          out.println("{\n"
+                  + " \"geometry\": {\n"
+                  + "     \"type\": \"Point\",\n"
+                  + "    \"coordinates\": [" + valueOfBSLong + ","+ valueOfBSLat + "]\n"
+                  + "},\n"
+                  + "\"type\": \"Feature\",\n"
+                  + "\"properties\": {\n"
+                  + "    \"popupContent\": \"" + nomeFermata + " - fermata\",\n"
+                  + "    \"name\": \"" + nomeFermata + "\",\n"
+                  + "    \"agency\": \"" + agency + "\",\n"
+                  + "    \"serviceUri\": \"" + idService + "\",\n"
+                  + "    \"tipo\": \"fermata\",\n"
+                  + "    \"serviceType\": \"TransferServiceAndRenting_BusStop\",\n"
+                  + "    \"photos\": "+ServiceMap.getServicePhotos(idService) + ",\n"
+                  + "    \"avgStars\": "+avgServiceStars[0] + ",\n"
+                  + "    \"starsCount\": "+(int)avgServiceStars[1] + ",\n"
+                  + "    \"comments\": "+ServiceMap.getServiceComments(idService)
+                  + "},\n"
+                  + "\"id\": " + Integer.toString(i + 1) + "\n"
+                  + "}\n");
+          i++;
+        }
+      } catch (Exception e) {
+        out.println(e.getMessage());
+      }
+      out.println("] "
+              + "}");
+    } /*else if (types.contains("Tram_stops")) {
       String nomeFermata = "";
       String queryStringBusStop = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
               + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
@@ -62,7 +126,7 @@
               + "PREFIX omgeo:<http://www.ontotext.com/owlim/geo#>\n"
               + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
               + "SELECT distinct ?nomeFermata ?bslat ?bslong WHERE {\n"
-              + "	<" + idService + "> rdf:type km4c:BusStop;\n"
+              + "	<" + idService + "> rdf:type km4c:Tram_stops;\n"
               + "	 foaf:name ?nomeFermata;\n"
               + "	 geo:lat ?bslat;\n"
               + "	 geo:long ?bslong.\n"
@@ -83,25 +147,26 @@
           if (i != 0) {
             out.println(", ");
           }
-          out.println("{ "
-                  + " \"geometry\": {  "
-                  + "     \"type\": \"Point\",  "
-                  + "    \"coordinates\": [  "
-                  + "      " + valueOfBSLong + ",  "
-                  + "      " + valueOfBSLat + "  "
-                  + " ]  "
-                  + "},  "
-                  + "\"type\": \"Feature\",  "
-                  + "\"properties\": {  "
-                  // + "    \"popupContent\": \"" + nomeFermata + "\", "
-                  + "    \"popupContent\": \"" + nomeFermata + " - fermata\", "
-                  + "    \"nome\": \"" + nomeFermata + "\", "
-                  + "    \"serviceUri\": \"" + idService + "\", "
-                  + "    \"tipo\": \"fermata\", "
-                  + "    \"serviceType\": \"TransferServiceAndRenting_BusStop\" "
-                  + "}, "
-                  + "\"id\": " + Integer.toString(i + 1) + " "
-                  + "}");
+          float[] avgServiceStars = ServiceMap.getAvgServiceStars(idService);
+          out.println("{\n"
+                  + " \"geometry\": {\n"
+                  + "     \"type\": \"Point\",\n"
+                  + "    \"coordinates\": [" + valueOfBSLong + ","+ valueOfBSLat + "]\n"
+                  + "},\n"
+                  + "\"type\": \"Feature\",\n"
+                  + "\"properties\": {\n"
+                  + "    \"popupContent\": \"" + nomeFermata + " - fermata\",\n"
+                  + "    \"name\": \"" + nomeFermata + "\",\n"
+                  + "    \"serviceUri\": \"" + idService + "\",\n"
+                  + "    \"tipo\": \"fermata\",\n"
+                  + "    \"serviceType\": \"TransferServiceAndRenting_BusStop\",\n"
+                  + "    \"photos\": "+ServiceMap.getServicePhotos(idService) + ",\n"
+                  + "    \"avgStars\": "+avgServiceStars[0] + ",\n"
+                  + "    \"starsCount\": "+(int)avgServiceStars[1] + ",\n"
+                  + "    \"comments\": "+ServiceMap.getServiceComments(idService)
+                  + "},\n"
+                  + "\"id\": " + Integer.toString(i + 1) + "\n"
+                  + "}\n");
           i++;
         }
       } catch (Exception e) {
@@ -109,7 +174,7 @@
       }
       out.println("] "
               + "}");
-    } else if (types.contains("SensorSite")) {
+    }*/ else if (types.contains("SensorSite")) {
       out.println("{ "
               + "\"type\": \"FeatureCollection\", "
               + "\"features\": [ ");
@@ -147,6 +212,7 @@
           out.println(", ");
         }
 
+        float[] avgServiceStars = ServiceMap.getAvgServiceStars(idService);
         out.println("{ "
                 + " \"geometry\": {  "
                 + "     \"type\": \"Point\",  "
@@ -158,12 +224,16 @@
                 + "\"type\": \"Feature\",  "
                 + "\"properties\": {  "
                 + "    \"popupContent\": \"" + valueOfId + " - sensore\", "
-                + "    \"nome\": \"" + valueOfId + "\", "
+                + "    \"name\": \"" + valueOfId + "\", "
                 + "    \"tipo\": \"sensore\", "
                 + "    \"tipologia\": \"TransferServiceAndRenting - SensorSite\", "
                 + "    \"serviceUri\": \"" + idService + "\", "
                 + "    \"indirizzo\": \"" + valueOfAddress + "\", "
-                + "    \"serviceType\": \"TransferServiceAndRenting_SensorSite\" "
+                + "    \"serviceType\": \"TransferServiceAndRenting_SensorSite\",\n"
+                + "    \"photos\": "+ServiceMap.getServicePhotos(idService) + ",\n"
+                + "    \"avgStars\": "+avgServiceStars[0] + ",\n"
+                + "    \"starsCount\": "+(int)avgServiceStars[1] + ",\n"
+                + "    \"comments\": "+ServiceMap.getServiceComments(idService)
                 + "},  "
                 + "\"id\": " + Integer.toString(i + 1) + "  "
                 //  + "\"query\": " + queryString + " "
@@ -205,6 +275,7 @@
         out.println(e.getMessage());
       }
     } else if (types.contains("Service") || types.contains("RegularService") || types.contains("TransverseService")) {
+       
       String queryStringService = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
               + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
               + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
@@ -263,8 +334,7 @@
               // ---- FINE CAMPI AGGIUNTI ---
               + "}LIMIT 1";
       
-      
-      System.out.println(queryStringService);
+      //System.out.println("MICHELA-----------------  "+queryStringService);
       //PROVA QUERY DBPEDIA
       String queryDBpedia = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
               + "PREFIX cito:<http://purl.org/spar/cito/>\n"
@@ -273,7 +343,7 @@
               + "?road cito:cites ?linkDBpedia.}\n"
               + "}";
       
-
+      //System.out.println(queryDBpedia);
       out.println("{ "
               + "\"type\": \"FeatureCollection\", "
               + "\"features\": [ ");
@@ -443,40 +513,43 @@
           out.println(", ");
         }
 
+        float[] avgServiceStars = ServiceMap.getAvgServiceStars(idService);
         out.println("{ "
-                + " \"geometry\": {  "
+                + " \"geometry\": {\n"
                 + "     \"type\": \"Point\""
                 + (!"".equals(valueOfELat) && !"".equals(valueOfELong)
-                        ? ",\"coordinates\": [" + valueOfELong + "," + valueOfELat + "]"
+                        ? ",\"coordinates\": [" + valueOfELong + "," + valueOfELat + "]\n"
                         : "")
-                + "},"
-                + "\"type\": \"Feature\","
-                + "\"properties\": {"
-                + "    \"popupContent\": \"" + escapeJSON(valueOfSName) + " - " + escapeJSON(valueOfSType) + "\", "
-                + "    \"nome\": \"" + escapeJSON(valueOfSName) + "\", "
-                + "    \"tipo\": \"" + escapeJSON(valueOfSTypeIta) + "\", "
-                + "    \"tipologia\": \"" + category + " - " + subCategory + "\", "
-                // *** INSERIMENTO serviceType
-                + "    \"serviceType\": \"" + escapeJSON(serviceType) + "\", "
-                + "    \"cordList\": \"" + escapeJSON(valueOfCordList) + "\", "
-                + "    \"phone\": \"" + valueOfPhone + "\", "
-                + "    \"fax\": \"" + valueOfFax + "\", "
-                + "    \"website\": \"" + valueOfUrl + "\", "
-                + "    \"province\": \"" + valueOfProv + "\", "
-                + "    \"city\": \"" + valueOfCity + "\", "
-                + "    \"cap\": \"" + valueOfCap + "\", "
-                + "    \"digitalLocation\": \"" + valueOfDL + "\", "
-                + "    \"linkserUri\": \"" + escapeJSON(valueOfLSUri) + "\", "
-                + "    \"linkedService\": \"" + escapeJSON(valueOfLSName) + "\", "
-                //*******************************************************
-                + "    \"email\": \"" + escapeJSON(valueOfEmail) + "\", "
-                + "    \"linkDBpedia\": " + valueOfDBpedia + ", "
-                + "    \"note\": \"" + escapeJSON(valueOfNote) + "\", "
-                + "    \"description\": \"" + escapeJSON(valueOfDescriptionIta) + "\", "
-                + "    \"multimedia\": \"" + escapeJSON(valueOfMultimediaResource) + "\", "
-                + "    \"serviceUri\": \"" + idService + "\", "
-                + "    \"indirizzo\": \"" + escapeJSON(valueOfSerAddress) + "\", \"numero\": \"" + escapeJSON(valueOfSerNumber) + "\" "
-                + "}, "
+                + "},\n"
+                + "\"type\": \"Feature\",\n"
+                + "\"properties\": {\n"
+                + "    \"popupContent\": \"" + escapeJSON(valueOfSName) + " - " + escapeJSON(valueOfSType) + "\",\n"
+                + "    \"name\": \"" + escapeJSON(valueOfSName) + "\",\n"
+                + "    \"tipo\": \"" + escapeJSON(valueOfSTypeIta) + "\",\n"
+                + "    \"tipologia\": \"" + category + " - " + subCategory + "\",\n"
+                + "    \"serviceType\": \"" + escapeJSON(serviceType) + "\",\n"
+                + "    \"cordList\": \"" + escapeJSON(valueOfCordList) + "\",\n"
+                + "    \"phone\": \"" + valueOfPhone + "\",\n"
+                + "    \"fax\": \"" + valueOfFax + "\",\n"
+                + "    \"website\": \"" + valueOfUrl + "\",\n"
+                + "    \"province\": \"" + valueOfProv + "\",\n"
+                + "    \"city\": \"" + valueOfCity + "\",\n"
+                + "    \"cap\": \"" + valueOfCap + "\",\n"
+                + "    \"digitalLocation\": \"" + valueOfDL + "\",\n"
+                + "    \"linkserUri\": \"" + escapeJSON(valueOfLSUri) + "\",\n"
+                + "    \"linkedService\": \"" + escapeJSON(valueOfLSName) + "\",\n"
+                + "    \"email\": \"" + escapeJSON(valueOfEmail) + "\",\n"
+                + "    \"linkDBpedia\": " + valueOfDBpedia + ",\n"
+                + "    \"note\": \"" + escapeJSON(valueOfNote) + "\",\n"
+                + "    \"description\": \"" + escapeJSON(valueOfDescriptionIta) + "\",\n"
+                + "    \"multimedia\": \"" + escapeJSON(valueOfMultimediaResource) + "\",\n"
+                + "    \"serviceUri\": \"" + idService + "\",\n"
+                + "    \"indirizzo\": \"" + escapeJSON(valueOfSerAddress) + "\", \"numero\": \"" + escapeJSON(valueOfSerNumber) + "\",\n"
+                + "    \"photos\": "+ServiceMap.getServicePhotos(idService) + ",\n"
+                + "    \"avgStars\": "+avgServiceStars[0] + ",\n"
+                + "    \"starsCount\": "+(int)avgServiceStars[1] + ",\n"
+                + "    \"comments\": "+ServiceMap.getServiceComments(idService)
+                + "},\n"
                 + "\"id\": " + Integer.toString(i + 1) + "  "
                 // + "\"query\": \"" + queryString + "\" "
                 + "}");
@@ -535,8 +608,8 @@
       TupleQueryResult resultDBpedia = tupleQueryDBpedia.evaluate();
       logQuery(filterQuery(queryDBpedia), "get-link-DBpedia", "any", idService, System.nanoTime() - start2);
       String valueOfDBpedia = "[";
-
-      // out.println(queryString);
+      
+      out.println(tupleQueryService);
       while (resultService.hasNext()) {
         BindingSet bindingSetService = resultService.next();
         
@@ -576,6 +649,8 @@
         if (bindingSetService.getValue("elong") != null) {
           valueOfELong = bindingSetService.getValue("elong").stringValue();
         }
+        
+        float[] avgServiceStars = ServiceMap.getAvgServiceStars(idService);
 
         out.println("{ "
                 + " \"geometry\": {  "
@@ -587,12 +662,17 @@
                 + "\"type\": \"Feature\","
                 + "\"properties\": {"
                 + "    \"popupContent\": \"" + escapeJSON(valueOfName) + " - " + escapeJSON(valueOfTypeLabel) + "\", "
-                + "    \"nome\": \"" + escapeJSON(valueOfName) + "\", "
+                + "    \"name\": \"" + escapeJSON(valueOfName) + "\", "
+                + "    \"serviceType\": \"" + escapeJSON(valueOfTypeLabel) + "\", "
                 + "    \"tipo\": \"" + escapeJSON(valueOfTypeLabel) + "\", "
                 + "    \"tipologia\": \"" + escapeJSON(valueOfTypeLabel) + "\", "
                 + "    \"linkDBpedia\": " + valueOfDBpedia + ", "
                 //+ "    \"description\": \"" + escapeJSON(valueOfDescription) + "\", "
-                + "    \"serviceUri\": \"" + idService + "\" "
+                + "    \"serviceUri\": \"" + idService + "\",\n"
+                + "    \"photos\": "+ServiceMap.getServicePhotos(idService) + ",\n"
+                + "    \"avgStars\": "+avgServiceStars[0] + ",\n"
+                + "    \"starsCount\": "+(int)avgServiceStars[1] + ",\n"
+                + "    \"comments\": "+ServiceMap.getServiceComments(idService)
                 + "}, "
                 + "\"id\": " + Integer.toString(i + 1) + "  "
                 // + "\"query\": \"" + queryString + "\" "

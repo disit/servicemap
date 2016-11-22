@@ -20,13 +20,12 @@
     response.setContentType("application/json; charset=UTF-8");
     ServiceMapApi serviceMapApi = new ServiceMapApi();
 
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
-    repo.initialize();
-    RepositoryConnection con = repo.getConnection();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
     String position = request.getParameter("position");
     String uid = request.getParameter("uid");
-    String ip = request.getRemoteAddr();
+    String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
+    String reqFrom = request.getParameter("requestFrom");
 
     if(position == null) {
       response.sendError(HttpServletResponse.SC_BAD_REQUEST,"missing 'position' parameter");
@@ -37,7 +36,7 @@
         String lat=c[0];
         String lng=c[1];
         serviceMapApi.queryLocation(out, con, lat, lng);
-        logAccess(ip, null, ua, position, null, null, "api-location", null, null, null, null, "json", uid);
+        logAccess(ip, null, ua, position, null, null, "api-location", null, null, null, null, "json", uid, reqFrom);
       }
       else
         response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'position' parameter (missing lat;long)");

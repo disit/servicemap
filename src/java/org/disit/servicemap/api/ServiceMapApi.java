@@ -15,6 +15,18 @@
 
 package org.disit.servicemap.api;
 
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.CoordinateFilter;
+import com.vividsolutions.jts.geom.CoordinateSequenceComparator;
+import com.vividsolutions.jts.geom.CoordinateSequenceFilter;
+import com.vividsolutions.jts.geom.Envelope;
+import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.GeometryComponentFilter;
+import com.vividsolutions.jts.geom.GeometryFilter;
+import com.vividsolutions.jts.geom.LineString;
+import com.vividsolutions.jts.geom.Point;
+import com.vividsolutions.jts.geom.Polygon;
+import com.vividsolutions.jts.io.WKTReader;
 import java.io.IOException;
 import java.text.Normalizer;
 import java.util.ArrayList;
@@ -31,6 +43,7 @@ import org.disit.servicemap.ServiceMap;
 import org.disit.servicemap.ServiceMap;
 import static org.disit.servicemap.ServiceMap.escapeJSON;
 import static org.disit.servicemap.ServiceMap.logQuery;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.openrdf.query.BindingSet;
 import org.openrdf.query.MalformedQueryException;
@@ -186,9 +199,9 @@ public class ServiceMapApi {
                 if(resultLinee != null){
                 while (resultLinee.hasNext()) {
                     BindingSet bindingSetLinee = resultLinee.next();
-                    String idLinee = bindingSetLinee.getValue("id").stringValue();
-                    valueOfLinee = valueOfLinee + " - "+idLinee;
-                }
+                      String idLinee = bindingSetLinee.getValue("id").stringValue();
+                      valueOfLinee = valueOfLinee + " - "+idLinee;
+                    }
                 if(valueOfLinee.length()>3)
                   valueOfLinee = valueOfLinee.substring(3);
                 }
@@ -1355,8 +1368,9 @@ public class ServiceMapApi {
                 queryString += " LIMIT " + risultatiBus;
             }
             TupleQuery tupleQueryBusStop = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString, km4cVersion));
+            long ts = System.nanoTime();
             TupleQueryResult resultBS = tupleQueryBusStop.evaluate();
-            ServiceMap.logQuery(queryString, "API-fermate", sparqlType, nomeComune + ";" + textToSearch, 0);
+            ServiceMap.logQuery(queryString, "API-fermate", sparqlType, nomeComune + ";" + textToSearch, System.nanoTime()-ts);
 
             out.println("{\"Fermate\": ");
             out.println("{ "
@@ -1687,11 +1701,11 @@ public class ServiceMapApi {
                 TupleQueryResult resultLinee =  queryBusLines(valueOfNomeFermata, con);
                 String valueOfLinee = "";
                 if(resultLinee != null){
-                while (resultLinee.hasNext()) {
-                    BindingSet bindingSetLinee = resultLinee.next();
-                    String idLinee = bindingSetLinee.getValue("id").stringValue();
-                    valueOfLinee = valueOfLinee + " - "+idLinee;
-                }
+                  while (resultLinee.hasNext()) {
+                      BindingSet bindingSetLinee = resultLinee.next();
+                      String idLinee = bindingSetLinee.getValue("id").stringValue();
+                      valueOfLinee = valueOfLinee + " - "+idLinee;
+                  }
                 }
                 
                 if (s != 0) {
@@ -1994,24 +2008,24 @@ public class ServiceMapApi {
         TupleQuery tupleQueryForLine;
         try {
             tupleQueryForLine = con.prepareTupleQuery(QueryLanguage.SPARQL, queryForLine);
-            return tupleQueryForLine.evaluate();
-        } catch (RepositoryException ex) {
-            Logger.getLogger(ServiceMapApi.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (MalformedQueryException ex) {
-            Logger.getLogger(ServiceMapApi.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (QueryEvaluationException ex) {
+            long ts = System.nanoTime();
+            TupleQueryResult result = tupleQueryForLine.evaluate();
+            ServiceMap.logQuery(queryForLine,"API-buslines","",nameBusStop,System.nanoTime()-ts);
+            return result;
+        } catch (RepositoryException | MalformedQueryException | QueryEvaluationException ex) {
             Logger.getLogger(ServiceMapApi.class.getName()).log(Level.SEVERE, null, ex);
         }
     return null;    
     }
     
-    public JSONObject queryLocation(RepositoryConnection con, String lat, String lng) throws Exception {
+    public JSONObject queryLocation(RepositoryConnection con, String lat, String lng, String findGeometry) throws Exception {
       String sparqlType=Configuration.getInstance().get("sparqlType", "virtuoso");
       JSONObject obj = null;
       String query = ServiceMap.latLngToAddressQuery(lat, lng, sparqlType);
       TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+      long ts = System.nanoTime();
       TupleQueryResult results = tupleQuery.evaluate();
-      ServiceMap.logQuery(query,"get-address",sparqlType,lat+";"+lng,0);
+      ServiceMap.logQuery(query,"API-get-address",sparqlType,lat+";"+lng,System.nanoTime()-ts);
 
       if (results.hasNext()) {
         obj = new JSONObject();
@@ -2020,8 +2034,10 @@ public class ServiceMapApi {
         String valueOfNumero = binding.getValue("numero").stringValue();
         String valueOfComune = binding.getValue("comune").stringValue();
         String valueOfUriComune = binding.getValue("uriComune").stringValue();
+        String valueOfUriCivico = binding.getValue("uriCivico").stringValue();
         obj.put("address", valueOfVia);
         obj.put("number", valueOfNumero);
+        obj.put("addressUri", valueOfUriCivico);
         obj.put("municipality", valueOfComune);
         obj.put("municipalityUri", valueOfUriComune);
       }
@@ -2040,11 +2056,68 @@ public class ServiceMapApi {
           obj.put("municipalityUri", valueOfUriComune);
         }        
       }
+      if(obj!=null && findGeometry!=null && (findGeometry.equals("true") || findGeometry.equals("geometry"))) {
+        double wktDist = Double.parseDouble(Configuration.getInstance().get("wktDistance", "0.0004"));
+        query="select distinct ?s ?name ?class ?geo where {\n" +
+            "?s <http://www.opengis.net/ont/geosparql#hasGeometry> [geo:geometry ?geo].\n" +
+            "filter(bif:st_contains(?geo,bif:st_point("+lng+","+lat+"),0.01))\n" +
+            "?s a ?class.\n" +
+            "OPTIONAL{{?s <http://schema.org/name> ?name} UNION {?s foaf:name ?name}}.\n" +
+            "filter (?class!=km4c:RegularService && ?class!=km4c:DigitalLocation)\n" +
+            "}";
+        tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+        results = tupleQuery.evaluate();
+        ServiceMap.logQuery(query,"get-area",sparqlType,lat+";"+lng,0);
+
+        JSONArray areas=new JSONArray();
+        WKTReader wktReader=new WKTReader();
+        Geometry position=wktReader.read("POINT("+lng+" "+lat+")");
+        Geometry buffer=position.buffer(wktDist);
+        position.setSRID(4326);
+        System.out.println("location check: "+lat+","+lng);
+        while (results.hasNext()) {
+          JSONObject area = new JSONObject();
+          BindingSet binding = results.next();
+          String s = binding.getValue("s").stringValue();
+          String _class = binding.getValue("class").stringValue();
+          String name = binding.getValue("name")==null ? "" : binding.getValue("name").stringValue();
+          String geo = binding.getValue("geo").stringValue();
+          
+          try {
+            Geometry g=wktReader.read(geo);
+            g.setSRID(4326);
+            //System.out.println("dist: "+ g.distance(position));
+            if(g.intersects(buffer)) {
+              area.put("uri", s);
+              area.put("class", _class);
+              area.put("name", name);
+              if(g instanceof Polygon)
+                area.put("type", "Polygon");
+              else if(g instanceof LineString)
+                area.put("type", "LineString");
+              else if(g instanceof Point)
+                area.put("type", "Point");
+              
+              if(findGeometry.equals("geometry"))
+                area.put("geometry", geo);
+              area.put("distance", g.distance(position));
+              areas.add(area);
+              //System.out.println("INCLUDED "+name+" "+ _class+" dist:"+g.distance(position));
+            }
+            else {
+              //System.out.println("excluded "+name+" "+ _class+" dist:"+g.distance(position));
+            }
+          }catch(Exception e) {
+            e.printStackTrace();
+          }
+        }
+        obj.put("intersect", areas);
+      }
       return obj;
     }
     
-    public void queryLocation(JspWriter out, RepositoryConnection con, String lat, String lng) throws Exception {
-      JSONObject obj = queryLocation(con, lat, lng);
+    public void queryLocation(JspWriter out, RepositoryConnection con, String lat, String lng, String findArea) throws Exception {
+      JSONObject obj = queryLocation(con, lat, lng, findArea);
       if(obj!=null)
         out.print(obj.toString());
       else
@@ -2280,4 +2353,5 @@ public class ServiceMapApi {
       }
       return r;
     }
+
 }

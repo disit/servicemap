@@ -1,0 +1,72 @@
+<style>
+
+
+.timetable th {
+	background-color: #cccccc;
+	border: 1px solid #ddd;
+	text-align: center;
+	font-weight: bold;
+	color: black;
+}
+
+
+table.dataTable thead th, table.dataTable thead td {
+        padding: 0px 0px;
+}
+
+
+.timetable td {
+	border: 1px solid #ddd;
+}
+
+.timetable td.Anticipo {
+	color: green;
+}
+
+.timetable td.Ritardo {
+	color: red;
+}
+
+
+</style>
+
+            <!-- {{#timetable}}{{#results}} -->
+            <table id="{{#idtable}}{{idtable}}{{/idtable}}" class="timetable"  >
+                <colgroup>
+                    <col style="width: 90px">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th id="busStopTime" >
+                            <span name="lbl" caption="timetable_time">Time</span> 
+                        </th>
+                        <th id="busStopNumber">
+                            <span name="lbl" caption="timetable_line">Line</span> 
+                        </th>
+                        <th id="busStopDirection">
+                            <span name="lbl" caption="timetable_direction">Direction</span> 
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!--{{#bindings}} -->
+                    <tr>
+                        <td>{{departureTime.value}} {{date.value}}</td>
+                        <td onclick="showLinea( {{lineName.value}},'D' )" >{{#lineName}}{{#value}}{{value}}{{/value}}{{^value}}{{#lineDesc}}{{#value}}{{value}}{{/value}}{{/lineDesc}}{{/value}}{{/lineName}}</td>
+                        <td>{{#routeName.value}}{{routeName.value}}{{/routeName.value}}{{^routeName.value}}{{#lineDesc.value}}{{lineDesc.value}}{{/lineDesc.value}}{{/routeName.value}}</td>
+                    </tr>
+                    <!-- {{/bindings}} -->
+                </tbody>
+
+            </table>
+            <div style="text-align: center">
+                <!--
+                <button id="updateTimetableButton" type="button" class="btn {{#properties}}{{currentLanguage}} {{category}}{{/properties}}" style="font-weight: bolder;color: white;width: 47%;margin: 5px 1%;" onclick="InfoManager.showInfoAboutOneMarker('{{#properties}}{{serviceUri}}{{/properties}}',{{#geometry}}{{coordinates.1}}, {{coordinates.0}}{{/geometry}});">
+                    Aggiorna         
+                </button>
+                <button id="seeAllTimetableButton" type="button" class="btn {{#properties}}{{currentLanguage}} {{category}}{{/properties}}" style="font-weight: bolder;color: white;width: 47%;margin: 5px 1%;" onclick="InfoManager.showTimetableModal();">
+                    Vedi tutti
+                </button>
+                -->
+            </div>
+            <!-- {{/results}}{{/timetable}} -->	

@@ -24,22 +24,44 @@
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/leaflet-gps.css" type="text/css" />
         <script src='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.js'></script>
         <link href='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.css' rel='stylesheet' />
-        <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+        <!--<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>-->
+        <script src="http://code.jquery.com/jquery-1.11.2.min.js"></script>
         <script src="http://code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
-        <script src="http://code.jquery.com/ui/1.10.4/jquery-ui.js"></script>
+        <!--<script src="http://code.jquery.com/ui/1.10.4/jquery-ui.js"></script>-->
+        <script src="http://code.jquery.com/ui/1.11.2/jquery-ui.js"></script>
+        <script src="http://code.highcharts.com/highcharts.js"></script>
+        <script src="https://code.highcharts.com/highcharts-3d.js"></script>
         <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css" />	
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/leaflet.awesome-markers.css">
         <script src="${pageContext.request.contextPath}/js/leaflet.awesome-markers.min.js"></script>
+        <script src="${pageContext.request.contextPath}/js/jquery.dialogextend.js"></script>
         <script src="${pageContext.request.contextPath}/js/leaflet-gps.js"></script>
         <script src="${pageContext.request.contextPath}/js/leaflet.markercluster.js"></script>
-        <script src="${pageContext.request.contextPath}/js/mustache.js"></script>
+        <script src="${pageContext.request.contextPath}/js/mustache.js"></script> 
         <script src="${pageContext.request.contextPath}/js/mustache.min.js"></script>
+        <script src="${pageContext.request.contextPath}/js/ViewManager.js"></script>
+        <script src="${pageContext.request.contextPath}/js/jquery.dataTables.min.js"></script>
+<!--        <script src="${pageContext.request.contextPath}/js/dataTables.bootstrap.min.js"></script>-->
+        <script src="${pageContext.request.contextPath}/js/moment.min.js"></script>
+        <script src="${pageContext.request.contextPath}/js/datetime-moment.js"></script>
+        <!-- code per gallery -->
+        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/lib/jquery.mousewheel-3.0.6.pack.js"></script>
+        <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/jquery.fancybox.css" type="text/css" media="screen" />
+        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/jquery.fancybox.pack.js"></script>
+        <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-buttons.css" type="text/css" media="screen" />
+        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-buttons.js"></script>
+        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-media.js"></script>
+        <script src="${pageContext.request.contextPath}/js/wicket.js"></script>
+        <script src="${pageContext.request.contextPath}/js/wicket-leaflet.js"></script>
+
+        <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-thumbs.css" type="text/css" media="screen" />
+        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-thumbs.js"></script>
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/MarkerCluster.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/MarkerCluster.Default.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css" type="text/css" />
+        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/jquery.dataTables.min.css" type="text/css" />
     </head>
-    <body class="Chrome" onload="getBusLines();
-            changeLanguage('ENG')">
+    <body class="Chrome" onload="mostraElencoAgenzie(); changeLanguage('ENG')">
         <% if (!gaCode.isEmpty()) {%>
         <script>
             (function (i, s, o, g, r, a, m) {
@@ -101,7 +123,7 @@
             <div class="content">
                 <div id="tabs">
                     <ul>
-                        <li><a href="#tabs-1"><span name="lbl" caption="Bus_Search">Florence Bus</span></a></li>
+                        <li><a href="#tabs-1"><span name="lbl" caption="Bus_Search">Tuscan Public Transport</span></a></li>
                         <li><a href="#tabs-2"><span name="lbl" caption="Municipality_Search">Tuscan Municipalities</span></a></li>
                             <%-- <li><a href="#tabs-3">Posizione</a></li> --%>
                         <li><a href="#tabs-search"><span name="lbl" caption="Text_Search">Text Search</span></a></li>
@@ -109,22 +131,28 @@
                     </ul>
                     <div id="tabs-1">
                         <div class="use-case-1">
-                            <span name="lbl" caption="Select_Line">Select a line</span>:
+                            <span name="lbl" caption="Select_Agency">Select an agency</span>:
+                            <br/>
+                            <select id="elencoagenzie" name="elencoagenzie" onchange="mostraElencoLinee(this);"></select>
+                            <br/>
+                            <span name="lbl" caption="Select_Line">Select a Line</span>:
                             <br/>
                             <!--<select id="elencolinee" name="elencolinee" onchange="mostraElencoFermate(this);"> </select>-->
-                            <select id="elencolinee" name="elencolinee" onchange="mostraElencoPercorsi(this);"></select>
+                            <select id="elencolinee" name="elencolinee" onchange="mostraElencoPercorsi(this);">
+                                 <option value=""> - Select a Line -</option>
+                            </select>
                             <br/>
                             <span name="lbl" caption="Select_Route">Select a route</span>:
                             <br/>
                             <!--<select id="elencopercorsi" name="elencopercorsi" onchange="mostraElencoPercorsi(this);"></select>-->
                             <select id="elencopercorsi" name="elencopercorsi" onchange="mostraElencoFermate(this);">
-                                <option value=""> - Select a Bus Route -</option>
+                                <option value=""> - Select a Route -</option>
                             </select>
                             <br/>
-                            <span name="lbl" caption="Select_BusStop">Select a bus stop</span>:
+                            <span name="lbl" caption="Select_BusStop">Select a Stop</span>:
                             <br/>
                             <select id="elencofermate" name="elencofermate" onchange="mostraFermate(this);">
-                                <option value=""> - Select a Bus Stop - </option>	
+                                <option value=""> - Select a Stop - </option>	
                             </select>
                             <div id="pulsanteRT" name="autobusRealTime" onclick="mostraAutobusRT(true);"><span name="lbl" caption="Position_Bus">Position of selected Busses</span></div>
                         </div>
@@ -172,7 +200,7 @@
                                 <option value="0">No limit</option>
                             </select>
                             <div class="menu" id="serviceTextSearch">
-                                <img src="${pageContext.request.contextPath}/img/search_icon.png" alt="Search Services" width="28" onclick="searchText()" />
+                                <img src="${pageContext.request.contextPath}/img/search_icon.png" alt="Search Services" width="24" onclick="searchText()" />
                             </div>
                             <div class="menu" id="saveQuerySearch">
                                 <img src="${pageContext.request.contextPath}/img/save.png" alt="Salva la query" width="28" onclick="save_handler(null, null, null, false, 'freeText');" />
@@ -194,7 +222,14 @@
                         <legend><span name="lbl" caption="Actual_Selection">Actual Selection</span></legend>
                         <span id="selezione" >No selection</span> <br>
                         <div id="approximativeAddress"></div>
-
+                    </fieldset>
+                    <fieldset id="path" style="display:none"> 
+                        <legend><span name="lbl" caption="Path">Path</span></legend>
+                        <div id="path_start">From: ?</div>
+                        <div id="path_end">To: ?</div>
+                        <button style="margin:10px 0px;" onclick="doSearchPath()">Search Path</button>
+                        <hr>
+                        <div id="pathresult" style="max-height:400px;overflow:auto;"></div>
                     </fieldset>
                     <div id="queryBox"></div>
                 </div>
@@ -204,7 +239,7 @@
             <div id="messaggio-loading">
                 <img src="${pageContext.request.contextPath}/img/ajax-loader.gif" width="32" />
                 <h3>Loading...</h3>
-                <span name=lbl" caption="Loading_Message">Loading may take time</span>
+                <span name="lbl" caption="Loading_Message">Loading may take time</span>
             </div>
         </div>
         <div id="serviceMap_query_toggle"></div>
@@ -220,60 +255,13 @@
                     </ul>
                     <div id="tabs-4">
                         <div class="use-case-4">
-                            <input type="text" name="serviceTextFilter" id="serviceTextFilter" placeholder="search text into service" onkeypress="event.keyCode == 13 ? ricercaServizi('categorie') : false"/><br />
+                            <!-- <input type="text" name="serviceTextFilter" id="serviceTextFilter" placeholder="search text into service" onkeypress="event.keyCode == 13 ? ricercaServizi('categorie', null, null) : false"/><br /> -->
                             <span name="lbl" caption="Services_Categories_R">Services Categories</span> 
                             <br />
                             <input type="checkbox" name="macro-select-all" id="macro-select-all" value="Select All" /> <span name="lbl" caption="Select_All_R">De/Select All</span>
                             <div id="categorie">
                                 <%
-                                    /*Class.forName("com.mysql.jdbc.Driver");
-                                     conMySQL = ConnectionPool.getConnection(); //DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
-                                     System.out.println(urlMySqlDB);
-                                     //String query = "SELECT distinct SubClasse FROM SiiMobility.ServiceCategory_menu where SubClasse not like 'SubClasse' order by SubClasse";
-                                     String query = "SELECT distinct SubClasse FROM ServiceCategory_menu where Classe not like 'T_Service' AND Visible = 'YES' order by SubClasse";
-
-                                     // create the java statement
-                                     st = conMySQL.createStatement();*/
-                                    // execute the query, and get a java resultset
-                                    //rs = st.executeQuery(query);
-                                    // iterate through the java resultset
-                                    /*while (rs.next()) {
-                                     String classe = rs.getString("SubClasse");
-                                     String iniziale = classe.substring(0, 1).toLowerCase();
-                                     String classe_ico = iniziale.concat(classe.substring(1, classe.length()));
-                                     out.println("<input type='checkbox' name='" + classe + "' value='" + classe + "' class='macrocategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + classe_ico + ".png' height='23' width='20' align='top'> <span class='" + classe + " macrocategory-label'>" + classe + "</span> <span class='toggle-subcategory' title='Mostra sottocategorie'>+</span>");
-                                     out.println("<div class='subcategory-content'>");
-                                     conMySQL2 = ConnectionPool.getConnection(); //DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
-                                     String query2 = "SELECT distinct Eng FROM ServiceCategory_menu WHERE SubClasse = '" + classe + "' AND Visible = 'YES' ORDER BY Eng ASC";
-                                     // create the java statement
-                                     st2 = conMySQL2.createStatement();
-                                     // execute the query, and get a java resultset
-                                     rs2 = st2.executeQuery(query2);
-                                     // iterate through the java resultset
-                                     while (rs2.next()) {
-                                     //String sub_nome = rs2.getString("Ita");
-                                     String sub_en_name = rs2.getString("Eng");
-                                     String subclasse_ico = classe_ico + "_" + sub_en_name;
-                                     //String sub_numero = rs2.getString("NUMERO");
-                                     out.println("<input type='checkbox' name='" + sub_en_name + "' value='" + sub_en_name + "' class='sub_" + classe + " subcategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + subclasse_ico + ".png' height='19' width='16' align='top'>");
-                                     // modifica per RTZgate
-                                     if (sub_en_name.equals("rTZgate")) {
-                                     sub_en_name = "RTZgate";
-                                     }
-                                     out.println("<span class='" + classe + " subcategory-label'>" + sub_en_name + "</span>");
-                                     out.println("<br />");
-                                     }
-                                     out.println("</div>");
-                                     out.println("<br />");
-
-                                     st2.close();
-                                     conMySQL2.close();
-                                     }
-                                     st.close();
-                                     conMySQL.close();*/
-                                    //Class.forName("com.mysql.jdbc.Driver");
                                     conMySQL = ConnectionPool.getConnection(); //DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
-                                    //System.out.println(urlMySqlDB);
                                     String query = "SELECT distinct MacroClass FROM ServiceCategory_menu_NEW where TypeOfService not like 'T_Service' AND Visible = '1' order by MacroClass";
 
                                     // create the java statement
@@ -317,12 +305,12 @@
                                     }
                                     st.close();
                                     conMySQL.close();
-
-
                                 %>
                                 <br />
 
                             </div>
+                            <span name="lbl" caption="Filter_Results_dx_R">Filter</span>:
+                            <input type="text" name="serviceTextFilter" id="serviceTextFilter" placeholder="search text into service" onkeypress="event.keyCode == 13 ? ricercaServizi('categorie', null, null) : false"/><br />
                             <span name="lbl" caption="Num_Results_dx_R">N. results</span>:
                             <select id="nResultsServizi" name="nResultsServizi">
                                 <option value="10">10</option>
@@ -335,35 +323,6 @@
                             </select>
                             <br />
                             <hr />
-
-<!-- <input type="checkbox" name="road-sensor" value="RoadSensor" id="Sensor" class="macrocategory" /> <img src='${pageContext.request.contextPath}/img/mapicons/RoadSensor.png' height='19' width='16' align='top'/> <span class="road-sensor macrocategory-label">Road Sensors</span> 
-<br />
-<br />
-N. risultati:
-<select id="nResultsSensor" name="nResultsSensor">
-    <option value="10">10</option>
-    <option value="20">20</option>
-    <option value="50">50</option>
-    <option value="100" selected="selected">100</option>
-    <option value="200">200</option>
-    <option value="500">500</option>
-    <option value="0">Nessun Limite</option>
-</select>
-<hr />
-<input type="checkbox" name="near-bus-stops" value="NearBusStops" class="macrocategory" id="Bus" /> <img src='${pageContext.request.contextPath}/img/mapicons/NearBusStop.png' height='19' width='16' align='top'/> <span class="near-bus-stops macrocategory-label">Bus Stops</span>
-<br />
-<br />
-N. risultati:
-<select id="nResultsBus" name="nResultsBus">
-    <option value="10">10</option>
-    <option value="20">20</option>
-    <option value="50">50</option>
-    <option value="100" selected="selected">100</option>
-    <option value="200">200</option>
-    <option value="500">500</option>
-    <option value="0">Nessun Limite</option>
-</select>
-<hr />-->
                             <span name="lbl" caption="Search_Range_R">Search range</span>
                             <select id="raggioricerca" name="raggioricerca">
                                 <option value="0.1">100 mt</option>
@@ -373,16 +332,46 @@ N. risultati:
                                 <option value="1">1 km</option>
                                 <option value="2">2 km</option>
                                 <option value="5">5 km</option>
-                                <option value="area">visible areas</option>
+                                <option value="area">visible area</option>
+                                <option value="geo">specific area</option>
+                                <option value="inside">inside</option>
+                            </select><br />
+                            <span name="lbl" caption="Search_Area_R">Search area</span>
+                            <select id="geosearch" name="geosearch" disabled="disabled">
+                              <option value='select'>select...</option>
+                              <%                              
+                                    conMySQL = ConnectionPool.getConnection(); //DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
+                                    String queryLabel = "SELECT label FROM Geometry ORDER by label";
+
+                                    // create the java statement
+                                    st = conMySQL.createStatement();
+                                    // execute the query, and get a java resultset
+                                    rs = st.executeQuery(queryLabel);
+
+                                    // iterate through the java resultset
+                                    while (rs.next()) {
+                                        String label = rs.getString("label");
+                                        out.println("<option value='" + label + "'>"+label+"</option>");
+                                    }
+                                    st.close();
+                                    conMySQL.close();
+                                %>    
                             </select>
                             <hr />
                             <!--<input type="button" value="Cerca!" id="pulsante-ricerca" onclick="ricercaServizi();" />
                              <input type="button" value="Pulisci" id="pulsante-reset" onclick="resetTotale();" /> !-->
                             <div class="menu" id="serviceSearch">
-                                <img src="${pageContext.request.contextPath}/img/search_icon.png" alt="Search Services" width="28" onclick="ricercaServizi('categorie');" />
+                                <img src="${pageContext.request.contextPath}/img/search_icon.png" alt="Search Services" width="24" onclick="ricercaServizi('categorie', null, null);" />
+                            </div>
+                            <div class="menu" id="serviceSearchChart">
+                                <img src="${pageContext.request.contextPath}/img/search_chart.png" alt="Search Chart" width="24" onclick="showChart(selezione, $('#raggioricerca').val(), coordinateSelezione);" />
                             </div>
                             <div class="menu" id="clearAll">
                                 <img src="${pageContext.request.contextPath}/img/clear_icon.png" alt="Clear all" width="28" onclick="resetTotale();" />
+                            </div>
+                            <div id="chart_dialog" title="Query results organized by category">
+                                <p></p>
+                                <div id="chart_container"></div>
                             </div>
                             <div class="menu" id="saveQuery">
                                 <img src="${pageContext.request.contextPath}/img/save.png" alt="Salva la query" width="28" onclick="save_handler();" />
@@ -395,12 +384,12 @@ N. risultati:
                         <div class="use-case-5">
                             <!--<h3>Coming soon...</h3>-->
                             <!-- AGGIUNTA TRANSVERSAL SERVICES -->
-                            <input type="text" name="serviceTextFilter_t" id="serviceTextFilter_t" placeholder="search text into service" onkeypress="event.keyCode == 13 ? ricercaServizi('categorie_t') : false"/><br />
+                            <!-- <input type="text" name="serviceTextFilter_t" id="serviceTextFilter_t" placeholder="search text into service" onkeypress="event.keyCode == 13 ? ricercaServizi('categorie_t', null, null) : false"/><br /> -->
                             <span name="lbl" caption="Services_Categories_T">Services Categories</span> 
                             <br />
                             <input type="checkbox" name="macro-select-all_t" id="macro-select-all_t" value="Select All" /> <span name="lbl" caption="Select_All_T">De/Select All</span>
                             <div id="categorie_t">
-                                <br />
+                                
                                 <%                                    //Class.forName("com.mysql.jdbc.Driver");
                                     conMySQL = ConnectionPool.getConnection(); //DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
 
@@ -473,16 +462,25 @@ N. risultati:
                                     st.close();
                                     conMySQL.close();
                                 %>
-                                <input type="checkbox" name="fresh-place" value="Fresh_place" id="FreshPlace" class="macrocategory" /> <img src='${pageContext.request.contextPath}/img/mapicons/TourismService_Fresh_place.png' height='23' width='20' align='top''/> <span class="fresh-place macrocategory-label">Fresh Place</span>
+                                <input type="checkbox" name="fresh-place" value="Fresh_place" id="FreshPlace" class="macrocategory" /> <img src='${pageContext.request.contextPath}/img/mapicons/TourismService_Fresh_place.png' height='23' width='20' align='top'/> <span class="fresh-place macrocategory-label">Fresh Place</span>
                                 <br/>
-                                <input type="checkbox" name="public-transport-line" value="PublicTransportLine" id="PublicTransportLine" class="macrocategory" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Urban_bus.png' height='23' width='20' align='top''/> <span class="public-transport-line macrocategory-label">Public Transport Line</span> 
+                                <input type="checkbox" name="public-transport-line" value="PublicTransportLine" id="PublicTransportLine" class="macrocategory" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Urban_bus.png' height='23' width='20' align='top'/> <span class="public-transport-line macrocategory-label">Public Transport Line</span> 
                                 <br />
-                                <input type="checkbox" name="road-sensor" value="SensorSite" id="Sensor" class="macrocategory" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_SensorSite.png' height='23' width='20' align='top''/> <span class="road-sensor macrocategory-label">Road Sensors</span> 
+                                <input type="checkbox" name="road-sensor" value="SensorSite" id="Sensor" class="macrocategory" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_SensorSite.png' height='23' width='20' align='top'/> <span class="road-sensor macrocategory-label">Road Sensors</span> 
                                 <br />
                                 <input type="checkbox" name="near-bus-stops" value="BusStop" class="macrocategory" id="Bus" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_BusStop.png' height='23' width='20' align='top'/> <span class="near-bus-stops macrocategory-label">Bus Stops</span>
-                                
+                                <br />
+                                <input type="checkbox" name="near-tram-stops" value="Tram_stops" class="macrocategory" id="Tram" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Tram_stops.png' height='23' width='20' align='top'/> <span class="public-transport-line macrocategory-label">Tram_stops</span>
+                                <br/>
+                                <input type="checkbox" name="near-train-station" value="Train_station" class="macrocategory" id="Train" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Train_station.png' height='23' width='20' align='top'/> <span class="public-transport-line macrocategory-label">Train_station</span>
+                                <br/>
+                                <input type="checkbox" name="near-ferry-stops" value="Ferry_stop" class="macrocategory" id="Ferry" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Ferry_stop.png' height='23' width='20' align='top'/> <span class="public-transport-line macrocategory-label">Ferry_stop</span>
                             </div>
+                            
                             <br />
+                            <span name="lbl" caption="Filter_Results_dx_T">Filter</span>:
+                            <br>
+                            <input type="text" name="serviceTextFilter_t" id="serviceTextFilter_t" placeholder="search text into service" onkeypress="event.keyCode == 13 ? ricercaServizi('categorie_t', null, null) : false"/><br />
                             <span name="lbl" caption="Num_Results_dx_T">N. results for each</span>:
                             <select id="nResultsServizi_t" name="nResultsServizi">
                                 <option value="10">10</option>
@@ -494,32 +492,6 @@ N. risultati:
                                 <option value="0">No Limit</option>
                             </select>
                             <br />
-                            <!--
-                                                    Raggio di Ricerca: 
-                                                    <br />
-                                                    <select id="raggioricerca" name="raggioricerca">
-                                                        <option value="0.1">100 metri</option>
-                                                        <option value="0.2">200 metri</option>
-                                                        <option value="0.3">300 metri</option>
-                                                        <option value="0.5">500 metri</option>
-                                                        <option value="1">1 km</option>
-                                                        <option value="2">2 km</option>
-                                                        <option value="5">5 km</option>
-                                                    </select>
-                                                    <br />
-                                                    Numero massimo di risultati:
-                                                    <br />
-                                                    <select id="numerorisultati" name="numerorisultati">
-                                                        <option value="100">100</option>
-                                                        <option value="200">200</option>
-                                                        <option value="500">500</option>
-                                                        <option value="0">Nessun Limite</option>
-                                                    </select>
-                            
-                                                    <br />
-                                                    <hr />
-                            !-->
-                            <!-- da decommentare --> 
                             <hr />
                             <span name="lbl" caption="Search_Range_T">Search Range</span>
                             <select id="raggioricerca_t" name="raggioricerca">
@@ -534,7 +506,7 @@ N. risultati:
                             </select>
                             <hr />
                             <div class="menu" id="serviceSearch">
-                                <img src="${pageContext.request.contextPath}/img/search_icon.png" alt="Search Services" width="28" onclick="ricercaServizi('categorie_t');" />
+                                <img src="${pageContext.request.contextPath}/img/search_icon.png" alt="Search Services" width="24" onclick="ricercaServizi('categorie_t', null, null);" />
                             </div>
                             <!--<div class="menu" id="textSearch">
                                 <img src="${pageContext.request.contextPath}/img/text_search.jpg" alt="Text Search" width="28" onclick="showTextSearchDialog();" />
@@ -575,7 +547,8 @@ N. risultati:
             <div class="content"></div>
         </div>
         <!--  CARICAMENTO DEL FILE utility.js CON FUNZIONI NECESSARIE  -->
-        <script type="text/javascript" src="${pageContext.request.contextPath}/js/utility.js"></script>
+        <script type="text/javascript" charset="utf-8" src="${pageContext.request.contextPath}/js/utility.js"></script>
+        <script type="text/javascript" src="${pageContext.request.contextPath}/js/pathsearch.js"></script>
         <script type="text/javascript" src="${pageContext.request.contextPath}/js/save_embed.js"></script>
         <script>
                                     // $("#embed").hide();
@@ -643,6 +616,7 @@ N. risultati:
                                         var numService = 0;
                                         var numBusstop = 0;
                                         var numSensor = 0;
+                                        var numTotRes = 0;
                                         text = escape(text);
                                         $('#loading').show();
                                         svuotaLayers();
@@ -650,6 +624,7 @@ N. risultati:
                                         numeroEventi = searchEvent("free_text", null, null, limit, textEv);
                                         if (numeroEventi != 0) {
                                             //risultatiRicerca((numService+numeroEventi), 0, 0, 1);
+                                            numTotRes = numTotRes + numeroEventi;
                                             if(limit!=0)
                                               limit = (limit - numeroEventi);
                                             $("input[name=event_choice][value=day]").attr('checked', 'checked');
@@ -660,6 +635,7 @@ N. risultati:
                                                 limit: limit
                                             },
                                             url: ctx + "/ajax/json/free-text-search.jsp",
+                                            //url: ctx + "/ajax/json/free-text-search_pro.jsp",
                                             type: "GET",
                                             dataType: 'json',
                                             async: true,
@@ -693,6 +669,7 @@ N. risultati:
                                                         }
                                                 var i = 0;        
                                                 if (data.features.length > 0) {
+                                                    numTotRes = numTotRes + data.fullCount;
                                                     var count = 0;
                                                             for (i = 0; i < data.features.length; i++) {
                                                                 if (data.features[i].properties.serviceType == 'TourismService_Tourist_trail') {
@@ -735,9 +712,13 @@ N. risultati:
                                                         },
                                                         onEachFeature: function (feature, layer) {
                                                             popupContent = "";
+                                                            /*var divId = feature.id + "-" + feature.properties.typeLabel;
+                                                            if ((feature.properties.typeLabel == "Strada") || (feature.properties.typeLabel == "Road")) {
+                                                                popupContent = popupContent + "<h3>" + feature.properties.name + " n. " + feature.properties.civic + "</h3>";
+                                                            }*/
                                                             var divId = feature.id + "-" + feature.properties.tipo;
-                                                            if (feature.properties.type == "Strada") {
-                                                                popupContent = popupContent + "<h3>" + feature.properties.nome + " n. " + feature.properties.number + "</h3>";
+                                                            if (feature.properties.typeLabel == "Strada") {
+                                                                popupContent = popupContent + "<h3>" + feature.properties.name + " n. " + feature.properties.civic + "</h3>";
                                                             }
                                                             popupContent = popupContent + "<div id=\"" + divId + "\" ></div>";
                                                             layer.bindPopup(popupContent);
@@ -769,15 +750,15 @@ N. risultati:
                                                     var confiniMappa = servicesLayer.getBounds();
                                                     map.fitBounds(confiniMappa, {padding: [50, 50]});
                                                     $('#loading').hide();
-                                                    risultatiRicerca(numService + numeroEventi, 0, 0, 1);
+                                                    risultatiRicerca(numService + numeroEventi, 0, 0, 1, null, numTotRes, 0, 0);
                                                 }
                                                 else {
                                                     $('#loading').hide();
                                                     //risultatiRicerca(numService, numBusstop, numSensor, 1);
                                                     if (numeroEventi == 0) {
-                                                        risultatiRicerca(0, 0, 0, 0);
+                                                        risultatiRicerca(0, 0, 0, 0, null, 0, 0, 0);
                                                     } else {
-                                                        risultatiRicerca(numeroEventi, 0, 0, 1);
+                                                        risultatiRicerca(numeroEventi, 0, 0, 1, null, 0, 0, 0);
                                                     }
                                                 }
                                                 /*numeroEventi = searchEvent("free_text", null, null, limit, textEv);
@@ -831,7 +812,8 @@ N. risultati:
                                                                 mostraElencoComuni(msg.nomeProvincia, msg.nomeComune);
                                                             }
                                                             if (msg.line != "" && msg.line != null && msg.line != "null") {
-                                                                getBusLines("query");
+                                                                mostraElencoAgenzie();
+                                                                //getBusLines("query");
                                                                 $("#elencolinee").val(msg.line);
                                                                 mostraElencoFermate(msg.line, msg.stop);
                                                             }
@@ -874,7 +856,7 @@ N. risultati:
                                                     selection = "";
                                                 var categorie = unescape(parameters["categories"]);
                                                 if (categorie == "undefined")
-                                                    categorie = "Service;RoadSensor;NearBusStops";
+                                                    categorie = "Service;BusStop;SensorSite";
                                                 var text = unescape(parameters["text"]);
                                                 if (text == "undefined")
                                                     text = "";
@@ -976,7 +958,8 @@ N. risultati:
                                                             $("#tabs").tabs("option", "active", 1);
                                                         }
                                                         if (msg.line != null && msg.line != "" && msg.line != "null") {
-                                                            getBusLines("query");
+                                                            mostraElencoAgenzie();
+                                                            //getBusLines("query");
                                                             $("#tabs").tabs("option", "active", 0);
                                                             $("#elencolinee").val(msg.line);
                                                             mostraElencoFermate(msg.line, msg.stop);
@@ -1057,7 +1040,7 @@ N. risultati:
                                                                         }
                                                                         else {
                                                                             $('#loading').hide();
-                                                                            risultatiRicerca(0, 0, 0, 1);
+                                                                            risultatiRicerca(0, 0, 0, 1, null, 0, 0, 0);
                                                                         }
                                                                     },
                                                                     error: function (request, status, error) {
@@ -1124,7 +1107,7 @@ N. risultati:
                                                 }
                                                 else {
                                                     $('#loading').hide();
-                                                    risultatiRicerca(0, 0, 0, 1);
+                                                    risultatiRicerca(0, 0, 0, 1, null, 0, 0, 0);
                                                 }
                                             },
                                             error: function (request, status, error) {
@@ -1236,7 +1219,8 @@ N. risultati:
                                                     $("#ui-id-2").click();
                                                 }
                                                 if (msg.line != null) {
-                                                    getBusLines("embed");
+                                                    //getBusLines("embed");
+                                                    mostraElencoAgenzie();
                                                     $("#elencolinee").val(msg.line);
                                                     mostraElencoFermate(msg.line, msg.stop);
                                                     $("#ui-id-1").click();
@@ -1284,7 +1268,7 @@ N. risultati:
 
                                                         var divId = feature.id + "-" + feature.properties.tipo;
                                                         if (feature.properties.tipo != "fermata") {
-                                                            contenutoPopup = "<h3>" + feature.properties.nome + "</h3>";
+                                                            contenutoPopup = "<h3>" + feature.properties.name + "</h3>";
                                                             contenutoPopup = contenutoPopup + "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
                                                             contenutoPopup = contenutoPopup + "Tipologia: " + feature.properties.tipo + "<br />";
                                                             if (feature.properties.email != "" && feature.properties.email)
@@ -1392,8 +1376,10 @@ N. risultati:
                                     }
 
                                     // DEFINIZIONE DEI CONFINI MASSIMI DELLA MAPPA
-                                    var bounds = new L.LatLngBounds(new L.LatLng(41.7, 8.4), new L.LatLng(44.930222, 13.4));
-                                    map.setMaxBounds(bounds);
+                                    if(mode!="query") {
+                                      var bounds = new L.LatLngBounds(new L.LatLng(41.7, 8.4), new L.LatLng(44.930222, 13.4));
+                                      map.setMaxBounds(bounds);
+                                    }
                                     // GENERAZIONE DEI LAYER PRINCIPALI
                                     var busStopsLayer = new L.LayerGroup();
                                     var servicesLayer = new L.LayerGroup();
@@ -1426,19 +1412,19 @@ N. risultati:
                                         currentServiceUri = markerPopup.feature.properties.serviceUri;
                                         var tipoServizio = markerPopup.feature.properties.tipo;
                                         var serviceType = markerPopup.feature.properties.serviceType;
-                                        var nome = markerPopup.feature.properties.nome;
-                                        var divId = idServizio + "-" + markerPopup.feature.properties.tipo;
+                                        var nome = markerPopup.feature.properties.name;
+                                        var divId = idServizio + "-" + markerPopup.feature.properties.tipo;//assegnazione degli id ai div relativi ai servizi
                                         var coordinates = markerPopup.feature.geometry.coordinates;
                                         if (markerPopup.feature.properties.multimedia != "" && markerPopup.feature.properties.multimedia != null) {
                                             $('#' + divId).closest('div.leaflet-popup-content-wrapper').css("width", "300px");
                                         }
                                         popup_fixpos(divId);
                                         if (mode != "embed") {
-                                            //selezione = 'Servizio: ' + markerPopup.feature.properties.nome;
+                                            //selezione = 'Servizio: ' + markerPopup.feature.properties.name;
                                             if (tipoServizio == 'fermata'){
-                                                selezione = 'Bus Stop: ' + markerPopup.feature.properties.nome;
+                                                selezione = 'Bus Stop: ' + markerPopup.feature.properties.name;
                                             }else{
-                                                selezione = 'Service: ' + markerPopup.feature.properties.nome;
+                                                selezione = 'Service: ' + markerPopup.feature.properties.name;
                                             }
                                             $('#selezione').html(selezione);
                                             clickLayer.clearLayers();
@@ -1449,9 +1435,19 @@ N. risultati:
                                                     var serviceIcon = "generic";
                                                 } else {
                                                     var serviceIcon = last_marker.feature.properties.serviceType;
+                                                    //Michela
+                                                    if( (serviceType == "TransferServiceAndRenting_BusStop" || serviceType == "Tram_stops" || 
+                                                            serviceType == "Train_station" || serviceType == "Ferry_stop" )){
+                                                        if(last_marker.feature.properties.agency)
+                                                            serviceIcon = serviceIcon +"_"+ last_marker.feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, ""); 
+                                                        else
+                                                            serviceIcon = serviceIcon +"_ataflinea"; 
+                                                    } 
                                                 }
                                                 if (last_marker.feature.properties.serviceType != "bus_real_time") {
+                                                    
                                                     var def_icon = L.icon({
+                                                        
                                                         //iconUrl: ctx + '/img/mapicons/' + last_marker.feature.properties.serviceType + '.png',
                                                         //iconRetinaUrl: ctx + '/img/mapicons/' + last_marker.feature.properties.serviceType + '.png',
                                                         iconUrl: ctx + '/img/mapicons/' + serviceIcon + '.png',
@@ -1560,7 +1556,7 @@ N. risultati:
                                         // CREO LE TABS JQUERY UI NEL MENU IN ALTO
                                         $("#tabs").tabs();
                                         $("#tabs-servizi").tabs();
-                                        if (mode == "query" || mode == "embed") {
+                                        if (mode == "query" || mode == "embed" || mode == "bus-position") {
                                             var url = document.URL;
                                             var queryString = url.substring(url.indexOf('?') + 1);
                                             var parameters = parseUrlQuery(queryString);
@@ -1581,7 +1577,7 @@ N. risultati:
                                                 $("#menu-alto .header").click();
                                             }
                                             var info = parameters["info"];
-                                            if (info == "false" || info == "hidden") {
+                                            if (info == "false" || info == "hidden" || info ==undefined) {
                                                 $("#info-aggiuntive").hide();
                                             }
                                             else if (info == "collapsed") {
@@ -1590,12 +1586,38 @@ N. risultati:
                                             if (parameters["description"] == "false") {
                                                 $("#queryBox").hide();
                                             }
-                                            if (parameters["showBusPosition"] == "true") {
+                                            if (parameters["showBusPosition"] == "true" || mode=="bus-position") {
                                                 mostraAutobusRT(true);
                                             }
                                             else
                                                 showResults(parameters);
                                         }
+                                        $("#raggioricerca").change(function(){
+                                          var selected=$(this).val();
+                                          $("#geosearch").prop("disabled", selected!="geo");
+                                        });
+                                        $("#geosearch").change(function(){
+                                          clickLayer.clearLayers();
+                                          var selected=$(this).val();
+                                          if(selected!="select")
+                                            $.ajax({
+                                                url: "${pageContext.request.contextPath}/ajax/json/get-geometry.jsp",
+                                                type: "GET",
+                                                async: true,
+                                                dataType: 'json',
+                                                data: {
+                                                    label: selected
+                                                },
+                                                success: function (response) {
+                                                  var wkt = new Wkt.Wkt();
+                                                  wkt.read(response.wkt);
+                                                  var obj = wkt.toObject();
+                                                  obj.addTo(clickLayer);
+                                                  clickLayer.addTo(map);
+                                                  map.fitBounds(clickLayer.getLayers()[0].getBounds());
+                                                }
+                                            });                                          
+                                        });
                                     }
 
                                     var comuneChoice;
@@ -1743,14 +1765,14 @@ N. risultati:
                                      });
                                      }*/
                                     // FUNZIONI DI RICERCA PRINCIPALI
-                                    function mostraLineeBusAJAX(nomeFermata, divLinee, divRoute) {
+                                    function mostraLineeBusAJAX(uriFermata, divLinee, divRoute) {
                                         $.ajax({
                                             url: "${pageContext.request.contextPath}/ajax/get-lines-of-stop.jsp",
                                             type: "GET",
                                             async: true,
                                             //dataType: 'json',
                                             data: {
-                                                nomeFermata: nomeFermata,
+                                                uriFermata: uriFermata,
                                                 divRoute: divRoute,
                                             },
                                             success: function (msg) {
@@ -1789,6 +1811,50 @@ N. risultati:
                                             },
                                             success: function (msg) {
                                                 $("#" + divId).html(msg);
+                                                //$('#info-aggiuntive .content').html(msg);
+                                                popup_fixpos(divId);
+                                            }
+                                        });
+                                    }
+                                    //MICHELA 
+                                    function mostraOrariAJAX(TPLStopUri, divId){//uri exnomefermata
+                                        $.ajax({
+                                            url: "${pageContext.request.contextPath}/ajax/json/get-timetable.jsp",
+                                            type: "GET",
+                                            async: true,
+                                            dataType: 'json',
+                                            data: {
+                                                TPLStopUri: TPLStopUri
+                                            },
+                                            success: function (msg) {
+                                                //alert(msg);
+                                                //$("#" + divId).html(msg);//ok 
+                                                msg.idtable = "timetable-"+divId;
+                                                ViewManager.render(msg, "#" + divId, "BusStop");
+                                                
+                                                $.fn.dataTable.moment('HH:MM:ss yyyy-mm-dd');
+                                                $("#" +  msg.idtable).DataTable({
+                                                    "columnDefs": [
+                                                            { "width": "60px", "targets": 0 },
+                                                            { "type": "date", "targets": 0 }],
+                                                    "autowidth": true,
+                                                    "order": [[ 0, "asc" ]],
+                                                    "scrollY":  "200px", 
+                                                    "scrollCollapse": true,
+                                                    "lengthMenu": [[10, 25, 50, 100, 200], [10, 25, 50, 100, 200]],// [[10, 25, 50, 100, 200], [10, 25, 50, 100, 200]],
+                                                    "pagingType": "numbers",
+                                                    "language": {
+                                                        "lengthMenu":   "<span name=\"lbl\" caption=\"timetable_display\">Display </span>"+ "_MENU_" + 
+                                                                        "<span name=\"lbl\" caption=\"timetable_records\"> Bus per page</span>",
+                                                        "zeroRecords":  "Nothing found - sorry",
+                                                        "info":         "<span name=\"lbl\" caption=\"timetable_showing\">Showing page</span>"+" _PAGE_ "+ 
+                                                                        "<span name=\"lbl\" caption=\"timetable_of\">of</span>"+" _PAGES_",
+                                                        "infoEmpty":    "No records available",
+                                                        "infoFiltered": "(filtered from _MAX_ total records)",
+                                                        "search":       "<span name=\"lbl\" caption=\"timetable_search\">Search</span>"+":",
+                                                    }
+                                                });
+                                                //$("#" + divId).html(parseJSON(msg));
                                                 //$('#info-aggiuntive .content').html(msg);
                                                 popup_fixpos(divId);
                                             }
@@ -1910,19 +1976,36 @@ N. risultati:
 
                                         return categorie;
                                     }
-                                    function ricercaServizi(tipo_categorie) {
+                                    function ricercaServizi(tipo_categorie, cat, limit) {
                                         mode = "normal";
                                         var tipo_cat = tipo_categorie;
-                                        var stringaCategorie = getCategorie(tipo_cat).join(";");
+                                        if(cat != null){
+                                            /*if(cat == 'TransferServiceAndRenting'){
+                                                var stringaCategorie = cat+";BusStop;SensorSite";
+                                            }else{
+                                                var stringaCategorie = cat;
+                                            }*/
+                                            var stringaCategorie = cat;
+                                            if((cat.indexOf("BusStop") != -1) || (cat.indexOf("SensorSite") != -1)){
+                                                //limit = $("#nResultsServizi").val();
+                                                //alert("limit: "+limit);
+                                                tipo_cat = tipo_cat+":"+$("#nResultsServizi").val();
+                                            }
+                                        }else{
+                                            var stringaCategorie = getCategorie(tipo_cat).join(";");
+                                        }
                                         if (selezione == undefined)
                                             selezione = "";
-                                        if (tipo_categorie == "categorie")
+                                        //if (tipo_categorie == "categorie")
+                                        if ((tipo_cat.indexOf("categorie:") != -1) || tipo_cat == "categorie"){
                                             var raggioRicerca = $("#raggioricerca").val();
-                                        else
+                                        }
+                                        else{
                                             var raggioRicerca = $("#raggioricerca_t").val();
-                                        if (((selezione != '') && (selezione.indexOf('Bus Line') == -1)) || raggioRicerca == "area") {
+                                        }
+                                        if (((selezione != '') && (selezione.indexOf('Bus Line') == -1)) || raggioRicerca == "area" || raggioRicerca == "geo") {
                                             if (stringaCategorie == "") {
-                                                alert("Selezionate almeno una categoria nel menu di destra");
+                                                alert("Select at least one category from top-right menu");
                                             }
                                             else {
                                                 $('#loading').show();
@@ -1930,7 +2013,7 @@ N. risultati:
                                                 if ((selezione.indexOf("Linea Bus:") == -1) || (selezione.indexOf("Bus Line:") == -1)) {
                                                     svuotaLayers();
                                                 }
-                                                mostraServiziAJAX_new(stringaCategorie, selezione, coordinateSelezione, comuneChoice, null, null, null, null, null, null, null, null, tipo_cat);
+                                                mostraServiziAJAX_new(stringaCategorie, selezione, coordinateSelezione, comuneChoice, limit, null, null, null, null, null, null, null, tipo_cat);
                                             }
                                         }
                                         else {
@@ -1941,16 +2024,32 @@ N. risultati:
 
                                     function mostraServiziAJAX_new(categorie, selezione, coordinateSelezione, nomeComune, risultatiServizi, risultatiSensori, risultatiBus, raggioServizi, raggioSensori, raggioBus, openPins, textFilter, tipo_categoria) {
                                         //$('#info-aggiuntive .content').html('');
+                                        
                                         if (tipo_categoria == undefined)
                                             tipo_categoria = "categorie";
+                                        //Michela
+                                        /*
+                                        if(tipo_categoria == "categorie_t"){
+                                            var countCategories = categorie.split(";");
+                                            var loading_categories = countCategories.length;
+                                            $('#loading').show();
+                                        }*/
+                                        //michela
+                                        
                                         if (mode != "query" && mode != "embed") {
-                                            if (tipo_categoria == "categorie") {
-                                                var numeroRisultatiServizi = $('#nResultsServizi').val();
+                                            if ((tipo_categoria == "categorie") || (tipo_categoria.indexOf("categorie:") != -1)) {
+                                                if (risultatiServizi != null){
+                                                    var numeroRisultatiServizi = risultatiServizi;
+                                                }else{
+                                                    var numeroRisultatiServizi = $('#nResultsServizi').val();
+                                                }
+                                                //MICHELA
                                                 var numeroRisultatiSensori = $('#nResultsSensor').val();
                                                 var numeroRisultatiBus = $('#nResultsBus').val();
                                                 var raggioServizi = $("#raggioricerca").val();
-                                                var raggioSensori = $("#raggioricerca").val();
-                                                var raggioBus = $("#raggioricerca").val();
+                                                var areaServizi = $("#geosearch").val();
+                                                var raggioSensori = raggioServizi;
+                                                var raggioBus = raggioServizi;
                                                 var textFilter = $("#serviceTextFilter").val();
                                             }
                                             else {
@@ -1970,17 +2069,20 @@ N. risultati:
                                             numeroRisultatiServizi = risultatiServizi;
                                             numeroRisultatiSensori = risultatiSensori;
                                             numeroRisultatiBus = risultatiBus;
-                                            //modificare per riprendere tutti i valori dei raggi (servizi, sensori e bus)
-                                            var raggioServizi = raggioServizi;
-                                            var raggioSensori = raggioSensori;
-                                            var raggioBus = raggioBus;
+                                            if(raggioServizi=="area")
+                                              raggioServizi=-1;
                                             $('#loading').show();
                                         }
                                         var centroRicerca;
                                         if (pins.length > 0)
                                             pins = "";
-                                        if (((selezione != null && selezione.indexOf("COMUNE di") == -1) && raggioServizi == "area") || (coordinateSelezione != "" && undefined != coordinateSelezione && coordinateSelezione != "null" && coordinateSelezione != null)) {
-                                            if (raggioServizi == "area") {
+                                        //if (((selezione != null && selezione.indexOf("COMUNE di") == -1) && (raggioServizi == "geo" || raggioServizi=="inside")) || (coordinateSelezione != "" && undefined != coordinateSelezione && coordinateSelezione != "null" && coordinateSelezione != null)) {
+                                        if (((selezione != null && selezione.indexOf("COMUNE di") == -1) && (raggioServizi == "geo" || raggioServizi=="inside" || raggioServizi=="area")) || (coordinateSelezione != "" && undefined != coordinateSelezione && coordinateSelezione != "null" && coordinateSelezione != null)
+                                                /*|| (selezione == "" && categorie == 'BusStop')*/ ) {
+                                            if (raggioServizi == "geo") {
+                                                centroRicerca = "geo:"+areaServizi;
+                                            }
+                                            else if (raggioServizi == "area") {
                                                 var bnds = map.getBounds()
                                                 centroRicerca = bnds.getSouth() + ";" + bnds.getWest() + ";" + bnds.getNorth() + ";" + bnds.getEast();
                                             }
@@ -2000,19 +2102,35 @@ N. risultati:
                                             else if (selezione.indexOf("point") != -1) {
                                                 centroRicerca = coordinateSelezione;
                                             }
+                                            else
+                                                centroRicerca = coordinateSelezione;
                                             query = saveQueryServices(centroRicerca, raggi, categorie, numRis, selezione);
                                             var coord = centroRicerca.split(";");
-                                            clickLayer.clearLayers();
-                                            if (raggioServizi != "area") {
+                                            if(raggioServizi!="geo")
+                                              clickLayer.clearLayers();
+                                            if (raggioServizi != "area" && coord.length==2) {
                                                 clickLayer.addLayer(L.marker([coord[0], coord[1]]));
-                                                /*clickLayer.addLayer(L.circle([coord[0], coord[1]], raggioServizi * 1000, {id: 'circle'})).addTo(map);*/
-                                                clickLayer.addLayer(L.circle([coord[0], coord[1]], raggioServizi * 1000, {className: 'circle'})).addTo(map);
+                                                if(raggioServizi!="inside")
+                                                  clickLayer.addLayer(L.circle([coord[0], coord[1]], raggioServizi * 1000, {className: 'circle'})).addTo(map);
+                                            } else if(coord.length==4 && mode=="query") {
+                                                clickLayer.addLayer(L.marker([(Number(coord[0])+Number(coord[2]))/2, (Number(coord[1])+Number(coord[3]))/2]));
+                                                clickLayer.addLayer(L.rectangle([[coord[0], coord[1]],[coord[2], coord[3]]])).addTo(map);
+                                            } else if(raggioServizi=="geo") {
                                             }
+                                            
                                             var numeroServizi = 0;
                                             var numeroBus = 0;
                                             var numeroSensori = 0;
                                             var numEventi = 0;
                                             var numLineeBus = 0;
+                                            var numTotRisultati = 0;
+                                            var numTotServices = 0;
+                                            var numTotBusStops = 0;
+                                            var numTotSensors = 0;
+                                            
+                                            
+                                            
+                                                        
                                             $.ajax({
                                                 url: "${pageContext.request.contextPath}/ajax/json/get-services.jsp",
                                                 type: "GET",
@@ -2030,9 +2148,9 @@ N. risultati:
                                                     cat_servizi: tipo_categoria,
                                                     numeroRisultatiBus: numeroRisultatiBus
                                                 },
-                                                success: function (msg) {
+                                                success: function (msg_response) {
                                                     if (mode == "JSON") {
-                                                        $("#body").html(JSON.stringify(msg));
+                                                        $("#body").html(JSON.stringify(msg_response));
                                                     }
                                                     else {
                                                         var array = new Array();
@@ -2044,8 +2162,11 @@ N. risultati:
                                                         var fract = 0.523599;
                                                         var dist = 1.2;
                                                         var passo = 0.00007;
+                                                        var nServices=0;
+                                                        if(msg_response.Services!=undefined)
+                                                          nServices=msg_response.Services.features.length
                                                         
-                                                        for (var r = 0; r < 10; r++) {
+                                                        for (var r = 0; r < nServices; r++) {
                                                             array[r] = new Array();
                                                             for (var c = 0; c < 2; c++) {
                                                                 array[r][c] = 0;
@@ -2057,11 +2178,54 @@ N. risultati:
                                                             dx[r] = 0;
                                                         }
                                                         var i = 0;
-                                                        //	console.log(msg);
-                                                        $('#loading').hide();
+                                                        /*
+                                                        if(tipo_categoria == "categorie_t"){
+                                                            if(loading_categories<=1)
+                                                                $('#loading').hide();
+                                                        }
+                                                        else
+                                                            $('#loading').hide();//TODO
+                                                        */
+                                                       $('#loading').hide();//TODO
+                                                        var msg = {
+                                                                "fullCount": 0,
+                                                                "type": "FeatureCollection",
+                                                                "features": []
+                                                        };
+                                                        
+                                                        // conversione JSON restituito dalle API a JSON utilizzato in precedenza
+                                                        if(msg_response != null){
+                                                        if ((msg_response.BusStops != null) &&(msg_response.BusStops.features.length != 0)) {
+                                                            msg.features = msg.features.concat(msg_response.BusStops.features);
+                                                            msg.fullCount = msg.fullCount + msg_response.BusStops.fullCount;
+                                                            if(tipo_categoria == "categorie_t"){
+                                                                numTotBusStops = msg_response.BusStops.fullCount;
+                                                            }
+                                                        }
+                                                        if ((msg_response.SensorSites != null) && (msg_response.SensorSites.features.length != 0)) {
+                                                            msg.features = msg.features.concat(msg_response.SensorSites.features);
+                                                            msg.fullCount = msg.fullCount + msg_response.SensorSites.fullCount;
+                                                            if(tipo_categoria == "categorie_t"){
+                                                                numTotSensors = msg_response.SensorSites.fullCount;
+                                                            }
+                                                        }
+                                                        if ((msg_response.Services != null) && (msg_response.Services.features.length != 0)) {
+                                                            msg.features = msg.features.concat(msg_response.Services.features);
+                                                            msg.fullCount = msg.fullCount + msg_response.Services.fullCount;
+                                                            if(tipo_categoria == "categorie_t"){
+                                                                numTotServices = msg_response.Services.fullCount;
+                                                            }
+                                                        }
+                                                        }
+                                                        for (var k=0; k<msg.features.length; k++){
+                                                            msg.features[k].id = k+1;
+                                                        }    
+                                                                
+                                                        numTotRisultati = msg.fullCount;
                                                         if (msg != null && msg.features.length > 0) {
                                                             var count = 0;
                                                             for (i = 0; i < msg.features.length; i++) {
+                                                                // Codice che realizza spirale dei marker appartenti alla classe TourismService_Tourist_trail che hanno tutti uguali coordinate
                                                                 if (msg.features[i].properties.serviceType == 'TourismService_Tourist_trail') {
                                                                     if (count == 0) {
                                                                         array[0][0] = msg.features[i].geometry.coordinates[0];
@@ -2156,8 +2320,6 @@ N. risultati:
                                                             }
                                                             var markerJson = JSON.stringify(msg.features);
                                                             pins = markerJson;
-                                                            //numeroServizi = numeroServizi;
-                                                            //numeroBus = numeroBus;
 
                                                             if (raggioServizi != "area") {
                                                                 var confiniMappa = servicesLayer.getBounds();
@@ -2170,16 +2332,16 @@ N. risultati:
                                                              else {
                                                              risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 0);
                                                              }*/
-                                                            if (tipo_categoria == "categorie") {
-                                                                risultatiRicerca((numeroServizi + numeroBus + numeroSensori), 0, 0, 1);
+                                                            if (tipo_categoria == "categorie" || tipo_categoria.indexOf("categorie:") != -1) {
+                                                                risultatiRicerca((numeroServizi + numeroBus + numeroSensori), 0, 0, 1, null, numTotRisultati, numTotBusStops, numTotSensors);
                                                             } else {
                                                                 //risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 2); //DA DECOMMENTARE QUANDO SISTEMATI TRANSVERSE SERVICE
-                                                                risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 1);
+                                                                risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 1, null, numTotServices, numTotBusStops, numTotSensors);
                                                             }
                                                         }
                                                         else {
                                                             if (categorie.indexOf("PublicTransportLine") == -1) {
-                                                                risultatiRicerca(0, 0, 0, 0);
+                                                                risultatiRicerca(0, 0, 0, 0, null,0, 0, 0);
                                                             }
                                                             if (raggioServizi != "area") {
                                                                 map.fitBounds(clickLayer.getLayers()[1].getBounds());
@@ -2189,16 +2351,19 @@ N. risultati:
                                                     if (categorie.indexOf("Event") != -1) {
                                                         numEventi = searchEvent("transverse", raggioServizi, centroRicerca, numeroRisultatiServizi, textFilter);
                                                         if (numEventi != 0) {
-                                                            risultatiRicerca((numeroServizi + numEventi), numeroBus, numeroSensori, 1);
+                                                            risultatiRicerca((numeroServizi + numEventi), numeroBus, numeroSensori, 1, null, (numTotServices + numEventi), numTotBusStops, numTotSensors);
                                                             $("input[name=event_choice][value=day]").attr('checked', 'checked');
                                                         }
                                                     }
 
                                                 },
                                                 error: function (request, status, error) {
-                                                    $('#loading').hide();
+                                                    $('#loading').hide();//TODO
                                                     console.log(error);
-                                                    risultatiRicerca(0, 0, 0, 1);
+                                                    risultatiRicerca(0, 0, 0, 1, null, 0, 0, 0);
+                                                    if(request.responseText.indexOf("exceeds the limit")!=-1) {
+                                                      alert("Sorry, the query is too complex please reduce complexity.");
+                                                    }
                                                 }
                                             });
                                             if (categorie.indexOf("PublicTransportLine") != -1) {
@@ -2218,24 +2383,34 @@ N. risultati:
                                                             $("#body").html(JSON.stringify(msg));
                                                         }
                                                         else {
-                                                            $('#loading').hide();
+                                                            
+                                                            
+                                                                $('#loading').hide();//TODO
+                                                            
                                                             if (msg != null && msg.PublicTransportLine.features.length > 0) {
                                                                 numLineeBus = msg.PublicTransportLine.features.length;
                                                                 for (i = 0; i < msg.PublicTransportLine.features.length; i++) {
-                                                                    showLinea(msg.PublicTransportLine.features[i].properties.lineNumber, msg.PublicTransportLine.features[i].properties.route, msg.PublicTransportLine.features[i].properties.direction, msg.PublicTransportLine.features[i].properties.lineName, "transverse");
+                                                                    var agency = msg.PublicTransportLine.features[i].properties.agency;
+                                                                    var nomeLinea = agency + " - Line: "+msg.PublicTransportLine.features[i].properties.lineNumber +" " +msg.PublicTransportLine.features[i].properties.lineName
+                                                                    showLinea(msg.PublicTransportLine.features[i].properties.lineNumber, msg.PublicTransportLine.features[i].properties.routeUri, msg.PublicTransportLine.features[i].properties.direction, nomeLinea, "transverse", msg.PublicTransportLine.features[i].properties.polyline,i);
                                                                 }
                                                                 
                                                                 //risultatiRicerca(msg.PublicTransportLine.features.length+numeroServizi, numeroBus, numeroSensori, 1);
-                                                                $('#resultTPL').show();
+                                                                $('#resultTPL').show();/*
                                                                 var template = "{{#features}}" +
                                                                         "<div class=\"tplItem\" id=\"route_ATAF_{{properties.route}}\" style=\"margin-top:5px; border:1px solid #000; padding:6px; overflow:auto;\" onmouseover=\"selectRoute({{properties.route}})\" onmouseout=\"deselectRoute({{properties.route}})\">\n\
-                                                         <div class=\"tplName\"><b style=\"color:#B500B5;\"><b>Bus Line:</b> {{properties.lineName}}</b></div>" +
+                                                         <div class=\"tplName\"><b style=\"color:#B500B5;\"><b>TPL Line:</b> {{properties.lineName}}</b></div>" +
+                                                                        "<div class=\"tplDirection\" style=\"float:left; margin-top:7px; display:block; width:85%;\"><b>Direction:</b> {{properties.direction}}<br></div></div>" +
+                                                                        "{{/features}}";*/
+                                                            var template = "{{#features}}" +
+                                                                        "<div class=\"tplItem\" id=\"route_ATAF_{{properties.route}}\" style=\"margin-top:5px; border:1px solid #000; padding:6px; overflow:auto;\" onmouseover=\"selectRoute({{properties.routeUri}})\" onmouseout=\"deselectRoute({{properties.routeUri}})\">\n\
+                                                                        <div class=\"tplName\"><b style=\"color:#B500B5;\"><b>TPL Line:</b> {{properties.lineName}}</b></div>" +
                                                                         "<div class=\"tplDirection\" style=\"float:left; margin-top:7px; display:block; width:85%;\"><b>Direction:</b> {{properties.direction}}<br></div></div>" +
                                                                         "{{/features}}";
                                                                 var output = Mustache.render(template, msg.PublicTransportLine);
                                                                 document.getElementById('listTPL').innerHTML = output;
                                                                 $(".circle.leaflet-clickable").css({stroke: "#0c0", fill: "#0c0"});
-                                                                $('#numTPL').html(numLineeBus + " Bus Lines Found.");
+                                                                $('#numTPL').html(numLineeBus + " Public Transport Lines Found.");
                                                                 $('#numTPL').show();
                                                                 if (($('#msg').text().indexOf('not results') != -1) || ($('#msg').text().indexOf('alcun risultato') != -1) || numeroServizi == 0) {
                                                                     $('#msg').html('');
@@ -2247,14 +2422,18 @@ N. risultati:
                                                                 }*/
                                                             } else {
                                                                 if (categorie == "PublicTransportLine" || (numeroServizi == 0)) {
-                                                                    risultatiRicerca(0, 0, 0, 0);
+                                                                    risultatiRicerca(0, 0, 0, 0, null, 0, 0, 0);
                                                                 }
                                                             }
                                                         }
                                                     }
                                                 });
+                                                /*
+                                                if(tipo_categoria == "categorie_t"){
+                                                    loading_categories--;
+                                                }*/
                                             }
-
+                                            
                                         }
                                         else {
                                             // caso tutte le fermate oppure ricerca per comune
@@ -2266,7 +2445,10 @@ N. risultati:
                                             }
                                             else
                                                 var nomeComune = $("#elencocomuni").val();
-                                            if (selezione == "" || (selezione != null && selezione.indexOf("COMUNE di") != -1)) {
+                                            //qui devo cambiare le condizioni   
+                                            
+                                            //if (selezione == "" || (selezione != null && selezione.indexOf("COMUNE di") != -1)) {
+                                            if ((selezione == "" && categorie != 'BusStop') || (selezione != null && selezione.indexOf("COMUNE di") != -1)) {
                                                 var provincia = $("#elencoprovince").val();
                                                 var comune = $("#elencocomuni").val();
                                                 query = saveQueryMunicipality(provincia, comune, categorie, numRis, selezione);
@@ -2442,21 +2624,22 @@ N. risultati:
                                                                  else {
                                                                  risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 0);
                                                                  }*/
-                                                                if (tipo_categoria == "categorie") {
-                                                                    risultatiRicerca((numeroServizi + numeroBus + numeroSensori), 0, 0, 1);
+                                                                if (tipo_categoria == "categorie" || tipo_categoria.indexOf("categorie:") != -1) {
+                                                                    risultatiRicerca((numeroServizi + numeroBus + numeroSensori), 0, 0, 1, null, 0, 0, 0);
                                                                 } else {
                                                                     //risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 2); //DA DECOMMENTARE QUANDO SISTEMATI TRANSVERSE SERVICE
-                                                                    risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 1);
+                                                                    risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 1, null, 0, 0, 0);
                                                                 }
                                                             }
                                                             else {
-                                                                risultatiRicerca(0, 0, 0, 0);
+                                                                //MICHELA: qui Nel caso di BUsStop senza centro mappa NON ci devo arrivare!!!!
+                                                                risultatiRicerca(0, 0, 0, 0, null, 0, 0, 0);
                                                             }
                                                         }
                                                         if (categorie.indexOf("Event") != -1) {
                                                             numEventi = searchEvent("transverse", null, null, numeroRisultatiServizi, textFilter);
                                                             if (numEventi != 0) {
-                                                                risultatiRicerca((numeroServizi + numEventi), numeroBus, numeroSensori, 1);
+                                                                risultatiRicerca((numeroServizi + numEventi), numeroBus, numeroSensori, 1, null, 0, 0, 0);
                                                                 $("input[name=event_choice][value=day]").attr('checked', 'checked');
                                                             }
                                                         }
@@ -2483,8 +2666,12 @@ N. risultati:
                                                         alert('Si è verificato un errore');
                                                     }
                                                 });
-                                            }
-                                            if (selezione != null && (selezione.indexOf("Linea Bus:") != -1) || (selezione.indexOf("Bus Line:") != -1)) {
+                                            }/*
+                                            else if(selezione == "" && categorie == 'BusStop'){
+                                                  risultatiRicerca(0, 0, 0, 0, null, 0, 0, 0);//DA CAMBIARE
+                                            }*/
+                                            
+                                            if (selezione != null && (selezione.indexOf("Linea Bus:") != -1 || selezione.indexOf("Bus Line:") != -1)) {
                                                 $.ajax({
                                                     url: "${pageContext.request.contextPath}/ajax/json/get-services-near-stops.jsp",
                                                     type: "GET",
@@ -2510,9 +2697,9 @@ N. risultati:
                                                                     var divLinee = divId + "-linee";
                                                                     // contenutoPopup="<div id=\""+divId+"\" >";
                                                                     if (feature.properties.tipo == "fermata")
-                                                                        contenutoPopup = "<h3> BUS STOP: " + feature.properties.nome + "</h3>";
+                                                                        contenutoPopup = "<h3> BUS STOP: " + feature.properties.name + "</h3>";
                                                                     else
-                                                                        contenutoPopup = "<h3>" + feature.properties.nome + "</h3>";
+                                                                        contenutoPopup = "<h3>" + feature.properties.name + "</h3>";
                                                                     contenutoPopup = contenutoPopup + "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
                                                                     contenutoPopup = contenutoPopup + "Tipology: " + feature.properties.tipo + "<br />";
                                                                     if (feature.properties.email != "")
@@ -2531,10 +2718,10 @@ N. risultati:
                                                             var confiniMappa = servicesLayer.getBounds();
                                                             map.fitBounds(confiniMappa, {padding: [50, 50]});
                                                             var nSer = (msg.features.length);
-                                                            risultatiRicerca(msg.features.length, 0, 0, 1);
+                                                            risultatiRicerca(msg.features.length, 0, 0, 1, null, 0, 0, 0);
                                                         }
                                                         else {
-                                                            risultatiRicerca(0, 0, 0, 0);
+                                                            risultatiRicerca(0, 0, 0, 0, null, 0, 0, 0);
                                                         }
                                                     },
                                                     error: function (request, status, error) {

@@ -178,7 +178,7 @@
             listaCategorie = Arrays.asList(arrayCategorie);
         }
     }
-    String ip = request.getRemoteAddr();
+    String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
     
     String linkHTMLService="";
@@ -210,7 +210,7 @@
             linkServiceHtml = baseApiUri + apiVersion + "?serviceUri=" + idService + "&format=html";
         }
     }
-    logAccess(ip, email, ua, selection, categorie, null, "save", risultati, raggi, queryIdR, text, format, null);
+    logAccess(ip, email, ua, selection, categorie, null, "save", risultati, raggi, queryIdR, text, format, null, null);
     if ("false".equals(update)) {
         String query = "INSERT INTO Queries (id,email,description,categorie,numeroRisultatiServizi,numeroRisultatiSensori,numeroRisultatiBus,actualSelection,raggioServizi,raggioSensori,raggioBus,idRW,nomeProvincia,nomeComune,parentQuery, line, stop,coordinateSelezione,title,idService,typeService,nameService,zoom,center,weatherCity,popupOpen,confR,typeSaving,text)"
                 + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -329,7 +329,6 @@
     
     boolean emailSent = false;
     String to = email;
-    String host = hostMail;
     Properties properties = System.getProperties();
     properties.put("mail.smtp.host", smtp);
     properties.put("mail.smtp.port", portSmtp);

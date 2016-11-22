@@ -1,3 +1,4 @@
+<%@page import="org.json.simple.JSONObject"%>
 <%@page import="org.disit.servicemap.ConnectionPool"%>
 <%@page import="org.disit.servicemap.ServiceMap"%>
 <%@page trimDirectiveWhitespaces="true" %>
@@ -62,6 +63,7 @@
     String portSmtp = conf.getSet("portSmtp","25");
     String accessLogFile = conf.getSet("accessLogFile", "servicemap-access.log");
     String sparqlEndpoint = conf.get("sparqlEndpoint","http://localhost:8890/sparql");
+    String virtuosoEndpoint = conf.get("virtuosoEndpoint","jdbc:virtuoso://localhost:1111");
     static String sparqlType = conf.getSet("sparqlType","virtuoso");
     static int maxTime = 3*60*(sparqlType.equals("virtuoso")?1000:1); //3 min
     static String km4cVersion = conf.getSet("km4cVersion","new");
@@ -90,47 +92,11 @@
           return null;
         return query.replace("%20", " ").replace("%3B", ";").replace("%3A", ":").replace("%2C", ",").replace("%5B", "[").replace("%5D", "]").replace("%22", "\"").replace("%23", "#").replace("%3C", "<").replace("%3E", ">").replace("%5E", "^").replace("%7B", "{").replace("%7D", "}").replace("%25", "%").replace("%27", "'");
     }
-    private void logAccess(String ip, String email, String UA, String sel, String categorie, String serviceUri, String mode, String numeroRisultati, String raggio, String queryId, String text, String format, String uid) throws IOException, SQLException {
-        BufferedWriter out = null;
-        File f = null;
-        String filePath = accessLogFile;
-        try {
-            Date now = new Date();
-            FileWriter fstream = new FileWriter(filePath, true); //true tells to append data.
-            out = new BufferedWriter(fstream);
-            out.write( now + "|" + mode + "|" + ip + "|" + UA + "|" + serviceUri + "|" + email + "|" + sel + "|" + categorie + "|" + numeroRisultati +"|" + raggio + "|" + queryId + "|" + text + "|" + format + "|"+uid+"\n");
-
-            //Class.forName("com.mysql.jdbc.Driver");
-            Connection conMySQL = ConnectionPool.getConnection();
-            // DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);;
-            String query = "INSERT INTO AccessLog(mode,ip,userAgent,serviceUri,email,selection,categories,maxResults,maxDistance,queryId,text,format,uid) VALUES "+
-                    "(?,?,?,?,?,?,?,?,?,?,?,?,?)";
-            //System.out.println(query);
-            PreparedStatement st = conMySQL.prepareStatement(query);
-            st.setString(1, mode);
-            st.setString(2, ip);
-            st.setString(3, UA);
-            st.setString(4, serviceUri);
-            st.setString(5, email);
-            st.setString(6, sel);
-            st.setString(7, categorie);
-            st.setString(8, numeroRisultati);
-            st.setString(9, raggio);
-            st.setString(10, queryId);
-            st.setString(11, text);
-            st.setString(12, format);
-            st.setString(13, uid);
-            st.executeUpdate();
-            st.close();
-            conMySQL.close();
-        } catch (IOException e) {
-            System.err.println("Error: " + e.getMessage());
-        } finally {
-            if (out != null) {
-                out.close();
-            }
-        }
+    
+    private void logAccess(String ip, String email, String UA, String sel, String categorie, String serviceUri, String mode, String numeroRisultati, String raggio, String queryId, String text, String format, String uid, String reqFrom) throws IOException, SQLException {
+      ServiceMap.logAccess(ip, email, UA, sel, categorie, serviceUri, mode, numeroRisultati, raggio, queryId, text, format, uid, reqFrom);
     }
+    
     private String sqlValue(Object x) {
       if(x==null)
         return "NULL";
@@ -138,9 +104,11 @@
         return "'"+x+"'";
       return x.toString();
     }
+    
     private String escapeJSON(String s) {
-      return s.replace("\"", "\\\"").replace("\t", "\\t");
+      return JSONObject.escape(s); //s.replace("\"", "\\\"").replace("\t", "\\t");
     }
+    
     private String filterQuery(String s) {
       if(!km4cVersion.equals("old"))
         return s.replace("^^xsd:string", "");

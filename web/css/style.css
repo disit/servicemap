@@ -173,7 +173,22 @@ html{
     cursor: pointer;
     bottom: 1px;
     left: 10px;
+    padding: 2px;
+}
+#chart_dialog{
+    display:none;
+    width:800px;
+    z-index:1200;
+    overflow: hidden;
+}
 
+#serviceSearchChart{
+    position:absolute;
+    z-index: 0;
+    cursor: pointer;
+    bottom: 1px;
+    left:  45px;
+    padding: 2px;
 }
 #startSearching{
     position:absolute;
@@ -216,14 +231,14 @@ html{
     display:block;
     //bottom: 1px;
     //right: 45px;
-
+    padding: 2px;
 }
 #clearAll{
     position:absolute;
     z-index: 0;
     cursor: pointer;
     bottom: 1px;
-    left:  45px;
+    left: 80px;
 }
 #saveQuery{
     position:absolute;
@@ -623,7 +638,7 @@ div#serviceMap_save_dialog ,  div#serviceMap_embed_dialog, div#serviceMap_search
     margin-top: 60px;
     margin-left:43%;
     background-color: whitesmoke;
-    z-index:102;
+    z-index:1200;
     box-shadow: 0 1px 5px rgba(0,0,0,0.65);
 }
 div#serviceMap_search_dialog{
@@ -843,7 +858,7 @@ body.firefox	#query_description_container #left_bracket p{
     opacity: .15;
     filter: alpha(opacity=15);
     -moz-opacity: .15;
-    z-index: 101;
+    z-index: 1100;
     display: none;
 }
 .leaflet-popup-content-wrapper {
@@ -1166,4 +1181,33 @@ body.firefox	#query_description_container #left_bracket p{
 #apri_path{
     margin-left:75px;
     float:left;
+}
+
+.ui-dialog {
+    z-index: 1200 !important ;
+    //position:absolute;
+    //left: 50% !important;
+    //top: 50% !important;
+    //margin-left: -20% !important; 
+    //margin-top: -15% !important;
+    
+}
+
+.ui-dialog-titlebar-collapse{
+    margin-right:23px;
+    -moz-margin-rigth:23px;
+}
+
+.ui-dialog-titlebar-restore{
+    margin-right:23px;
+    -moz-margin-rigth:23px;
+}
+
+.fancybox img{
+    margin-left:2px;
+    margin-right:2px;
+}
+
+.img_photo:hover {
+    opacity:0.4;
 }

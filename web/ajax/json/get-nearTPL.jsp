@@ -37,11 +37,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
-    repo.initialize();
-    RepositoryConnection con = repo.getConnection();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
 
-    String ip = request.getRemoteAddr();
+    String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
     response.setContentType("application/json; charset=UTF-8");
@@ -50,10 +48,10 @@
     String numLinee = request.getParameter("numLinee");
     String[] coord = centro.split(";");
 
-    logAccess(ip, null, ua, null, null, null, "ui-location", null, null, null, null, null, null);
+    logAccess(ip, null, ua, null, null, null, "ui-tpl-search", null, null, null, null, null, null, null);
 
     try {
-        serviceMapApi.queryLatLngTPL(out, con, coord, raggio,numLinee);
+        serviceMapApi.queryTplLatLng(out, con, coord, raggio, null, numLinee, true);
     } catch (Exception e) {
         out.println(e.getMessage());
     }finally{con.close() ;}
