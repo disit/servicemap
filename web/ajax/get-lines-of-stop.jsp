@@ -1,3 +1,5 @@
+<%@page import="org.disit.servicemap.api.ServiceMapApi"%>
+<%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
 <%@page  import="java.io.IOException"%>
 <%@page  import="org.openrdf.model.Value"%>
 <%@ page import="java.util.*"%>
@@ -35,13 +37,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
-    repo.initialize();
-    RepositoryConnection con = repo.getConnection();
-    String nomeFermata = request.getParameter("nomeFermata");
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
+    String uriFermata = request.getParameter("uriFermata");
     String divRoute = request.getParameter("divRoute");
 
-    String queryString = " PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
+    ServiceMapApi api= new ServiceMapApiV1();
+    
+    /*String queryString = " PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
               + "PREFIX km4cr:<http://www.disit.org/km4city/resource/>\n"
               + "PREFIX schema:<http://schema.org/#>\n"
               + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
@@ -61,26 +63,42 @@
               + " UNION\n"
               + " {?bs2 foaf:name \"" + nomeFermata + "\"^^xsd:string.}\n"
               + "} ORDER BY ?id ";
-
+    
+   
     TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
     TupleQueryResult result = tupleQuery.evaluate();
-    logQuery(filterQuery(queryString),"get-lines-of-stop","any",nomeFermata);
+    logQuery(filterQuery(queryString),"get-lines-of-stop","any",nomeFermata);*/
+
+    TupleQueryResult result = api.queryBusLines(uriFermata, con);
     
+        
+     
     try{
+        //System.out.println("testtttttttttttttttttttt-----------------");
         out.println("<div class=\"infoLinee\">");
-        out.println("<b>Lines:</b>");
-        out.println("<table>");
-        out.println("<tr>");
-        while (result.hasNext()) {
-            BindingSet bindingSet = result.next();
-            String idLine = bindingSet.getValue("id").stringValue();
-            //out.println("<td onclick='showLinea(\""+ idLine +"\")'>" + idLine + "</td>");
-            out.println("<td onclick='showRoute(\""+ idLine +"\",\""+divRoute+"\")'>" + idLine + "</td>");
+        if(result.hasNext()){//scrivo solo per ATAF - temporaneamente
+            out.println("<b>Lines:</b>");
+            out.println("<table>");
+            out.println("<tr>");
+            while (result.hasNext()) {
+                BindingSet bindingSet = result.next();
+                String Line="";
+                if(bindingSet.getValue("id")!=null)
+                    Line = bindingSet.getValue("id").stringValue();
+                else
+                    Line = bindingSet.getValue("desc").stringValue();
+                
+                String LineUri = bindingSet.getValue("line").stringValue();
+                String ag = bindingSet.getValue("ag").stringValue();
+                //out.println("<td onclick='showLinea(\""+ idLine +"\")'>" + idLine + "</td>");
+                out.println("<td onclick='showRoute(\""+ ag +"\",\""+ LineUri +"\",\"" + uriFermata + "\",\"" + divRoute + "\")'>" + Line + "</td>");
+            }
+            out.println("</tr>");
+            out.println("</table>");
         }
-        out.println("</tr>");
-        out.println("</table>");
-        out.println("</div>");     
+        out.println("</div>"); 
     }catch (Exception e) {
+        //MICH e.printStackTrace();
         out.println(e.getMessage());
     }finally{con.close();}
 %>

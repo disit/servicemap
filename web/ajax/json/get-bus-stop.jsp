@@ -32,11 +32,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
-    repo.initialize();
-
     String nomeFermata = request.getParameter("nomeFermata");
-    RepositoryConnection con = repo.getConnection();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
     String queryString = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
             + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
             + "PREFIX schema:<http://schema.org/#>\n"
@@ -69,14 +66,6 @@
             String valueOfBS = bindingSet.getValue("bs").stringValue();
             String valueOfBSLat = bindingSet.getValue("bslat").stringValue();
             String valueOfBSLong = bindingSet.getValue("bslong").stringValue();
-            /*valueOfBSLat = valueOfBSLat.replace("\"^^<http://www.w3.org/2001/XMLSchema#float>", "");
-            valueOfBSLat = valueOfBSLat.replace("\"^^<http://www.w3.org/2001/XMLSchema#decimal>", "");
-            valueOfBSLat = valueOfBSLat.replace("\"", "");
-            valueOfBSLat = valueOfBSLat.replace("^^", "");
-            valueOfBSLong = valueOfBSLong.replace("\"^^<http://www.w3.org/2001/XMLSchema#float>", "");
-            valueOfBSLong = valueOfBSLong.replace("\"^^<http://www.w3.org/2001/XMLSchema#decimal>", "");
-            valueOfBSLong = valueOfBSLong.replace("\"", "");
-            valueOfBSLong = valueOfBSLong.replace("^^", "");*/
 
             if (i != 0) {
                 out.println(", ");
@@ -92,12 +81,10 @@
                     + "\"type\": \"Feature\",  "
                     + "\"properties\": {  "
                     + "    \"popupContent\": \"" + nomeFermata + "\", "
-                    + "    \"nome\": \"" + nomeFermata + "\", "
+                    + "    \"name\": \"" + nomeFermata + "\", "
                     + "    \"serviceUri\": \"" + valueOfBS + "\", "
                     + "    \"tipo\": \"fermata\", "
-                    // *** INSERIMENTO serviceType
                     + "    \"serviceType\": \"TransferServiceAndRenting_BusStop\" "
-                    // **********************************************
                     + "}, "
                     + "\"id\": " + Integer.toString(i + 1) + " "
                     + "}");

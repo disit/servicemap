@@ -18,8 +18,7 @@ USE `ServiceMap`;
 --
 -- Struttura della tabella `AccessLog`
 --
-
-CREATE TABLE IF NOT EXISTS `AccessLog` (
+CREATE TABLE `AccessLog` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `mode` varchar(45) DEFAULT NULL,
@@ -27,20 +26,21 @@ CREATE TABLE IF NOT EXISTS `AccessLog` (
   `userAgent` varchar(255) DEFAULT NULL,
   `uid` varchar(255) DEFAULT NULL,
   `serviceUri` varchar(255) DEFAULT NULL,
-  `selection` varchar(255) DEFAULT NULL,
+  `selection` text,
   `categories` text,
   `maxResults` varchar(255) DEFAULT NULL,
   `maxDistance` varchar(255) DEFAULT NULL,
+  `reqfrom` varchar(45) DEFAULT NULL,
   `text` varchar(255) DEFAULT NULL,
   `queryId` varchar(45) DEFAULT NULL,
   `format` varchar(45) DEFAULT NULL,
   `email` varchar(45) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_AccessLog_timestamp` (`timestamp`),
-  KEY `idx_AccessLog_mode` (`mode`),
-  KEY `idx_AccessLog_ip` (`ip`),
-  KEY `idx_AccessLog_uid` (`uid`)
-) ENGINE=InnoDB  DEFAULT CHARSET=latin1 AUTO_INCREMENT=115772 ;
+  KEY `timestamp` (`timestamp`),
+  KEY `mode` (`mode`),
+  KEY `ip` (`ip`),
+  KEY `uid` (`uid`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 -- --------------------------------------------------------
 
@@ -740,6 +740,48 @@ INSERT INTO `ServiceMacroClasses` (`idMacroClass`, `MacroClass`) VALUES
 (31, 'Path'),
 (32, 'WeatherReport'),
 (33, 'WeatherPrediction');
+
+CREATE TABLE `Geometry` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `label_id` varchar(30) NOT NULL,
+  `label` varchar(30) NOT NULL,
+  `wkt` text NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `ServiceComment` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `serviceUri` varchar(255) NOT NULL DEFAULT '',
+  `serviceName` varchar(255) NOT NULL DEFAULT '',
+  `uid` varchar(255) NOT NULL DEFAULT '',
+  `comment` text CHARACTER SET utf8,
+  `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `status` enum('submitted','validated','rejected') NOT NULL DEFAULT 'submitted',
+  PRIMARY KEY (`id`),
+  KEY `serviceUri` (`serviceUri`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+CREATE TABLE `ServicePhoto` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `serviceUri` varchar(255) NOT NULL DEFAULT '',
+  `serviceName` varchar(255) DEFAULT NULL,
+  `uid` varchar(255) NOT NULL DEFAULT '',
+  `file` varchar(255) NOT NULL DEFAULT '',
+  `status` enum('submitted','validated','rejected') NOT NULL DEFAULT 'submitted',
+  `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `ip` varchar(45) NOT NULL DEFAULT '',
+  `userAgent` text,
+  PRIMARY KEY (`id`),
+  KEY `serviceUri` (`serviceUri`)
+) ENGINE=InnoDB AUTO_INCREMENT=215 DEFAULT CHARSET=latin1;
+
+CREATE TABLE `ServiceStars` (
+  `serviceUri` varchar(255) NOT NULL DEFAULT '',
+  `uid` varchar(255) NOT NULL DEFAULT '',
+  `stars` int(10) unsigned NOT NULL DEFAULT '0',
+  `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`serviceUri`,`uid`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;

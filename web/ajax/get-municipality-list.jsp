@@ -1,3 +1,4 @@
+<%@page import="virtuoso.sesame2.driver.VirtuosoRepository"%>
 <%@page import="java.io.IOException"%>
 <%@page import="org.openrdf.model.Value"%>
 <%@page import="java.util.*"%>
@@ -32,9 +33,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
-    repo.initialize();
-    RepositoryConnection con = repo.getConnection();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
 
     String nomeProvincia = request.getParameter("nomeProvincia");
 
@@ -57,8 +56,7 @@
             + "?mun foaf:name ?nomeComune.\n"
             + "}\n"
             + "ORDER BY ?nomeComune";
-    //out.println(queryString);
-
+    //System.out.println(queryString);
     TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
     TupleQueryResult result = tupleQuery.evaluate();
     logQuery(filterQuery(queryString),"get-municipality-list","any",nomeProvincia);

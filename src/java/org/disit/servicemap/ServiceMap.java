@@ -21,25 +21,31 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.*;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
-import static java.util.Arrays.asList;
 import java.util.Date;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Properties;
 import java.util.Scanner;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.servlet.jsp.JspWriter;
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
+import javax.servlet.http.HttpServletRequest;
+import org.openrdf.query.Binding;
 import org.openrdf.query.BindingSet;
-import org.openrdf.query.MalformedQueryException;
-import org.openrdf.query.QueryEvaluationException;
 import org.openrdf.query.QueryLanguage;
 import org.openrdf.query.TupleQuery;
 import org.openrdf.query.TupleQueryResult;
 import org.openrdf.repository.RepositoryConnection;
-import org.openrdf.repository.RepositoryException;
-import org.apache.commons.logging.LogFactory;
-import org.apache.commons.logging.Log;
+import org.openrdf.repository.Repository;
+import org.openrdf.repository.sparql.SPARQLRepository;
+import virtuoso.sesame2.driver.VirtuosoRepository;
 
 /**
  *
@@ -50,6 +56,20 @@ public class ServiceMap {
   static private List<String> stopWords = null;
   
   static public void initLogging() {
+  }
+  
+  static public RepositoryConnection getSparqlConnection() throws Exception {
+    Repository repo;
+    Configuration conf = Configuration.getInstance();
+    String virtuosoEndpoint = conf.get("virtuosoEndpoint", null);
+    if(virtuosoEndpoint!=null)
+      repo = new VirtuosoRepository(virtuosoEndpoint, conf.get("virtuosoUser", "dba"), conf.get("virtuosoPwd", "dba"));
+    else {
+      String sparqlEndpoint = conf.get("sparqlEndpoint", null);
+      repo = new SPARQLRepository(sparqlEndpoint);
+    }
+    repo.initialize();
+    return repo.getConnection();
   }
   
   static public void logQuery(String query, String id, String type, String args, long time) {
@@ -64,9 +84,11 @@ public class ServiceMap {
       //System.out.println("file: "+file.getAbsolutePath());
       //true = append file
       Date now = new Date();
+      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      String formattedDate = formatter.format(now);
       FileWriter fileWritter = new FileWriter(file.getAbsolutePath(),true);
       BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
-      bufferWritter.write(("#QUERYID:"+id+":"+type+":"+args+":"+(time/1000000)+":"+now+":"+query+"\n#####################\n").replace("\n", "\r\n"));
+      bufferWritter.write(("#QUERYID|"+id+"|"+type+"|"+args+"|"+(time/1000000)+"|"+formattedDate+"|"+query+"\n#####################\n").replace("\n", "\r\n"));
       bufferWritter.close();
       //System.out.println("#QUERYID:"+id+":"+type+":"+args+":"+(time/1000000));
       //System.out.println(query);
@@ -76,8 +98,59 @@ public class ServiceMap {
     }
   }
   
+  static public void logAccess(String ip, String email, String UA, String sel, String categorie, String serviceUri, String mode, String numeroRisultati, String raggio, String queryId, String text, String format, String uid, String reqFrom) throws IOException, SQLException {
+    Configuration conf = Configuration.getInstance();
+    BufferedWriter out = null;
+    File f = null;
+    String filePath = conf.get("accessLogFile","");
+    try {
+        Date now = new Date();
+        FileWriter fstream = new FileWriter(filePath, true); //true tells to append data.
+        out = new BufferedWriter(fstream);
+        out.write( now + "|" + mode + "|" + ip + "|" + UA + "|" + serviceUri + "|" + email + "|" + sel + "|" + categorie + "|" + numeroRisultati +"|" + raggio + "|" + queryId + "|" + text + "|" + format + "|"+uid+"|"+reqFrom+"\n");
+
+        //Class.forName("com.mysql.jdbc.Driver");
+        Connection conMySQL = ConnectionPool.getConnection();
+        if(conMySQL== null) {
+          System.out.println("ERROR logAccess: connection==null");
+          ((ConnectionPool)ConnectionPool.getConnection()).printStatus();
+          return;
+        }
+        // DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);;
+        String query = "INSERT INTO AccessLog(mode,ip,userAgent,serviceUri,email,selection,categories,maxResults,maxDistance,queryId,text,format,uid,`reqfrom`) VALUES "+
+                "(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        //System.out.println(query);
+        PreparedStatement st = conMySQL.prepareStatement(query);
+        st.setString(1, mode);
+        st.setString(2, ip);
+        st.setString(3, UA);
+        st.setString(4, serviceUri);
+        st.setString(5, email);
+        st.setString(6, sel);
+        st.setString(7, categorie);
+        st.setString(8, numeroRisultati);
+        st.setString(9, raggio);
+        st.setString(10, queryId);
+        st.setString(11, text);
+        st.setString(12, format);
+        st.setString(13, uid);
+        st.setString(14, reqFrom);
+        st.executeUpdate();
+        st.close();
+        conMySQL.close();
+    } catch (IOException e) {
+        System.err.println("Error: " + e.getMessage());
+    } finally {
+        if (out != null) {
+            out.close();
+        }
+    }
+  }
+
   static public String escapeJSON(String s) {
-    return s.replace("\"", "\\\"").replace("\t", "\\t");
+    if(s==null)
+      return null;
+    return s.replace("\"", "\\\"").replace("\t", "\\t").replace("\n", "\\n");
   }
 
   static final public String prefixes =
@@ -140,7 +213,7 @@ public class ServiceMap {
   
   static public String latLngToAddressQuery(String lat, String lng, String sparqlType) {
     return prefixes
-            + "SELECT DISTINCT ?via ?numero ?comune	?uriComune WHERE {\n"
+            + "SELECT DISTINCT ?via ?numero ?comune	(?nc as ?uriCivico) ?uriComune WHERE {\n"
             + " ?entry rdf:type km4c:Entry.\n"
             + " ?nc km4c:hasExternalAccess ?entry.\n"
             + " ?nc km4c:extendNumber ?numero.\n"
@@ -204,7 +277,9 @@ public class ServiceMap {
     ArrayList<String> types=new ArrayList<String>();
     try {
       TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, queryString);
+      long ts = System.nanoTime();
       TupleQueryResult result = tupleQuery.evaluate();
+      logQuery(queryString, "get-types", sparqlType, uri+";"+inference,System.nanoTime()-ts);
       while (result.hasNext()) {
         BindingSet bindingSet = result.next();
         String type = bindingSet.getValue("type").stringValue();
@@ -376,21 +451,41 @@ public class ServiceMap {
             : " " + subj + " omgeo:nearby(" + lat + " " + lng + " \"" + dist + "km\") .\n"); //ATTENZIONE per OWLIM non viene aggiunto il BIND
   }
   
-  static public String geoSearchQueryFragment(String subj, String[] coords, String dist) {
-    if (coords==null || (coords.length!=2 && coords.length!=4) || dist == null) {
+  static public String geoSearchQueryFragment(String subj, String[] coords, String dist) throws IOException, SQLException {
+    if (coords==null || (!coords[0].startsWith("wkt:") && !coords[0].startsWith("geo:") && coords.length!=2 && coords.length!=4) || dist == null ) {
       return "";
     }
 
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "virtuoso");
+
+    if(coords.length==1 && (coords[0].startsWith("wkt:") || coords[0].startsWith("geo:"))) {
+      String geom = coords[0].substring(4);
+      if(coords[0].startsWith("geo:")) {
+        //cerca su tabella la geometria dove fare ricerca
+        Connection conMySQL = ConnectionPool.getConnection();
+        Statement st = conMySQL.createStatement();
+        ResultSet rs = st.executeQuery("SELECT wkt FROM ServiceMap.Geometry WHERE label='"+geom+"'");
+        if (rs.next()) {
+          geom = rs.getString("wkt");
+        }
+        else 
+          throw new IOException("geometry "+geom+" not found");
+        st.close();
+        conMySQL.close();
+      }
+      return  " " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_geomfromtext(\""+geom+"\"), 0.0005))\n"
+              + " BIND( 1.0 AS ?dist)\n";
+    }
+
     String lat = coords[0];
     String lng = coords[1];
     
     if(coords.length==2) {
       return (sparqlType.equals("virtuoso")
               ? " " + subj + " geo:geometry ?geo.  filter(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + "))<= " + dist + ")\n"
+              //"  " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+dist+"))\n"
               + " BIND(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")) AS ?dist)\n"
-              //"  ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+dist+"))\n" :
               : " " + subj + " omgeo:nearby(" + lat + " " + lng + " \"" + dist + "km\") .\n"); //ATTENZIONE per OWLIM non viene aggiunto il BIND
     }
     String lat2 = coords[2];
@@ -406,4 +501,300 @@ public class ServiceMap {
     //return " (bif:sprintf(\"%.10f\","+a+") AS "+b+")";
     return " ("+a+" AS "+b+")";
   }
+  
+  static public int countQuery(RepositoryConnection con, String query) throws Exception {
+    //return -1;
+    TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+    TupleQueryResult result = tupleQuery.evaluate();
+    if(result.hasNext()) {
+      BindingSet binding = result.next();
+      String count = binding.getValue("count").stringValue();
+      return Integer.parseInt(count);
+    }
+    return 0;
+  }
+  
+  static public boolean sendEmail(String dest, String subject, String msg) {
+    boolean emailSent;
+    String to[] = dest.split(";");
+    Properties properties = System.getProperties();
+    Configuration conf=Configuration.getInstance();
+    properties.put("mail.smtp.host", conf.get("smtp", "musicnetwork.dsi.unifi.it"));
+    properties.put("mail.smtp.port", conf.get("portSmtp","25"));
+    Session mailSession = Session.getDefaultInstance(properties);
+    try {
+      MimeMessage message = new MimeMessage(mailSession);
+      message.setFrom(new InternetAddress(conf.get("mailFrom","info@disit.org")));
+      for(String t: to)
+        message.addRecipient(Message.RecipientType.TO,
+              new InternetAddress(t));
+      message.setSubject(subject);
+      message.setContent(msg, "text/plain; charset=utf-8");
+      Transport.send(message);
+      emailSent = true;
+    } catch (MessagingException mex) {
+      mex.printStackTrace();
+      emailSent = false;
+    }        
+    return emailSent;
+  }
+  
+  static public String getServiceName(String serviceUri) throws Exception {
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
+    String serviceName = getServiceName(con, serviceUri);
+    con.close();
+    return serviceName;
+  }
+  
+  static public String getServiceName(RepositoryConnection con, String serviceUri) throws Exception {
+    String serviceName = null;
+    TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, "SELECT * WHERE {{<"+serviceUri+"> <http://schema.org/name> ?name}UNION{<"+serviceUri+"> <http://xmlns.com/foaf/0.1/name> ?name}} LIMIT 1");
+    TupleQueryResult result = tq.evaluate();
+    if(result.hasNext()) {
+      BindingSet binding = result.next();
+      serviceName = binding.getValue("name").stringValue();
+    }
+    return serviceName;
+  }
+  
+  static public String getServiceIdentifier(RepositoryConnection con, String serviceUri) throws Exception {
+    String serviceId = null;
+    TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, "SELECT * WHERE {<"+serviceUri+"> <http://purl.org/dc/terms/identifier> ?id} LIMIT 1");
+    TupleQueryResult result = tq.evaluate();
+    if(result.hasNext()) {
+      BindingSet binding = result.next();
+      serviceId = binding.getValue("id").stringValue();
+    }
+    return serviceId;
+  }
+  
+  static public Map<String,String> getServiceInfo(String idService, String lang) throws Exception {
+    Map<String,String> info = new HashMap<>();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
+    String queryService = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
+            + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
+            + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
+            + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+            + "PREFIX schema:<http://schema.org/>\n"
+            + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>\n"
+            + "PREFIX dcterms:<http://purl.org/dc/terms/>\n"
+            + "PREFIX opengis:<http://www.opengis.net/ont/geosparql#>\n"
+            + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>\n"
+            + "SELECT ?name ?lat ?long ?type ?category ?typeLabel ?ag ?agname WHERE{\n"
+            + " {\n"
+            + "  <" + idService + "> km4c:hasAccess ?entry.\n"
+            + "  ?entry geo:lat ?lat.\n"
+            + "  ?entry geo:long ?long.\n"
+            + " }UNION{\n"
+            + "  <" + idService + "> km4c:isInRoad ?road.\n"
+            + "  <" + idService + "> geo:lat ?lat.\n"
+            + "  <" + idService + "> geo:long ?long.\n"
+            + " }UNION{\n"
+            + "  <" + idService + "> geo:lat ?lat.\n"
+            + "  <" + idService + "> geo:long ?long.\n"
+            + " }\n"
+            + " {<" + idService + "> schema:name ?name.}UNION{<" + idService + "> foaf:name ?name.}UNION{<" + idService + "> dcterms:identifier ?name.}\n"
+            + " <" + idService + "> a ?type . FILTER(?type!=km4c:RegularService && ?type!=km4c:Service && ?type!=km4c:DigitalLocation)\n"
+            + " ?type rdfs:label ?typeLabel. FILTER(LANG(?typeLabel) = \""+lang+"\")\n"
+            + " OPTIONAL{?type rdfs:subClassOf ?category FILTER(STRSTARTS(STR(?category),\"http://www.disit.org/km4city/schema#\"))}.\n"
+            + " OPTIONAL {\n"
+            + "  {?st gtfs:stop <"+idService+">.}UNION{?st gtfs:stop [owl:sameAs <"+idService+">]}\n" 
+            + "  ?st gtfs:trip ?t.\n"
+            +"   ?t gtfs:route/gtfs:agency ?ag.\n"
+            +"   ?ag foaf:name ?agname.\n"
+            + " }\n"
+            + "} LIMIT 1";
+    TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, queryService);
+    TupleQueryResult result = tq.evaluate();
+    if(result.hasNext()) {
+      BindingSet binding = result.next();
+      info.put("serviceName", binding.getValue("name").stringValue());
+      info.put("lat", binding.getValue("lat").stringValue());
+      info.put("long", binding.getValue("long").stringValue());
+      info.put("typeLabel", binding.getValue("typeLabel").stringValue());
+      if(binding.getValue("category")!=null)
+        info.put("serviceType", makeServiceType(binding.getValue("category").stringValue(), binding.getValue("type").stringValue()));
+      else
+        info.put("serviceType", binding.getValue("type").stringValue().replace("http://www.disit.org/km4city/schema#", ""));
+      if(binding.getValue("ag")!=null) {
+        info.put("agencyUri", binding.getValue("ag").stringValue());
+        info.put("agency", binding.getValue("agname").stringValue());
+      }
+    }
+    con.close();
+    
+    return info;
+  }
+  
+  static public String map2Json(Map<String,String> info) throws Exception {
+    String json  = "";
+    for(String k:info.keySet()) {
+      json += "\""+k+"\":\""+escapeJSON(info.get(k))+"\", ";
+    }
+    return json;
+  }
+  
+  static public Map<String,String> getUriInfo(String uri) throws Exception {
+    Map<String,String> info = new HashMap<>();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
+    String query="SELECT * WHERE { <"+uri+"> ?p ?o }";
+    TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+    TupleQueryResult result = tq.evaluate();
+    while(result.hasNext()) {
+      BindingSet binding = result.next();
+      String p = binding.getValue("p").stringValue();
+      String o = binding.getValue("o").stringValue();
+      info.put(p,o);
+    }
+    con.close();
+    return info;
+  }
+  
+  static public String makeServiceType(String category, String type) {
+    return category.replace("http://www.disit.org/km4city/schema#", "")+"_"+type.replace("http://www.disit.org/km4city/schema#", "");
+  }
+  
+  static public String getServicePhotos(String uri) throws IOException,SQLException {
+    return getServicePhotos(uri, "");
+  }
+  
+  static public String getServicePhotos(String uri, String type) throws IOException,SQLException {
+    String json = "[";
+    Connection connection = ConnectionPool.getConnection();
+    String baseApiUrl = Configuration.getInstance().get("baseApiUrl", "");
+    if(!"".equals(type) && !type.endsWith("/"))
+      type += "/";
+    
+    try {
+      int i=0;
+      PreparedStatement st = connection.prepareStatement("SELECT file FROM ServicePhoto WHERE serviceUri=? AND status='validated'");
+      st.setString(1, uri);
+      ResultSet rs = st.executeQuery();
+      while(rs.next()) {
+        json += (i>0?",":"")+"\""+baseApiUrl+"v1/photo/"+type+rs.getString("file")+"\"";
+        i++;
+      }
+      json +="]";
+      st.close();
+      connection.close();
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+    }
+    return json;
+  }
+  
+  static public float[] getAvgServiceStars(String serviceUri) throws IOException,SQLException {
+    float[] r = new float[2];
+    r[0]=0;
+    r[1]=0;
+    Connection connection = ConnectionPool.getConnection();
+    try {
+      PreparedStatement st = connection.prepareStatement("SELECT avg(stars) as avgStars, count(*) as count FROM ServiceStars WHERE serviceUri=?");
+      st.setString(1, serviceUri);
+      ResultSet rs = st.executeQuery();
+      if(rs.next()) {
+        r[0] = rs.getFloat("avgStars");
+        r[1] = rs.getInt("count");
+      }
+      st.close();
+      connection.close();
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+    }
+    return r;
+  }
+
+  static public int getServiceStarsByUid(String serviceUri, String uid) throws IOException,SQLException {
+    int stars = 0;
+    Connection connection = ConnectionPool.getConnection();
+    try {
+      PreparedStatement st = connection.prepareStatement("SELECT stars FROM ServiceStars WHERE serviceUri=? AND uid=?");
+      st.setString(1, serviceUri);
+      st.setString(2, uid);
+      ResultSet rs = st.executeQuery();
+      if(rs.next()) {
+        stars = rs.getInt("stars");
+      }
+      st.close();
+      connection.close();
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+    }
+    return stars;
+  }
+  
+  static public String getServiceComments(String serviceUri) throws IOException,SQLException {
+    String json = "[";
+    Connection connection = ConnectionPool.getConnection();
+    String baseApiUrl = Configuration.getInstance().get("baseApiUrl", "");
+    try {
+      int i=0;
+      PreparedStatement st = connection.prepareStatement("SELECT comment, timestamp FROM ServiceComment WHERE serviceUri=? AND status='validated' ORDER BY timestamp");
+      st.setString(1, serviceUri);
+      ResultSet rs = st.executeQuery();
+      while(rs.next()) {
+        json += (i>0?",":"")+"{\"text\":\""+escapeJSON(rs.getString("comment"))+"\", \"timestamp\":\""+rs.getString("timestamp")+"\"}";
+        i++;
+      }
+      json +="]";
+      st.close();
+      connection.close();
+    } catch (SQLException ex) {
+      ex.printStackTrace();
+    }
+    return json;
+  }
+  
+  public static String fixWKT(String wkt) {
+    return wkt.replace("((", "(").replace("))", ")");
+  }
+  
+  public static String makeLOGUri(String uri) {
+    Configuration conf=Configuration.getInstance();
+    String logEndPoint = conf.get("logEndPoint","http://log.disit.org/service/?sparql=http://192.168.0.207:8080/ServiceMap/sparql&uri=");
+
+    return logEndPoint+uri;
+  }
+    
+  public static String cleanCategories(String categorie) {
+    if (categorie != null && !"".equals(categorie)) {
+      String[] arrayCategorie = categorie.split(";");
+      categorie = "";
+      for(int i=0; i<arrayCategorie.length; i++) {
+        String v = arrayCategorie[i].trim();
+        if(v.equals(""))
+          arrayCategorie[i]=null;
+        else {
+          if(i!=0)
+            categorie += ";"+v;
+          else
+            categorie += v;
+        }
+      }
+    }
+    return categorie;
+  }
+  
+  private static final String[] HEADERS_TO_TRY = { 
+      "X-Forwarded-For",
+      "Proxy-Client-IP",
+      "WL-Proxy-Client-IP",
+      "HTTP_X_FORWARDED_FOR",
+      "HTTP_X_FORWARDED",
+      "HTTP_X_CLUSTER_CLIENT_IP",
+      "HTTP_CLIENT_IP",
+      "HTTP_FORWARDED_FOR",
+      "HTTP_FORWARDED",
+      "HTTP_VIA",
+      "REMOTE_ADDR" };
+
+  public static String getClientIpAddress(HttpServletRequest request) {
+      for (String header : HEADERS_TO_TRY) {
+          String ip = request.getHeader(header);
+          if (ip != null && ip.length() != 0 && !"unknown".equalsIgnoreCase(ip) && !"127.0.0.1".equals(ip)) {
+              return ip;
+          }
+      }
+      return request.getRemoteAddr();
+  }  
 }

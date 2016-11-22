@@ -33,9 +33,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-  Repository repo = new SPARQLRepository(sparqlEndpoint);
-  repo.initialize();
-  RepositoryConnection con = repo.getConnection();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
 
   String nomeSensore = request.getParameter("nomeSensore");
   String queryString = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
@@ -54,8 +52,7 @@
             + " ?sensor rdf:type km4c:SensorSite.\n"
             + " ?sensor <http://purl.org/dc/terms/identifier> \"" + nomeSensore + "\"^^xsd:string.\n"
             + " ?sensor km4c:hasObservation ?obs.\n"
-            + " ?obs km4c:measuredTime ?time.\n"
-            + " ?time <http://purl.org/dc/terms/identifier> ?timeInstant. FILTER(?timeInstant >= xsd:date(now()))\n"
+            + " ?obs dcterms:date ?timeInstant.\n"
             + " OPTIONAL {?obs km4c:averageDistance ?avgDistance}\n"
             + " OPTIONAL {?obs km4c:averageTime ?avgTime}\n"
             + " OPTIONAL {?obs km4c:occupancy ?occupancy}\n"
@@ -70,7 +67,7 @@
   TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
   TupleQueryResult result = tupleQuery.evaluate();
   logQuery(filterQuery(queryString),"get-sensor-data","any",nomeSensore);
-	  
+  //System.out.println(queryString);	  
   String valueOfInstantDateTime = "";
   try {
     int i = 0;
@@ -88,57 +85,39 @@
       out.println("<b><span name=\"lbl\" caption=\"msg_real_time\">Real-time data currently not available</span></b>");
     while (result.hasNext()) {
       BindingSet bindingSet = result.next();
-      valueOfInstantDateTime = bindingSet.getValue("timeInstant").toString();
+      valueOfInstantDateTime = bindingSet.getValue("timeInstant").stringValue();
       String valueOfAvgDistance = "";
       if (bindingSet.getValue("avgDistance") != null) {
-        valueOfAvgDistance = bindingSet.getValue("avgDistance").toString();
+        valueOfAvgDistance = bindingSet.getValue("avgDistance").stringValue();
       }
       String valueOfAvgTime = "";
       if (bindingSet.getValue("avgTime") != null) {
-        valueOfAvgTime = bindingSet.getValue("avgTime").toString();
+        valueOfAvgTime = bindingSet.getValue("avgTime").stringValue();
       }
       String valueOfOccupancy = "";
       if (bindingSet.getValue("occupancy") != null) {
-        valueOfOccupancy = bindingSet.getValue("occupancy").toString();
+        valueOfOccupancy = bindingSet.getValue("occupancy").stringValue();
       }
       String valueOfConcentration = "";
       if (bindingSet.getValue("concentration") != null) {
-        valueOfConcentration = bindingSet.getValue("concentration").toString();
+        valueOfConcentration = bindingSet.getValue("concentration").stringValue();
       }
       String valueOfVehicleFlow = "";
       if (bindingSet.getValue("vehicleFlow") != null) {
-        valueOfVehicleFlow = bindingSet.getValue("vehicleFlow").toString();
+        valueOfVehicleFlow = bindingSet.getValue("vehicleFlow").stringValue();
       }
       String valueOfAverageSpeed = "";
       if (bindingSet.getValue("averageSpeed") != null) {
-        valueOfAverageSpeed = bindingSet.getValue("averageSpeed").toString();
+        valueOfAverageSpeed = bindingSet.getValue("averageSpeed").stringValue();
       }
       String valueOfThresholdPerc = "";
       if (bindingSet.getValue("thresholdPerc") != null) {
-        valueOfThresholdPerc = bindingSet.getValue("thresholdPerc").toString();
+        valueOfThresholdPerc = bindingSet.getValue("thresholdPerc").stringValue();
       }
       String valueOfSpeedPercentile = "";
       if (bindingSet.getValue("speedPercentile") != null) {
-        valueOfSpeedPercentile = bindingSet.getValue("speedPercentile").toString();
+        valueOfSpeedPercentile = bindingSet.getValue("speedPercentile").stringValue();
       }
-
-      valueOfAvgDistance = valueOfAvgDistance.replace("\"^^<http://www.w3.org/2001/XMLSchema#float>", "");
-      valueOfAvgDistance = valueOfAvgDistance.replace("\"", "");
-      valueOfAvgTime = valueOfAvgTime.replace("\"^^<http://www.w3.org/2001/XMLSchema#float>", "");
-      valueOfAvgTime = valueOfAvgTime.replace("\"", "");
-      valueOfOccupancy = valueOfOccupancy.replace("\"^^<http://www.w3.org/2001/XMLSchema#float>", "");
-      valueOfOccupancy = valueOfOccupancy.replace("\"", "");
-      valueOfConcentration = valueOfConcentration.replace("\"^^<http://www.w3.org/2001/XMLSchema#float>", "");
-      valueOfConcentration = valueOfConcentration.replace("\"", "");
-      valueOfVehicleFlow = valueOfVehicleFlow.replace("\"^^<http://www.w3.org/2001/XMLSchema#float>", "");
-      valueOfVehicleFlow = valueOfVehicleFlow.replace("\"", "");
-      valueOfAverageSpeed = valueOfAverageSpeed.replace("\"^^<http://www.w3.org/2001/XMLSchema#float>", "");
-      valueOfAverageSpeed = valueOfAverageSpeed.replace("\"", "");
-      valueOfThresholdPerc = valueOfThresholdPerc.replace("\"^^<http://www.w3.org/2001/XMLSchema#float>", "");
-      valueOfThresholdPerc = valueOfThresholdPerc.replace("\"", "");
-      valueOfSpeedPercentile = valueOfSpeedPercentile.replace("\"^^<http://www.w3.org/2001/XMLSchema#float>", "");
-      valueOfSpeedPercentile = valueOfSpeedPercentile.replace("\"", "");
-      valueOfInstantDateTime=valueOfInstantDateTime.replace("^^","");
 
       out.println("<tr>");
 

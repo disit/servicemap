@@ -21,9 +21,7 @@
     response.addHeader("Access-Control-Allow-Origin", "*");
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
-    repo.initialize();
-    RepositoryConnection con = repo.getConnection();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
     String selection = request.getParameter("selection");
     String range = request.getParameter("range");
     if(range==null)
@@ -34,8 +32,9 @@
     String maxResults = request.getParameter("maxResults");    
     String uid = request.getParameter("uid");
     String text = request.getParameter("text");
-    String ip = request.getRemoteAddr();
+    String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
+    String reqFrom = request.getParameter("requestFrom");
 
     String coords[] = null;
     if(selection!=null) {
@@ -45,6 +44,6 @@
         return;
       }
     }
-    serviceMapApi.queryEventList(out, con, range, coords, maxDists, maxResults, text);
-    logAccess(ip, null, ua, selection, null, null, "api-events-"+range, maxResults, maxDists, null, null, "json", uid);
+    serviceMapApi.queryEventList(out, con, range, coords, maxDists, maxResults, text, reqFrom!=null);
+    logAccess(ip, null, ua, selection, null, null, "api-events-"+range, maxResults, maxDists, null, null, "json", uid, reqFrom);
 %>

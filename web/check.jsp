@@ -32,9 +32,7 @@
   <body>
     <h1>Realtime check</h1>
     <%
-      Repository repo = new SPARQLRepository(sparqlEndpoint);
-      repo.initialize();
-      RepositoryConnection con = repo.getConnection();
+      RepositoryConnection con = ServiceMap.getSparqlConnection();
       int nn=0;
       Date d = new Date();
       int delayMin;
@@ -102,7 +100,6 @@
       if(!msg.equals("")) {
         boolean emailSent = false;
         String to[] = check_send_to.split(";");
-        String host = hostMail;
         Properties properties = System.getProperties();
         properties.put("mail.smtp.host", smtp);
         properties.put("mail.smtp.port", portSmtp);

@@ -32,9 +32,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
-    repo.initialize();
-    RepositoryConnection con = repo.getConnection();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
 
     String nomeParcheggio = request.getParameter("nomeParcheggio");
     String queryString = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
@@ -52,18 +50,19 @@
             + "	?situationRecord km4c:relatedToSensor ?cps.\n"
             + "	?situationRecord km4c:observationTime ?time.\n"
             + "	?time <http://purl.org/dc/terms/identifier> ?instantDateTime.\n"
-            + "	?situationRecord km4c:parkOccupancy ?occupancy.\n"
-            + "	?situationRecord km4c:carParkStatus ?cpStatus.\n"
+            + "	OPTIONAL {?situationRecord km4c:parkOccupancy ?occupancy.}\n"
+            + "	OPTIONAL {?situationRecord km4c:carParkStatus ?cpStatus.}\n"
             + "	?situationRecord km4c:free ?free.\n"
-            + "	?situationRecord km4c:occupied ?occupied.\n"
+            + "	OPTIONAL {?situationRecord km4c:occupied ?occupied.}\n"
             + "} "
             + "ORDER BY DESC (?instantDateTime) "
             + "LIMIT 1";
     //out.println(queryString);
-
+    //System.out.println(queryString);
     TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
     TupleQueryResult result = tupleQuery.evaluate();
     logQuery(filterQuery(queryString),"get-parking-status","any",nomeParcheggio);
+    System.out.println(filterQuery(queryString));
     
     if (result.hasNext()) {
         BindingSet bindingSet = result.next();
@@ -91,10 +90,14 @@
                 //BindingSet bindingSet = result.next();
                 
                 valueOfInstantDateTime = bindingSet.getValue("instantDateTime").stringValue();
-                String valueOfOccupancy = bindingSet.getValue("occupancy").stringValue();
+                //String valueOfOccupancy = bindingSet.getValue("occupancy").stringValue();
                 String valueOfFree = bindingSet.getValue("free").stringValue();
-                String valueOfOccupied = bindingSet.getValue("occupied").stringValue();
                 String valueOfCapacity = bindingSet.getValue("capacity").stringValue();
+                String valueOfOccupied = null;
+                if(bindingSet.getValue("occupied")!=null)
+                  valueOfOccupied = bindingSet.getValue("occupied").stringValue();
+                else
+                  valueOfOccupied = "" + (Integer.parseInt(valueOfCapacity) - Integer.parseInt(valueOfFree));
 
                 out.println("<tr>");
                 out.println("<td>" + valueOfCapacity + "</td>");

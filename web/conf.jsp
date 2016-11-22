@@ -28,7 +28,7 @@
       //is client behind something?
       String ipAddress = request.getHeader("X-Forwarded-For");  
       if (ipAddress == null) {  
-        ipAddress = request.getRemoteAddr();  
+        ipAddress = ServiceMap.getClientIpAddress(request);  
       }
       
       if(ipAddress.startsWith("192.168.0.") || ipAddress.equals("127.0.0.1")) {

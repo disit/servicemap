@@ -25,9 +25,7 @@
   <body>
     <h1>Realtime statistics</h1>
     <%
-      Repository repo = new SPARQLRepository(sparqlEndpoint);
-      repo.initialize();
-      RepositoryConnection con = repo.getConnection();
+      RepositoryConnection con = ServiceMap.getSparqlConnection();
       int nn=0;
 
       String queryLastAVM = "PREFIX dcterms:<http://purl.org/dc/terms/>"

@@ -3,7 +3,10 @@ package org.disit.servicemap;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Properties;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.commons.dbcp.ConnectionFactory;
 import org.apache.commons.dbcp.DriverManagerConnectionFactory;
 import org.apache.commons.dbcp.PoolableConnectionFactory;
@@ -65,11 +68,19 @@ public class ConnectionPool {
    *
    * @return @throws Exception
    */
-  public DataSource setUp() throws Exception {
-    /**
-     * Load JDBC Driver class.
-     */
-    Class.forName(ConnectionPool.DRIVER).newInstance();
+  public DataSource setUp()  {
+    try {
+      /**
+       * Load JDBC Driver class.
+       */
+      Class.forName(ConnectionPool.DRIVER).newInstance();
+    } catch (ClassNotFoundException ex) {
+      Logger.getLogger(ConnectionPool.class.getName()).log(Level.SEVERE, null, ex);
+    } catch (InstantiationException ex) {
+      Logger.getLogger(ConnectionPool.class.getName()).log(Level.SEVERE, null, ex);
+    } catch (IllegalAccessException ex) {
+      Logger.getLogger(ConnectionPool.class.getName()).log(Level.SEVERE, null, ex);
+    }
 
     /**
      * Creates an instance of GenericObjectPool that holds our pool of
@@ -111,27 +122,26 @@ public class ConnectionPool {
 
   // Prints connection pool status
   public void printStatus() {
-    System.out.println("Max   : " + getConnectionPool().getMaxActive() + "; "
+    System.out.println("ConnectionPool Max   : " + getConnectionPool().getMaxActive() + "; "
             + "Active: " + getConnectionPool().getNumActive() + "; "
             + "Idle  : " + getConnectionPool().getNumIdle());
   }
 
-  public static Connection getConnection() {
-    try {
-      if (connPool == null) {
-        Configuration conf = Configuration.getInstance();
-        connPool = new ConnectionPool(conf.get("urlMySqlDB", "")+conf.get("dbMySql", "ServiceMap"), conf.get("userMySql", ""), conf.get("passMySql", ""),Integer.parseInt(conf.get("maxConnectionsMySql", "10")));
-        if (dataSource == null) {
-          dataSource = connPool.setUp();
-        }
+  public static Connection getConnection() throws IOException, SQLException {
+    if (connPool == null) {
+      Configuration conf = Configuration.getInstance();
+      String url = conf.get("urlMySqlDB", "")+conf.get("dbMySql", "ServiceMap")+"?useUnicode=true&characterEncoding=utf-8";
+      int maxConnections = Integer.parseInt(conf.get("maxConnectionsMySql", "10"));
+      connPool = new ConnectionPool(url, conf.get("userMySql", ""), conf.get("passMySql", ""),maxConnections);
+      System.out.println("connected "+url+" maxConnections: "+maxConnections);
+      if (dataSource == null) {
+        dataSource = connPool.setUp();
       }
-      return dataSource.getConnection();
-    } catch (IOException e) {
-      e.printStackTrace();
-      return null;
-    } catch (Exception e) {
-      e.printStackTrace();
-      return null;
     }
+    else {
+      //connPool.printStatus();
+    }
+
+    return dataSource.getConnection();
   }
 }

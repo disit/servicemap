@@ -32,9 +32,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-  Repository repo = new SPARQLRepository(sparqlEndpoint);
-  repo.initialize();
-  RepositoryConnection con = repo.getConnection();
+  RepositoryConnection con = ServiceMap.getSparqlConnection();
 
   String nomeComune = request.getParameter("nomeComune");
 
@@ -62,6 +60,7 @@
 	TupleQuery tupleQuery1 = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString1));
 	TupleQueryResult result1 = tupleQuery1.evaluate();
   logQuery(filterQuery(queryString1),"get-weather-1","any",nomeComune);
+  //System.out.println(queryString1);
   
 	BindingSet bindingSet1 = (result1.hasNext() ? result1.next() : null);
   if(bindingSet1!=null) {
@@ -88,6 +87,7 @@
     TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, queryString); //tolto filterQuery() per problema temporaneo, da rimettere
     if(sparqlType.equals("owlim"))
       tupleQuery.setMaxQueryTime(maxTime);
+    //System.out.println(queryString);
 
     TupleQueryResult result = tupleQuery.evaluate();
     logQuery(filterQuery(queryString),"get-weather-2","any",valueOfWRep);
@@ -205,6 +205,10 @@
         else if (valueOfDescrizione.equals("pioggia neve")){
           nomeImmagine = "pioggia-neve.png";
           valueOfDescrizione = "light rain";
+        }	
+        else if (valueOfDescrizione.equals("nebbia")){
+          nomeImmagine = "fog.png";
+          valueOfDescrizione = "fog";
         }	
         out.println("<img class=\"immagine-meteo\" src=\""+request.getContextPath()+"/img/" + nomeImmagine + "\" width=\"48\" />");
         out.println("<br />");

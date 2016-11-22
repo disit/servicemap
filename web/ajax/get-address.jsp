@@ -1,3 +1,4 @@
+<%@page import="org.json.simple.JSONArray"%>
 <%@page import="org.json.simple.JSONObject"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
 <%@page import="org.disit.servicemap.ServiceMap"%>
@@ -36,50 +37,42 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
-    repo.initialize();
-    RepositoryConnection con = repo.getConnection();
+    Configuration conf=Configuration.getInstance();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
 
     String latitudine = request.getParameter("lat");
     String longitudine = request.getParameter("lng");
-    String ip = request.getRemoteAddr();
+    String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
 
-    logAccess(ip, null, ua, latitudine+";"+longitudine, null, null, "ui-location", null, null, null, null, null, null);
+    logAccess(ip, null, ua, latitudine+";"+longitudine, null, null, "ui-location", null, null, null, null, null, null, "user");
     ServiceMapApiV1 api = new ServiceMapApiV1();
-    JSONObject obj = api.queryLocation(con, latitudine, longitudine);
+    JSONObject obj = api.queryLocation(con, latitudine, longitudine, "true");
     if(obj!=null) {
       String address = (String)obj.get("address");
       String number = (String)obj.get("number");
-      if(address!=null)
+      String uri;
+      if(address!=null) {
         address = address + ", " + number + ", ";
-      else
+        uri=(String)obj.get("addressUri");
+      }
+      else {
         address = "";
-      out.println("Address: " + address + obj.get("municipality"));
+        uri=(String)obj.get("municipalityUri");
+      }
+      out.println("<small>Address:</small> <span id='actualAddress'><a href=\""+logEndPoint+uri+"\" target=\"_blank\">" + address + obj.get("municipality")+"</a></span>");
+      
+      if(conf.get("enablePathSearch","true").equals("true") && !address.equals("") && obj.get("municipality").equals("FIRENZE"))
+        out.println("<br><button style='margin:10px 10px 10px 0px' id='startpathsearch' onclick='setStartSearchPath("+latitudine+","+longitudine+")'>Path from here</button><button id='endpathsearch' onclick='setEndSearchPath("+latitudine+","+longitudine+")'>Path to here</button>");
+
+      out.println("<div id='intersect' style='max-height:50px;overflow:auto;'>");
+      JSONArray a=(JSONArray)obj.get("intersect");
+      for(int i=0;i<a.size();i++) {
+        JSONObject area=(JSONObject)a.get(i);
+
+        out.println("<small>"+area.get("class").toString().replace("http://www.disit.org/km4city/schema#","")+":</small> <a href=\""+logEndPoint+area.get("uri")+"\" target=\"_blank\">"+area.get("name")+"</a>"+" (dist:"+String.format("%.4f",area.get("distance"))+")<br>");
+      }
+      out.println("</div>");
     }
     con.close();
-/*
-    String queryString = ServiceMap.latLngToAddressQuery(latitudine, longitudine, sparqlType);
-
-    TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, queryString);
-    if(sparqlType.equals("owlim"))
-      tupleQuery.setMaxQueryTime(maxTime);
-    
-    TupleQueryResult result = tupleQuery.evaluate();
-    logQuery(filterQuery(queryString),"get-address",sparqlType,latitudine+";"+longitudine);
-
-    try {
-        if (result.hasNext()) {
-            BindingSet bindingSet = result.next();
-            String valueOfVia = bindingSet.getValue("via").stringValue();
-            String valueOfNumero = bindingSet.getValue("numero").stringValue();
-            String valueOfComune = bindingSet.getValue("comune").stringValue();
-
-            out.println("Indirizzo Approssimativo: " + valueOfVia + ", " + valueOfNumero + ", " + valueOfComune);
-        }
-        //	}
-    } catch (Exception e) {
-        out.println(e.getMessage());
-    }finally{con.close() ;}
-*/        
 %>

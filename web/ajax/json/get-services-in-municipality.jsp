@@ -33,9 +33,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
-    repo.initialize();
-    RepositoryConnection con = repo.getConnection();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
     
     String cat_servizi = request.getParameter("cat_servizi");
     if(cat_servizi==null)
@@ -48,10 +46,10 @@
     //String numeroRisultatiBus = request.getParameter("numeroRisultatiBus");  
     String categorie = request.getParameter("categorie");
     String textFilter = request.getParameter("textFilter");
-    String ip = request.getRemoteAddr();
+    String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
 
-    logAccess(ip, null, ua, nomeComune, categorie, null, "ui-services-by-municipality", numeroRisultatiServizi, null, null, textFilter, null, null);
+    logAccess(ip, null, ua, nomeComune, categorie, null, "ui-services-by-municipality", numeroRisultatiServizi, null, null, textFilter, null, null, null);
 
     if(textFilter==null)
       textFilter="";
@@ -135,10 +133,18 @@
                     limitBusStop = ((Integer.parseInt(numeroRisultatiServizi))/10*3);
                     queryString += " LIMIT " + limitBusStop;
                 }else{
+                     if(cat_servizi.contains(":")){
+                        String parts[] = cat_servizi.split(":");
+                        if(!parts[1].equals("0")){
+                            limitBusStop = ((Integer.parseInt(parts[1]))/10*3);
+                            queryString += " LIMIT " + limitBusStop;
+                        }
+                    }else{
                     queryString += " LIMIT " + numeroRisultatiServizi;
+                    }
                 }
             }
-            //out.println(queryString);
+            System.out.println(queryString);
 
             TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
             if(sparqlType.equals("owlim"))
@@ -169,11 +175,9 @@
                         + "\"type\": \"Feature\",  "
                         + "\"properties\": {  "
                         + "    \"popupContent\": \"" + valueOfNomeFermata + " - Fermata\", "
-                        + "    \"nome\": \"" + valueOfNomeFermata + "\", "
+                        + "    \"name\": \"" + valueOfNomeFermata + "\", "
                         + "    \"tipo\": \"fermata\", "
-                        // *** INSERIMENTO serviceType
                          + "    \"serviceType\": \"TransferServiceAndRenting_BusStop\", "
-                        // **********************************************
                         + "    \"email\": \"\", "
                         + "    \"note\": \"\", "
                         + "    \"serviceUri\": \"" + valueOfBS + "\", "
@@ -218,10 +222,18 @@
                     limitSensori = ((Integer.parseInt(numeroRisultatiServizi))/10*2);
                     queryStringSensori += " LIMIT " + limitSensori ;
                 }else{
+                    if(cat_servizi.contains(":")){
+                        String parts[] = cat_servizi.split(":");
+                        if(!parts[1].equals("0")){
+                            limitSensori = ((Integer.parseInt(parts[1]))/10*2);
+                            queryStringSensori += " LIMIT " + limitSensori;
+                        }
+                    }else{
                     queryStringSensori += " LIMIT " + numeroRisultatiServizi;
+                    }
                 }
             }
-
+            System.out.println(queryStringSensori);
             TupleQuery tupleQuerySensori = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryStringSensori));
             if(sparqlType.equals("owlim"))
               tupleQuerySensori.setMaxQueryTime(maxTime);
@@ -253,11 +265,9 @@
                         + "\"type\": \"Feature\",  "
                         + "\"properties\": {  "
                         + "    \"popupContent\": \"" + valueOfId + " - Sensore\", "
-                        + "    \"nome\": \"" + valueOfId + "\", "
+                        + "    \"name\": \"" + valueOfId + "\", "
                         + "    \"tipo\": \"sensore\", "
-                        // *** INSERIMENTO serviceType
                         + "    \"serviceType\": \"TransferServiceAndRenting_SensorSite\", "
-                        // **********************************************
                         + "    \"serviceUri\": \"" + valueOfIdService + "\", "
                         + "    \"indirizzo\": \"" + valueOfAddress + "\" "
                         + "},  "
@@ -280,6 +290,7 @@
                   !categorie.equals("PublicTransportLine;SensorSite") &&
                   !categorie.equals("PublicTransportLine;BusStop") &&
                   !categorie.equals("SensorSite;BusStop") &&
+                  !categorie.equals("BusStop;SensorSite") &&
                   !categorie.equals("Event;PublicTransportLine;SensorSite") &&
                   !categorie.equals("Event;PublicTransportLine;BusStop") &&
                   !categorie.equals("Event;SensorSite;BusStop") &&
@@ -292,7 +303,7 @@
             e.printStackTrace();
           }
           String queryString = "";
-          if(cat_servizi.equals("categorie")){
+          if(cat_servizi.equals("categorie") || cat_servizi.contains(":")){
 
           queryString = 
                     "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
@@ -320,7 +331,7 @@
                     + " OPTIONAL { ?sType rdfs:label ?labelIta. FILTER(LANG(?labelIta)=\"it\")}\n"
                     + "}";
             if (!numeroRisultatiServizi.equals("0")) {
-                limitServizi = ((Integer.parseInt(numeroRisultatiServizi))-(limitBusStop + limitSensori));
+                limitServizi = ((Integer.parseInt(numeroRisultatiServizi))-(numeroBus + numeroSensori));
                 queryString += " LIMIT " + limitServizi;
             }
             }else{
@@ -361,15 +372,14 @@
                 queryString += " LIMIT " + numeroRisultatiServizi;
             }    
             }
-            //out.println("{\"query\":\""+queryString.replace("\"", "'")+"\"}");
+          System.out.println(queryString);
             TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
             if(sparqlType.equals("owlim"))
               tupleQuery.setMaxQueryTime(maxTime);
             long start = System.nanoTime();            
             TupleQueryResult result = tupleQuery.evaluate();
             logQuery(filterQuery(queryString),"get-services-in-municipality-services",sparqlType,nomeComune+";"+nomeProvincia+";"+numeroRisultatiServizi+";"+categorie, System.nanoTime()-start);
-
-            //queryString = queryString.replace("\"", "'");
+            //System.out.println(queryString);
 
             while (result.hasNext()) {
                 BindingSet bindingSet = result.next();
@@ -405,7 +415,7 @@
                 // Se la risorsa non ha nessun NOME, questo viene settato impostando la subcategory.
                 String valueOfSName = "";
                 if (bindingSet.getValue("sName") != null) {
-                    valueOfSName = escapeJSON(bindingSet.getValue("sName").stringValue());
+                    valueOfSName = bindingSet.getValue("sName").stringValue();
                 }else{
                     valueOfSName = subCategory.replace("_", " ").toUpperCase();
                 }
@@ -429,18 +439,16 @@
                         + "},  "
                         + "\"type\": \"Feature\",  "
                         + "\"properties\": {  ");
-                        if(valueOfSName!="" && valueOfSName!=null)
-                            out.println( "    \"popupContent\": \"" + valueOfSName + " - " + valueOfSType + "\", ");
-                        if(identifier!=null && identifier!="")
-                            out.println( "    \"identifier\": \"" + identifier + " - " + valueOfSType + "\", ");
-                        out.println( "    \"nome\": \"" + valueOfSName + "\", "
-                        + "    \"tipo\": \"" + valueOfSTypeIta + "\", "
-                        // *** INSERIMENTO serviceType e CAMPI AGGIUNTI PER ICONA
+                        if(valueOfSName!=null && !valueOfSName.equals(""))
+                            out.println( "    \"popupContent\": \"" + escapeJSON(valueOfSName) + " - " + escapeJSON(valueOfSType) + "\", ");
+                        if(identifier!=null && !identifier.equals(""))
+                            out.println( "    \"identifier\": \"" + escapeJSON(identifier) + " - " + escapeJSON(valueOfSType) + "\", ");
+                        out.println( "    \"name\": \"" + escapeJSON(valueOfSName) + "\", "
+                        + "    \"tipo\": \"" + escapeJSON(valueOfSTypeIta) + "\", "
                         + "    \"serviceType\": \"" + escapeJSON(serviceType) + "\", "
                         + "    \"category\": \"" + escapeJSON(category) + "\", "
                         + "    \"subCategory\": \"" + escapeJSON(subCategory) + "\", "
-                        // **********************************************
-                        + "    \"serviceUri\": \"" + valueOfSer + "\" "
+                        + "    \"serviceUri\": \"" + escapeJSON(valueOfSer) + "\" "
                         + "}, "
                         + "\"id\": " + Integer.toString(i + 1) + "  "
                         + "}");

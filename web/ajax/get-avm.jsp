@@ -35,9 +35,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
   
-  Repository repo = new SPARQLRepository(sparqlEndpoint);
-  repo.initialize();
-  RepositoryConnection con = repo.getConnection();
+  RepositoryConnection con = ServiceMap.getSparqlConnection();
 
   String filtroSecondaQuery = "";
   String nomeFermata = request.getParameter("nomeFermata");
@@ -68,7 +66,7 @@
           + "}\n"
           + "GROUP BY ?ride ORDER BY DESC (?avmrNew) LIMIT 10";
   TupleQuery tupleQueryAVM = con.prepareTupleQuery(QueryLanguage.SPARQL, queryStringAVM);
-
+ System.out.println(queryStringAVM);
   long start = System.nanoTime();
   TupleQueryResult resultAVM = tupleQueryAVM.evaluate();
   logQuery(filterQuery(queryStringAVM), "get-avm-1", "any", nomeFermata, System.nanoTime() - start);
@@ -178,7 +176,7 @@
   TupleQuery tupleQueryAVM2 = con.prepareTupleQuery(QueryLanguage.SPARQL, queryStringAVM2);
   TupleQueryResult resultAVM2 = tupleQueryAVM2.evaluate();
   logQuery(filterQuery(queryStringAVM2), "get-avm-2", "any", nomeFermata, System.nanoTime() - start);
-
+  System.out.println(queryStringAVM2);
   if (resultAVM2.hasNext()) {
     out.println("<div class=\"avm\"><b><span name=\"lbl\" caption=\"next_transits\">Next transits</span>:</b> <br />");
     out.println("<table>");

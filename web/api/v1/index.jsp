@@ -42,17 +42,25 @@
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
 String uid = request.getParameter("uid");
+String idService = request.getParameter("serviceUri");
+String selection = request.getParameter("selection");
+String queryId = request.getParameter("queryId");
+String search = request.getParameter("search");
+String showBusPosition = request.getParameter("showBusPosition");
+if(idService==null && selection==null && queryId==null && search==null && showBusPosition==null) {
+    response.sendError(400, "please specify 'selection', 'search', serviceUri' or 'queryId' parameters");
+    return;
+}
 if ("html".equals(request.getParameter("format")) || (request.getParameter("format") == null && request.getParameter("queryId") != null)) {%>
 <jsp:include page="../../mappa.jsp" > <jsp:param name="mode" value="query"/> </jsp:include>
 <%
     response.setContentType("text/html; charset=UTF-8");
-    String idService = request.getParameter("serviceUri");
-    String selection = request.getParameter("selection");
     String categorie = "";
     categorie = request.getParameter("categories");
     if (categorie == null) {
       categorie = request.getParameter("categorie");
     }
+    categorie = ServiceMap.cleanCategories(categorie);
     String raggi = "";
     String[] arrayRaggi = null;
     String raggioServizi = "";
@@ -105,33 +113,40 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         risultatiBus = risultatiSensori;
       }
     }
-    String ip = request.getRemoteAddr();
+    String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
-    String queryId = request.getParameter("queryId");
     String text = request.getParameter("text");
     if (queryId == null) {
       if (idService != null) {
-        logAccess(ip, null, ua, null, null, idService, "api-service-info", null, null, null, null, "html", uid);
+        logAccess(ip, null, ua, null, null, idService, "api-service-info", null, null, null, null, "html", uid, null);
       } else {
-        logAccess(ip, null, ua, selection, categorie, null, "api-services", risultati, raggi, null, text, "html", uid);
+        logAccess(ip, null, ua, selection, categorie, null, "api-services", risultati, raggi, null, text, "html", uid, null);
       }
     } else {
-      logAccess(ip, null, ua, null, null, null, "api-services-by-queryid", null, null, queryId, null, "html", uid);
+      logAccess(ip, null, ua, null, null, null, "api-services-by-queryid", null, null, queryId, null, "html", uid, null);
     }
   } else { //format json
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
     response.setContentType("application/json; charset=UTF-8");
     response.addHeader("Access-Control-Allow-Origin", "*");
 
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
-    repo.initialize();
-    RepositoryConnection con = repo.getConnection();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
 
-    String idService = request.getParameter("serviceUri");
     String realtime = request.getParameter("realtime");
     if(!"false".equals(realtime))
       realtime="true";
-    String selection = request.getParameter("selection");
+    String textToSearch = request.getParameter("search");
+    String typeSaving = "";
+    if(textToSearch!=null)
+      typeSaving = "freeText";
+    else {
+      textToSearch = request.getParameter("text");
+    }
+
+    if(idService==null && selection==null && queryId==null && textToSearch==null) {
+        response.sendError(400, "please specify one of 'selection', 'search', 'serviceUri' or 'queryId' parameters");
+        return;
+    }
     String categorie = "";
     categorie = request.getParameter("categories");
     if (categorie == null) {
@@ -146,10 +161,10 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     if(categorie.contains("TransferServiceAndRenting")){
       categorie = categorie.replace("TransferServiceAndRenting","TransferServiceAndRenting;BusStop;SensorSite");
     }
+    
+    categorie = ServiceMap.cleanCategories(categorie);
 
     String raggi = "";
-    String typeSaving = "";
-    String textToSearch = "";
     raggi = request.getParameter("maxDists");
     if (raggi == null) {
       raggi = request.getParameter("raggio");
@@ -202,21 +217,21 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     } else {
       risultatiBus = risultatiSensori;
     }
-    textToSearch = request.getParameter("search");
-    if(textToSearch!=null)
-      typeSaving = "freeText";
-    else {
-      textToSearch = request.getParameter("text");
+    if(textToSearch!=null) {
+      textToSearch = java.net.URLDecoder.decode(textToSearch, "UTF-8");
+      //textToSearch = new String(textToSearch.getBytes("iso-8859-1"), "UTF-8"); //workaround! when utf8 data is sent via GET
     }
     String limit = request.getParameter("limit");
     if(limit==null)
       limit=risultatiServizi;
     
     String lang = request.getParameter("lang");
-    if(lang==null)
+    if(lang==null || (!lang.equals("it") && !lang.equals("en")))
       lang = "en";
-
-    String queryId = request.getParameter("queryId");
+    String geometry = request.getParameter("geometry");
+    boolean getGeometry = "true".equalsIgnoreCase(geometry);
+    boolean findInside = "inside".equalsIgnoreCase(raggi);
+    
     if (queryId != null) {
       Connection conMySQL = null;
       Statement st = null;
@@ -257,8 +272,9 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       st.close();
       conMySQL.close();
     }
-    String ip = request.getRemoteAddr();
+    String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
+    String reqFrom = request.getParameter("requestFrom");
 
     if (idService != null) {
       //get data of a single service
@@ -270,26 +286,38 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       }
       String types = null;
       if (serviceTypes.contains("BusStop")|| serviceTypes.contains("NearBusStops")) {
-        serviceMapApi.queryBusStop(out, con, idService, lang, realtime);
+        serviceMapApi.queryTplStop(out, con, idService, "BusStop", lang, realtime, uid);
         types = "TransferServiceAndRenting;BusStop";
+      }
+      else if (serviceTypes.contains("Tram_stops")) {
+        serviceMapApi.queryTplStop(out, con, idService, "Tram_stops", lang, realtime, uid);
+        types = "TransferServiceAndRenting;Tram_stops";
+      }
+      else if (serviceTypes.contains("Train_station")) {
+        serviceMapApi.queryTplStop(out, con, idService, "Train_station", lang, realtime, uid);
+        types = "TransferServiceAndRenting;Train_station";
+      }
+      else if (serviceTypes.contains("Ferry_stop")) {
+        serviceMapApi.queryTplStop(out, con, idService, "Ferry_stop", lang, realtime, uid);
+        types = "TransferServiceAndRenting;Ferry_station";
       }
       else if (serviceTypes.contains("WeatherReport") || serviceTypes.contains("Municipality")) {
         serviceMapApi.queryMeteo(out, con, idService, lang);
       }
       else if (serviceTypes.contains("SensorSite") || serviceTypes.contains("RoadSensor")) {
-        serviceMapApi.querySensor(out, con, idService, lang, realtime);
+        serviceMapApi.querySensor(out, con, idService, lang, realtime, uid);
         types = "TransferServiceAndRenting;SensorSite";
       }
       else if (serviceTypes.contains("Service") || serviceTypes.contains("RegularService")) {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime);
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, uid);
       }
       else if (serviceTypes.contains("Event")) {
-        serviceMapApi.queryEvent(out, con, idService, lang);
+        serviceMapApi.queryEvent(out, con, idService, lang, uid);
         types = "Service;Event";
       }
       else
         response.sendError(400, "no info found for "+idService);
-      logAccess(ip, null, ua, null, types, idService, "api-service-info", null, null, queryId, null, "json", uid);
+      logAccess(ip, null, ua, null, types, idService, "api-service-info", null, null, queryId, null, "json", uid, reqFrom);
       con.close();
     } else {
       try {
@@ -301,14 +329,14 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
           if (textToSearch != null && !"".equals(textToSearch)) {
             //String limit=request.getParameter("limit");
             //search=unescapeUri(search);
-            serviceMapApi.queryFulltext(out, con, textToSearch, selection, raggioServizi, limit, lang);
-            logAccess(ip, null, ua, selection, null, null, "api-text-search", null, raggioServizi, queryId, textToSearch, "json", uid);
+            serviceMapApi.queryFulltext(out, con, textToSearch, selection, raggioServizi, limit, lang, getGeometry);
+            logAccess(ip, null, ua, selection, null, null, "api-text-search", null, raggioServizi, queryId, textToSearch, "json", uid, reqFrom);
           }
         } else {
           if (selection!=null && selection.indexOf("COMUNE di") != -1) {
             //getServices in Municipality
-            serviceMapApi.queryMunicipalityServices(out, con, selection, categorie, textToSearch, risultatiBus, risultatiSensori, risultatiServizi, lang);
-            logAccess(ip, null, ua, selection, categorie, null, "api-services-by-municipality", risultati, null, queryId, textToSearch, "json", uid);
+            serviceMapApi.queryMunicipalityServices(out, con, selection, categorie, textToSearch, risultatiBus, risultatiSensori, risultatiServizi, lang, getGeometry);
+            logAccess(ip, null, ua, selection, categorie, null, "api-services-by-municipality", risultati, null, queryId, textToSearch, "json", uid, reqFrom);
           } else {
             String[] coords = null;
             if (selection.indexOf("http:") != -1) {
@@ -340,13 +368,16 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
                 selection = bindingSetCoord.getValue("lat").stringValue() + ";" + bindingSetCoord.getValue("long").stringValue();
               }
             }
-            if(selection.contains(";")) {
+            if(selection.startsWith("wkt:") || selection.startsWith("geo:")) {
+              String[] coordWkt = { selection };
+              coords = coordWkt;              
+            } else if(selection.contains(";")) {
               coords = selection.split(";");
             }
             // get services by lat/long
-            if(coords!=null && (coords.length==2 || coords.length==4))
-              serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang);
-              logAccess(ip, null, ua, selection, categorie, null, "api-services-by-gps", risultati, raggi, queryId, textToSearch, "json", uid);
+            if(coords!=null && (coords.length==2 || coords.length==4 || (coords.length==1 && (coords[0].startsWith("wkt:") || selection.startsWith("geo:")))))
+              serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, reqFrom!=null);
+              logAccess(ip, null, ua, selection, categorie, null, "api-services-by-gps", risultati, raggi, queryId, textToSearch, "json", uid, reqFrom);
           }
         }
       } catch (Exception e) {

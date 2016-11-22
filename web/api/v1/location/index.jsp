@@ -21,13 +21,13 @@
     response.addHeader("Access-Control-Allow-Origin", "*");
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
-    repo.initialize();
-    RepositoryConnection con = repo.getConnection();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
     String position = request.getParameter("position");
+    String intersectGeom = request.getParameter("intersectGeom");
     String uid = request.getParameter("uid");
-    String ip = request.getRemoteAddr();
+    String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
+    String reqFrom = request.getParameter("requestFrom");
 
     if(position == null) {
       response.sendError(HttpServletResponse.SC_BAD_REQUEST,"missing 'position' parameter");
@@ -37,8 +37,8 @@
       if(c.length>=2) {
         String lat=c[0];
         String lng=c[1];
-        serviceMapApi.queryLocation(out, con, lat, lng);
-        logAccess(ip, null, ua, position, null, null, "api-location", null, null, null, null, "json", uid);
+        serviceMapApi.queryLocation(out, con, lat, lng, intersectGeom);
+        logAccess(ip, null, ua, position, null, null, "api-location", null, null, null, null, "json", uid, reqFrom);
       }
       else
         response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'position' parameter (missing lat;long)");

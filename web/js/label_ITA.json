@@ -24,8 +24,12 @@
 	"Select_All_R": "De/Seleziona Tutto",
 	"Num_Results_dx_R": "N. risultati",
 	"Search_Range_R": "Raggio ricerca",
+	"Search_Area_R": "Area ricerca",
 	"Num_Results_dx_T": "N. risultati per categoria",
-	"Search_Range_T": "Raggio ricerca",
+  "Filter_Results_dx_R": "Filtra",
+  "Filter_Results_dx_T": "Filtra",
+  "Search_Range_T": "Raggio ricerca",
+  "Search_Area_T": "Area ricerca",
 	"Services_Categories_T": "Categorie Servizi",
 	"Select_All_T": "De/Seleziona Tutto",
 	"Search_Results": "Risultati della Ricerca",
@@ -46,5 +50,13 @@
 	"park_close": "Parcheggio Aperto",
 	"park_open": "Parcheggio Chiuso",
 	"show_on_map": "Mostra sulla mappa",
-	"remove_from_map": "Rimuovi dalla mappa"
+	"remove_from_map": "Rimuovi dalla mappa",
+        "timetable_showing": "Sei alla pagina",
+        "timetable_display": "Visualizza ",
+        "timetable_records": " Bus per pagina",
+        "timetable_of": "di",
+        "timetable_search": "Cerca",
+        "timetable_time": "Orario",
+        "timetable_line": "Linea",
+        "timetable_direction": "Direzione"
 }

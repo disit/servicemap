@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
 <%@page import="java.io.IOException"%>
 <%@page import="org.openrdf.model.Value"%>
 <%@page import="java.util.*"%>
@@ -33,21 +34,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
 
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
-    repo.initialize();
-    RepositoryConnection con = repo.getConnection();
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
 
     String nomeLinea = request.getParameter("nomeLinea");
     String codRoute = request.getParameter("codRoute");
     
-    // prova utilizzo funzione java per visualizzazione percorsi ATAF
-    //Extract_bus_information linea = new Extract_bus_information();
-
-    
+    ServiceMapApiV1 api = new ServiceMapApiV1();
+    api.queryBusStopsOfLine(out, con, nomeLinea, codRoute, false);
+/*    
    if("vuoto".equals(codRoute)){
     
    if (!"all".equals(nomeLinea)) {
-      System.out.println("codRoute: ERRATO ");
       String queryString = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
                + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
                + "PREFIX schema:<http://schema.org/#>\n"
@@ -107,7 +104,6 @@
                    + "    \"nome\": \"" + valueOfNomeFermata + "\", "
                    + "    \"serviceUri\": \"" + valueOfBS + "\", "
                    + "    \"tipo\": \"fermata\", "
-                   // *** INSERIMENTO serviceType
                    + "    \"serviceType\": \"TransferServiceAndRenting_BusStop\" "
                    // **********************************************
                    + "}, "
@@ -141,7 +137,7 @@
        
       TupleQuery tupleQueryAllBusStops = con.prepareTupleQuery(QueryLanguage.SPARQL, queryAllBusStops);
       TupleQueryResult resultAllBusStop = tupleQueryAllBusStops.evaluate();
-      // out.println(queryAllBusStops);
+      //System.out.println(queryAllBusStops);
       out.println("{ "
                + "\"type\": \"FeatureCollection\", "
                + "\"features\": [ ");
@@ -171,9 +167,7 @@
                    + "    \"nome\": \"" + nome + "\", "
                    + "    \"serviceUri\": \"" + valueOfBS + "\", "
                    + "    \"tipo\": \"fermata\", "
-                   // *** INSERIMENTO serviceType
                     + "    \"serviceType\": \"TransferServiceAndRenting_BusStop\" "
-                   // **********************************************
                    + "}, "
                    + "\"id\": " + Integer.toString(i + 1) + " "
                    + "}");
@@ -214,15 +208,13 @@
                + " ?bs geo:lat ?bslat.\n"
                + " ?bs geo:long ?bslong.\n"
                + "} ORDER BY ASC(?dist)";
-        
-       
+
       TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
       TupleQueryResult result = tupleQuery.evaluate();
       logQuery(filterQuery(queryString),"get-bus-stops-of-line","any",nomeLinea);
       out.println("{ "
                + "\"type\": \"FeatureCollection\", "
                + "\"features\": [ ");
-
       try {
         int i = 0;
         while (result.hasNext()) {
@@ -248,9 +240,7 @@
                    + "    \"nome\": \"" + valueOfNomeFermata + "\", "
                    + "    \"serviceUri\": \"" + valueOfBS + "\", "
                    + "    \"tipo\": \"fermata\", "
-                   // *** INSERIMENTO serviceType
                    + "    \"serviceType\": \"TransferServiceAndRenting_BusStop\" "
-                   // **********************************************
                    + "}, "
                    + "\"id\": " + Integer.toString(i + 1) + " "
                    + "}");
@@ -261,4 +251,5 @@
       }
    }
     out.println("] }");
+*/        
 %>

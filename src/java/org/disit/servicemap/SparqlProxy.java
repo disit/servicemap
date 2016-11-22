@@ -33,6 +33,13 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClients;
 import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.http.HttpEntity;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.message.BasicNameValuePair;
 
 /**
  *
@@ -43,20 +50,35 @@ public class SparqlProxy extends HttpServlet {
 
   @Override
   public void doGet(HttpServletRequest theReq, HttpServletResponse theResp) throws ServletException, IOException {
-    String aSparqlEndpointQuery = theReq.getParameter("query");
 
     if (log.isDebugEnabled()) {
+      String aSparqlEndpointQuery = theReq.getParameter("query");
       log.debug(aSparqlEndpointQuery);
     }
 
     try {
-      redirectToLog(theReq, theResp);
+      redirectGet(theReq, theResp);
     } catch (Exception e) {
       e.printStackTrace();
     }
   }
 
-  private void redirectToLog(HttpServletRequest theReq, HttpServletResponse theResp) throws Exception {
+  @Override
+  public void doPost(HttpServletRequest theReq, HttpServletResponse theResp) throws ServletException, IOException {
+
+    if (log.isDebugEnabled()) {
+      String aSparqlEndpointQuery = theReq.getParameter("query");
+      log.debug(aSparqlEndpointQuery);
+    }
+
+    try {
+      redirectPost(theReq, theResp);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+  
+  private void redirectGet(HttpServletRequest theReq, HttpServletResponse theResp) throws Exception {
 
     HttpClient httpclient = HttpClients.createDefault();
     HttpGet httpget = null;
@@ -99,14 +121,15 @@ public class SparqlProxy extends HttpServlet {
       // Create a response handler
       response = httpclient.execute(httpget);
 
-      //System.out.println("response header:");
+      System.out.println("response header:");
       // set the same Headers
       for (Header aHeader : response.getAllHeaders()) {
         if (!aHeader.getName().equals("Transfer-Encoding") || !aHeader.getValue().equals("chunked")) {
           theResp.setHeader(aHeader.getName(), aHeader.getValue());
         }
-        //System.out.println("  " + aHeader.getName() + ": " + aHeader.getValue());
+        System.out.println("  " + aHeader.getName() + ": " + aHeader.getValue());
       }
+      theResp.setHeader("Access-Control-Allow-Origin", "*");
 
       // set the same locale
       if (response.getLocale() != null) {
@@ -159,4 +182,114 @@ public class SparqlProxy extends HttpServlet {
     }
     ServiceMap.logQuery(query, "SPARQL", theReq.getRemoteAddr(), theReq.getHeader("User-Agent"), System.nanoTime()-startTime);
   }
+  
+  private void redirectPost(HttpServletRequest theReq, HttpServletResponse theResp) throws Exception {
+
+    HttpClient httpclient = HttpClients.createDefault();
+    HttpPost httppost = null;
+    HttpResponse response = null;
+    
+    long startTime = System.nanoTime();
+
+    String theServerHost = Configuration.getInstance().get("sparqlEndpoint", null);
+    if(theServerHost==null)
+      theServerHost = "http://192.168.0.207:8890/sparql";
+
+    String theReqUrl = theServerHost;
+    String query = theReq.getParameter("query");
+    String format = theReq.getParameter("format");
+
+    //System.out.println("POST to "+theReqUrl+" query="+query);
+    try {
+      httppost = new HttpPost(theReqUrl);
+
+      //System.out.println("request header:");
+      Enumeration<String> aHeadersEnum = theReq.getHeaderNames();
+      while (aHeadersEnum.hasMoreElements()) {
+        String aHeaderName = aHeadersEnum.nextElement();
+        String aHeaderVal = theReq.getHeader(aHeaderName);
+        if(!aHeaderName.equalsIgnoreCase("content-length")) {
+          httppost.setHeader(aHeaderName, aHeaderVal);
+          //System.out.println("  " + aHeaderName + ": " + aHeaderVal);
+        }
+      }
+      List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
+      urlParameters.add(new BasicNameValuePair("query", query));
+      if(format!=null)
+        urlParameters.add(new BasicNameValuePair("format", format));
+
+      HttpEntity postParams = new UrlEncodedFormEntity(urlParameters);
+      httppost.setEntity(postParams);
+
+      if (log.isDebugEnabled()) {
+        log.debug("executing request " + httppost.getURI());
+      }
+      
+      // Create a response handler
+      response = httpclient.execute(httppost);
+
+      //System.out.println("response header:");
+      // set the same Headers
+      for (Header aHeader : response.getAllHeaders()) {
+        if (!aHeader.getName().equals("Transfer-Encoding") || !aHeader.getValue().equals("chunked")) {
+          theResp.setHeader(aHeader.getName(), aHeader.getValue());
+        }
+        //System.out.println("  " + aHeader.getName() + ": " + aHeader.getValue());
+      }
+      theResp.setHeader("Access-Control-Allow-Origin", "*");
+
+      // set the same locale
+      if (response.getLocale() != null) {
+        theResp.setLocale(response.getLocale());
+      }
+
+      // set the content
+      theResp.setContentLength((int) response.getEntity().getContentLength());
+      theResp.setContentType(response.getEntity().getContentType().getValue());
+
+      // set the same status
+      theResp.setStatus(response.getStatusLine().getStatusCode());
+
+      // redirect the output
+      InputStream aInStream = null;
+      OutputStream aOutStream = null;
+      try {
+        aInStream = response.getEntity().getContent();
+        aOutStream = theResp.getOutputStream();
+
+        byte[] buffer = new byte[1024];
+        int r = 0;
+        do {
+          r = aInStream.read(buffer);
+          if (r != -1) {
+            aOutStream.write(buffer, 0, r);
+          }
+        } while (r != -1);
+        /*
+         int data = aInStream.read();
+         while (data != -1) {
+         aOutStream.write(data);
+
+         data = aInStream.read();
+         }
+         */
+      } catch (IOException ioe) {
+        ioe.printStackTrace();
+      } finally {
+        if (aInStream != null) {
+          aInStream.close();
+        }
+        if (aOutStream != null) {
+          aOutStream.close();
+        }
+      }
+    } catch(Exception e) {
+      e.printStackTrace();
+    } finally {
+      httpclient.getConnectionManager().closeExpiredConnections();
+      httpclient.getConnectionManager().shutdown();
+    }
+    ServiceMap.logQuery(query, "SPARQL", theReq.getRemoteAddr(), theReq.getHeader("User-Agent"), System.nanoTime()-startTime);
+  }
+
 }
