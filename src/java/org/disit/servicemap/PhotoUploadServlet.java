@@ -1,8 +1,19 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+/* ServiceMap.
+   Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+
 package org.disit.servicemap;
 
 import java.awt.Graphics2D;
@@ -52,9 +63,14 @@ public class PhotoUploadServlet extends HttpServlet {
     String clength = request.getHeader("Content-Length");
     System.out.println("length:"+clength);
     String uid = request.getParameter("uid"); // Retrieves <input type="text" name="description">
-    if(uid==null) {
+    if(uid==null || uid.trim().isEmpty() || uid.equals("null")) {
       response.sendError(400,"missing uid");
       System.out.println("request missing uid");
+      return;
+    }
+    if(!ServiceMap.validateUID(uid)) {
+      response.sendError(404, "invalid uid");
+      System.out.println("request invalid uid");
       return;
     }
     String serviceUri = request.getParameter("serviceUri");

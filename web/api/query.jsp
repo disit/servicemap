@@ -27,17 +27,18 @@
 /* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2
-   of the License, or (at your option) any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
     Connection conMySQL = null;
     Statement st = null;
@@ -70,7 +71,10 @@
     String idService="";
     String typeService="";
     String text= "";
+    String center = "";
+    String popupOpen = "";
     String typeSaving="";
+    
     String nameService= "";
     boolean isReadOnly=true;
     if (queryId != "") {
@@ -109,6 +113,9 @@
         nameService = rs.getString("nameService");
         typeSaving = rs.getString("typeSaving");
         text = rs.getString("text");
+        center = rs.getString("center");
+        popupOpen = rs.getString("popupOpen");
+        
     }
     else{
         String query2="select * from Queries where idRW=\"" + queryId + "\"";
@@ -124,14 +131,15 @@
             numeroRisultatiBus = rs2.getString("numeroRisultatiBus");
             actualSelection = rs2.getString("actualSelection");
             raggioServizi = rs2.getString("raggioServizi");
+            //michela: ho messo -1 nel caso inside
             if(raggioServizi.equals("-1"))
-              raggioServizi = "area";
+              raggioServizi = "inside";
             raggioSensori = rs2.getString("raggioSensori");
             if(raggioSensori.equals("-1"))
-              raggioSensori = "area";
+              raggioSensori = "inside";
             raggioBus = rs2.getString("raggioBus");
             if(raggioBus.equals("-1"))
-              raggioBus = "area";
+              raggioBus = "inside";
             linkRW = rs2.getString("idRW");
             nomeComune = rs2.getString("nomeComune");
             nomeProvincia = rs2.getString("nomeProvincia");
@@ -145,6 +153,8 @@
             typeSaving = rs2.getString("typeSaving");
             nameService = rs2.getString("nameService");
             text = rs2.getString("text");
+            center = rs2.getString("center");
+            popupOpen = rs2.getString("popupOpen");
             isReadOnly=false;
         }
     }
@@ -175,6 +185,7 @@
     obj.put("nameService",nameService);
     obj.put("typeSaving",typeSaving);
     obj.put("text",text);
+    obj.put("popupOpen",popupOpen);
     out.println(obj);
     st.close();
     if(st2!=null)

@@ -27,17 +27,18 @@
 /* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2
-   of the License, or (at your option) any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
   public static String md5(String input) {
     String md5 = null;
@@ -80,6 +81,8 @@
     String linkHTML = "";
     String linkRJson = "";
     String linkRHtml = "";
+    String linkEventJson = "";
+    String linkEventHtml = "";
     String apiVersion = "v1";
     
     if ("true".equals(update)) {
@@ -105,14 +108,18 @@
     String numeroRisultatiBus = request.getParameter("numeroRisultatiBus");
     String actualSelection = request.getParameter("actSelect");
     String raggioServizi = request.getParameter("raggioServizi");
+    String raggioSensori = request.getParameter("raggioSensori");
+     String raggioBus = request.getParameter("raggioBus");
+    
+    /* 
     if("area".equals(raggioServizi))
       raggioServizi = "-1";
-    String raggioSensori = request.getParameter("raggioSensori");
     if("area".equals(raggioSensori))
       raggioSensori = "-1";
-    String raggioBus = request.getParameter("raggioBus");
     if("area".equals(raggioBus))
       raggioBus = "-1";
+    */
+    
     String coordSel = request.getParameter("coordinateSelezione");
     String parentQuery = request.getParameter("parentQuery");
     String nomeProvincia = request.getParameter("nomeProvincia");
@@ -123,6 +130,7 @@
     String idService = request.getParameter("idService");
     String nameService = request.getParameter("nameService");
     String typeOfSaving = request.getParameter("typeSaving");
+    //String eventParam = request.getParameter("eventParam");
     String idConfR=confId;
     String idConfRW=idConfR+"write";     
     String popupOpen = request.getParameter("popupOpen");
@@ -140,19 +148,27 @@
     String selection = "";
     if(actualSelection!=null && !"".equals(actualSelection)){
         actualSelection = unescapeUri(actualSelection);
-        if (actualSelection.indexOf("COMUNE di") != -1) {
+        if ((actualSelection.indexOf("COMUNE di") != -1)  ) {
             selection = actualSelection;
         } else {
             selection = coordSel;
         }
     }
+    
     String selectionEscaped = escapeURI(selection);
     String categorieEscaped = escapeURI(categorie);
     String raggi = "";
+    
+    //System.out.println("MICHELA query: saveQuery.jsp  "+ raggioServizi);//Michela 
+    
     if(raggioSensori.equals(raggioServizi) && raggioBus.equals(raggioServizi))
       raggi = raggioServizi;
     else
       raggi = raggioServizi + ";" + raggioSensori + ";" + raggioBus;
+
+    
+    //System.out.println("MICHELA sovrascrivo il raggio, test "+ raggi);//Michela 
+    
     String raggiEscaped = escapeURI(raggi);
     if("embed".equals(typeOfSaving)){
         idConfR=md5(idConfR);
@@ -165,7 +181,10 @@
         linkFreeTextHtml=baseApiUri+apiVersion+"?search="+textEscaped+"&limit="+numeroRisultatiServizi+"&format=html";
     }
     if("textSearch".equals(typeOfSaving)){
-        linkTextSearchJson=baseApiUri+apiVersion+"?search="+textEscaped+"&categories="+categorieEscaped+"&limit="+numeroRisultatiServizi+"&maxDists=" + raggiEscaped + "&format=json";
+        if(raggiEscaped.equals("-1") )
+            linkTextSearchJson=baseApiUri+apiVersion+"?search="+textEscaped+"&categories="+categorieEscaped+"&limit="+numeroRisultatiServizi+"&format=json";
+        else
+            linkTextSearchJson=baseApiUri+apiVersion+"?search="+textEscaped+"&categories="+categorieEscaped+"&limit="+numeroRisultatiServizi+"&maxDists=" + raggiEscaped + "&format=json";
         linkTextSearchHtml=baseApiUri+apiVersion+"?search="+textEscaped+"&limit="+numeroRisultatiServizi+"&format=html";
     }
     String queryString = "";
@@ -191,16 +210,35 @@
     else
       risultati = numeroRisultatiServizi+ ";" + numeroRisultatiSensori + ";" + numeroRisultatiBus;
     String risultatiEscaped = escapeURI(risultati);
+    
+    //caso di evento, separato dal resto coordSel
+    if("event".equals(typeOfSaving)){
+        linkEventJson = baseApiUri + apiVersion +"/events/?range="+actualSelection;//http://servicemap.disit.org/WebAppGrafo/api/v1/events/?range=day
+        linkEventHtml = baseApiUri + apiVersion + "?queryId=" + queryIdR ;
+    }
+    else
     if ("query".equals(typeOfSaving)) {
         if (idService != null && !"".equals(idService)) {
-            String link = baseApiUri + apiVersion + "?selection=" + idService + "&categories=" + categorieEscaped + "&maxResults=" + risultatiEscaped + "&maxDists=" + raggiEscaped;
+            String link = "";
+            if(raggiEscaped.equals("-1") )
+                link = baseApiUri + apiVersion + "?selection=" + idService + "&categories=" + categorieEscaped + "&maxResults=" + risultatiEscaped;
+            else
+                link = baseApiUri + apiVersion + "?selection=" + idService + "&categories=" + categorieEscaped + "&maxResults=" + risultatiEscaped + "&maxDists=" + raggiEscaped;
+                
             linkJSONService = link + "&format=json";
             linkHTMLService = link + "&format=html";
         }
         else {
-            String link = baseApiUri + apiVersion + "?selection=" + selectionEscaped + "&categories=" + categorieEscaped + "&maxResults=" + risultatiEscaped + "&maxDists=" + raggiEscaped;
-            if(!"".equals(text))
+            String link="";
+            if(raggiEscaped.equals("-1") )
+                link = baseApiUri + apiVersion + "?selection=" + selectionEscaped + "&categories=" + categorieEscaped + "&maxResults=" + risultatiEscaped;
+            else
+                link = baseApiUri + apiVersion + "?selection=" + selectionEscaped + "&categories=" + categorieEscaped + "&maxResults=" + risultatiEscaped + "&maxDists=" + raggiEscaped;
+
+            //if(!"".equals(text) || !"NULL".equals(text) )
+            if(!text.equals(""))    
               link += "&text=" + textEscaped;
+
             linkJSON = link + "&format=json";
             linkHTML = link + "&format=html";
         }
@@ -210,11 +248,16 @@
             linkServiceHtml = baseApiUri + apiVersion + "?serviceUri=" + idService + "&format=html";
         }
     }
+    
+    
+    
     logAccess(ip, email, ua, selection, categorie, null, "save", risultati, raggi, queryIdR, text, format, null, null);
-    if ("false".equals(update)) {
+    
+    //salvataggio o update dei dati della query nel DB
+    if ("false".equals(update)) {//salvataggio NUOVA QUERY
         String query = "INSERT INTO Queries (id,email,description,categorie,numeroRisultatiServizi,numeroRisultatiSensori,numeroRisultatiBus,actualSelection,raggioServizi,raggioSensori,raggioBus,idRW,nomeProvincia,nomeComune,parentQuery, line, stop,coordinateSelezione,title,idService,typeService,nameService,zoom,center,weatherCity,popupOpen,confR,typeSaving,text)"
                 + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-            try {
+           try {
                 stmt = conMySQL.prepareStatement(query);
                 stmt.setString(1, queryIdR);
                 stmt.setString(2, email);
@@ -245,7 +288,8 @@
                 stmt.setString(27, idConfR);
                 stmt.setString(28, typeOfSaving);
                 stmt.setString(29, text);
-                
+                //stmt.setString(30, eventParam);
+         
                 stmt.executeUpdate();
                 conMySQL.close();
                 queryDone = true;
@@ -256,7 +300,7 @@
                 obj.put("queryDone", queryDone);
             }
        } 
-       else {
+       else {//UPDATE VECCHIA QUERY
         String query = "UPDATE Queries SET email=?,"
                 + "title= ?,"
                 + "description= ?,"
@@ -327,6 +371,7 @@
         //out.println(obj);
     }
     
+    //invio della e-mail
     boolean emailSent = false;
     String to = email;
     Properties properties = System.getProperties();
@@ -339,7 +384,19 @@
         message.addRecipient(Message.RecipientType.TO,
                 new InternetAddress(to));
         message.setSubject("Your link for query " + title);
-        String emailMessage = "<html><head><title>ServiceMap</title></head>"
+        String emailMessage = "";
+        if("event".equals(typeOfSaving)){//evento
+                emailMessage =  "<html><head><title>ServiceMap</title></head>"
+                + "<body><p>Thanks a lot for using Service Map by DISIT at <a href=\"http://servicemap.disit.org\">http://servicemap.disit.org</a></p>"
+                + "<p>Your query \"" + title + "\" has been saved. </p>"
+                + "<p>Description:</br>" + description + "</p>" + "<p>Link to obtain results in format json based on the selected events: <a href='" + linkEventJson + "'>'" + linkEventJson + "'</a><br></p>"
+                + "<p>Link to obtain results in format html  based on the selected events: <a href='" + linkEventHtml + "'>'" + linkEventHtml + "'</a><br></p>"
+                ;
+              
+            }
+        else{
+        
+            emailMessage = "<html><head><title>ServiceMap</title></head>"
                 + "<body><p>Thanks a lot for using Service Map by DISIT at <a href=\"http://servicemap.disit.org\">http://servicemap.disit.org</a></p>"
                 + "<p>Your query \"" + title + "\" has been saved. </p>"
                 + "<p>Description:</br>" + description + "</p>";
@@ -349,28 +406,35 @@
                 + "<p>Link for read only result in html: <a href='" + linkRHtml + "'>'" + linkRHtml + "'</a> <br></p>"
                 + "<p>Link for overwrite this query on Service Map: <a href='" + linkRW + "'>'" + linkRW + "'</a> <br></p>";
             //  }
-        if ("query".equals(typeOfSaving)) {
-            if (idService != null && !"".equals(idService)) {
-                emailMessage = emailMessage + "<p>Link to obtain results in format json based on the selected Service Uri: <a href='" + linkJSONService + "'>'" + linkJSONService + "'</a><br></p>";
-                emailMessage = emailMessage + "<p>Link to obtain results in format html  based on the selected Service Uri: <a href='" + linkHTMLService + "'>'" + linkHTMLService + "'</a><br></p>";
+            if ("query".equals(typeOfSaving)) {
+
+
+                    if (idService != null && !"".equals(idService)) {
+                        emailMessage = emailMessage + "<p>Link to obtain results in format json based on the selected Service Uri: <a href='" + linkJSONService + "'>'" + linkJSONService + "'</a><br></p>";
+                        emailMessage = emailMessage + "<p>Link to obtain results in format html  based on the selected Service Uri: <a href='" + linkHTMLService + "'>'" + linkHTMLService + "'</a><br></p>";
+                    } else {
+                        emailMessage = emailMessage + "<p>Link to obtain results in format json  based on the coordinates of selection: <a href='" + linkJSON + "'>'" + linkJSON + "'</a><br></p>";
+                        emailMessage = emailMessage + "<p>Link to obtain results in format html based on the coordinates of selection: <a href='" + linkHTML + "'>'" + linkHTML + "'</a><br></p>";
+                    }
+
             } else {
-                emailMessage = emailMessage + "<p>Link to obtain results in format json  based on the coordinates of selection: <a href='" + linkJSON + "'>'" + linkJSON + "'</a><br></p>";
-                emailMessage = emailMessage + "<p>Link to obtain results in format html based on the coordinates of selection: <a href='" + linkHTML + "'>'" + linkHTML + "'</a><br></p>";
-            }
-        } else {
-            if("embed".equals(typeOfSaving)){
-                emailMessage = emailMessage +"<p>Link for access to your configuration: <a href='" + linkConfR + "'>'" + linkConfR + "'</a> <br></p>";
-               // emailMessage = emailMessage +"<p>Link for access and modify to your configuration: <a href='" + linkConfRW + "'>'" + linkConfRW + "'</a> <br></p>";
-            }else{
-                if("freeText".equals(typeOfSaving)){
-                    emailMessage = emailMessage + "Link to obtain  results in format json : <a href='" + linkFreeTextJson + "'>'" + linkFreeTextJson + "'</a><br>";
-                    emailMessage = emailMessage + "Link to obtain  results in format html : <a href='" + linkFreeTextHtml + "'>'" + linkFreeTextHtml + "'</a><br>";
+                if("embed".equals(typeOfSaving)){
+                    emailMessage = emailMessage +"<p>Link for access to your configuration: <a href='" + linkConfR + "'>'" + linkConfR + "'</a> <br></p>";
+                   // emailMessage = emailMessage +"<p>Link for access and modify to your configuration: <a href='" + linkConfRW + "'>'" + linkConfRW + "'</a> <br></p>";
                 }else{
-                    emailMessage = emailMessage + "Link to obtain  results in format json : <a href='" + linkServiceJson + "'>'" + linkServiceJson + "'</a><br>";
-                    emailMessage = emailMessage + "Link to obtain  results in format html : <a href='" + linkServiceHtml + "'>'" + linkServiceHtml + "'</a><br>";
+                    if("freeText".equals(typeOfSaving)){
+                        emailMessage = emailMessage + "Link to obtain  results in format json : <a href='" + linkFreeTextJson + "'>'" + linkFreeTextJson + "'</a><br>";
+                        emailMessage = emailMessage + "Link to obtain  results in format html : <a href='" + linkFreeTextHtml + "'>'" + linkFreeTextHtml + "'</a><br>";
+                    }else{
+                        emailMessage = emailMessage + "Link to obtain  results in format json : <a href='" + linkServiceJson + "'>'" + linkServiceJson + "'</a><br>";
+                        emailMessage = emailMessage + "Link to obtain  results in format html : <a href='" + linkServiceHtml + "'>'" + linkServiceHtml + "'</a><br>";
+                    }
                 }
             }
         }
+        
+        
+        
         //+ "The SPARQL query made to obatin the results is:<br> "+queryString + "'</a><br>"
         emailMessage = emailMessage + "<p>or copy paste it on your browser. </p>"
                 + "<p>You can share the link with your friends.</p>"

@@ -1,3 +1,5 @@
+<%@page import="org.disit.servicemap.ServiceMapping"%>
+<%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
 <%@page import="java.io.IOException"%>
 <%@page import="org.openrdf.model.Value"%>
 <%@page import="java.util.*"%>
@@ -22,17 +24,18 @@
 /* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2
-   of the License, or (at your option) any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
   RepositoryConnection con = ServiceMap.getSparqlConnection();
   String idService = "";
@@ -48,8 +51,16 @@
   long s = System.nanoTime();
 
   List<String> types = ServiceMap.getTypes(con, idService);
+  //for(int x=0; x<types.size(); x++)
+  //  System.out.println(idService+" types: "+types.get(x));
+  
   try {
-    if ((types.contains("BusStop") || types.contains("Tram_stops") || types.contains("Train_station") || types.contains("Ferry_stop")) && !types.contains("DigitalLocation")) {
+    //se esiste un mapping per un tipo associato al servizio usa le API altrimenti ritorna al vecchio codice
+    ServiceMapping.MappingData serviceMapping = ServiceMapping.getInstance().getMappingForServiceType(1, types);
+    if (serviceMapping!=null) {
+      ServiceMapApiV1 api = new ServiceMapApiV1();
+      api.queryService(out, con, idService, "en", "true", null, types);
+    } else if ((types.contains("BusStop") || types.contains("Tram_stops") || types.contains("Train_station") || types.contains("Ferry_stop")) && !types.contains("DigitalLocation")) {
       String nomeFermata = "";
       String queryStringBusStop = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
               + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
@@ -228,7 +239,7 @@
                 + "    \"tipo\": \"sensore\", "
                 + "    \"tipologia\": \"TransferServiceAndRenting - SensorSite\", "
                 + "    \"serviceUri\": \"" + idService + "\", "
-                + "    \"indirizzo\": \"" + valueOfAddress + "\", "
+                + "    \"address\": \"" + valueOfAddress + "\", "
                 + "    \"serviceType\": \"TransferServiceAndRenting_SensorSite\",\n"
                 + "    \"photos\": "+ServiceMap.getServicePhotos(idService) + ",\n"
                 + "    \"avgStars\": "+avgServiceStars[0] + ",\n"
@@ -275,7 +286,6 @@
         out.println(e.getMessage());
       }
     } else if (types.contains("Service") || types.contains("RegularService") || types.contains("TransverseService")) {
-       
       String queryStringService = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
               + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
               + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
@@ -544,7 +554,7 @@
                 + "    \"description\": \"" + escapeJSON(valueOfDescriptionIta) + "\",\n"
                 + "    \"multimedia\": \"" + escapeJSON(valueOfMultimediaResource) + "\",\n"
                 + "    \"serviceUri\": \"" + idService + "\",\n"
-                + "    \"indirizzo\": \"" + escapeJSON(valueOfSerAddress) + "\", \"numero\": \"" + escapeJSON(valueOfSerNumber) + "\",\n"
+                + "    \"address\": \"" + escapeJSON(valueOfSerAddress) + "\", \"civic\": \"" + escapeJSON(valueOfSerNumber) + "\",\n"
                 + "    \"photos\": "+ServiceMap.getServicePhotos(idService) + ",\n"
                 + "    \"avgStars\": "+avgServiceStars[0] + ",\n"
                 + "    \"starsCount\": "+(int)avgServiceStars[1] + ",\n"
@@ -609,7 +619,6 @@
       logQuery(filterQuery(queryDBpedia), "get-link-DBpedia", "any", idService, System.nanoTime() - start2);
       String valueOfDBpedia = "[";
       
-      out.println(tupleQueryService);
       while (resultService.hasNext()) {
         BindingSet bindingSetService = resultService.next();
         

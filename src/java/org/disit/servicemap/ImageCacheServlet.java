@@ -1,8 +1,19 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+/* ServiceMap.
+   Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
+
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+
 package org.disit.servicemap;
 
 import java.io.File;
@@ -55,11 +66,10 @@ public class ImageCacheServlet extends HttpServlet {
       }
       int size = 0;
       if("thumb".equals(ssize)) {
-        ssize = conf.get("photoThumbSize", "260");
+        size = Integer.parseInt(conf.get("photoThumbSize", "260"));
       } else if("medium".equals(ssize)) {
-        ssize = conf.get("photoMediumResSize", "1024");        
+        size = Integer.parseInt(conf.get("photoMediumResSize", "1024"));        
       }
-      size=Integer.parseInt(ssize);
       if(size<=0 || size>2000) {
         response.sendError(400, "wrong size parameter");
         return;
@@ -77,8 +87,21 @@ public class ImageCacheServlet extends HttpServlet {
       String cacheImg = size+"-"+sha1(imgUrl)+ext;
       File f=new File(cachePath,cacheImg);
       if(force || !f.exists()) {
-        Thumbnails.of(new URL(imgUrl)).size(size, size).toFile(f);
-        System.out.println("SAVE "+imgUrl+" "+f.getAbsolutePath());
+        try {
+          Thumbnails.of(new URL(imgUrl)).size(size, size).toFile(f);
+          System.out.println("SAVE "+imgUrl+" "+f.getAbsolutePath());
+        } catch(Exception e) {
+          //in caso di fallimento per medium prova a dare il thumbnail
+          if(!ssize.equals("thumb")) {
+            size = Integer.parseInt(conf.get("photoThumbSize", "260"));
+            cacheImg = size+"-"+sha1(imgUrl)+ext;
+            f=new File(cachePath,cacheImg);
+            if(!f.exists())
+              throw e;
+          } else {
+            throw e;
+          }
+        }
       }
       else
         System.out.println("CACHE "+imgUrl+" "+f.getAbsolutePath());
