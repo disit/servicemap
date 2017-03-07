@@ -29,19 +29,24 @@
 /* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2
-   of the License, or (at your option) any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 String uid = request.getParameter("uid");
+if(uid!=null && !ServiceMap.validateUID(uid)) {
+  response.sendError(404, "invalid uid");
+  return;
+}
 String idService = request.getParameter("serviceUri");
 String selection = request.getParameter("selection");
 String queryId = request.getParameter("queryId");
@@ -304,12 +309,12 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       else if (serviceTypes.contains("WeatherReport") || serviceTypes.contains("Municipality")) {
         serviceMapApi.queryMeteo(out, con, idService, lang);
       }
-      else if (serviceTypes.contains("SensorSite") || serviceTypes.contains("RoadSensor")) {
+      else if ((serviceTypes.contains("SensorSite") || serviceTypes.contains("RoadSensor")) && !serviceTypes.contains("Fuel_station")) {
         serviceMapApi.querySensor(out, con, idService, lang, realtime, uid);
         types = "TransferServiceAndRenting;SensorSite";
       }
       else if (serviceTypes.contains("Service") || serviceTypes.contains("RegularService")) {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, uid);
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, uid, serviceTypes);
       }
       else if (serviceTypes.contains("Event")) {
         serviceMapApi.queryEvent(out, con, idService, lang, uid);
@@ -333,51 +338,51 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
             logAccess(ip, null, ua, selection, null, null, "api-text-search", null, raggioServizi, queryId, textToSearch, "json", uid, reqFrom);
           }
         } else {
-          if (selection!=null && selection.indexOf("COMUNE di") != -1) {
+          String[] coords = null;
+          if (selection.indexOf("http:") != -1) {
+            String queryForCoordinates = "PREFIX km4c:<http://www.disit.org/km4city/schema#>"
+                    + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>"
+                    + "SELECT ?lat ?long {{"
+                    + " <" + selection + "> km4c:hasAccess ?entry."
+                    + " ?entry geo:lat ?lat."
+                    //+ " FILTER (?lat>40) "
+                    + " ?entry geo:long ?long."
+                    //+ " FILTER (?long>10) ."
+                    + "}UNION{"
+                    + " <" + selection + "> km4c:isInRoad ?road."
+                    + " <" + selection + "> geo:lat ?lat."
+                    //+ " FILTER (?lat>40) "
+                    + " <" + selection + "> geo:long ?long."
+                    //+ " FILTER (?long>10) ."
+                    + "}UNION{"
+                    + " <" + selection + "> geo:lat ?lat."
+                    //+ " FILTER (?lat>40) "
+                    + " <" + selection + "> geo:long ?long."
+                    //+ " FILTER (?long>10) ."
+                    + "} "
+                    + "}LIMIT 1";
+            TupleQuery tupleQueryForCoordinates = con.prepareTupleQuery(QueryLanguage.SPARQL, queryForCoordinates);
+            TupleQueryResult resultCoord = tupleQueryForCoordinates.evaluate();
+            if(resultCoord.hasNext()) {
+              BindingSet bindingSetCoord = resultCoord.next();
+              selection = bindingSetCoord.getValue("lat").stringValue() + ";" + bindingSetCoord.getValue("long").stringValue();
+            }
+          }
+          if(selection.startsWith("wkt:") || selection.startsWith("geo:")) {
+            String[] coordWkt = { selection };
+            coords = coordWkt;              
+          } else if(selection.contains(";")) {
+            coords = selection.split(";");
+          }
+          // get services by lat/long
+          if(coords!=null && (coords.length==2 || coords.length==4 || (coords.length==1 && (coords[0].startsWith("wkt:") || selection.startsWith("geo:"))))) {
+            serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, reqFrom!=null);
+            logAccess(ip, null, ua, selection, categorie, null, "api-services-by-gps", risultati, raggi, queryId, textToSearch, "json", uid, reqFrom);
+          }
+          else {
             //getServices in Municipality
             serviceMapApi.queryMunicipalityServices(out, con, selection, categorie, textToSearch, risultatiBus, risultatiSensori, risultatiServizi, lang, getGeometry);
             logAccess(ip, null, ua, selection, categorie, null, "api-services-by-municipality", risultati, null, queryId, textToSearch, "json", uid, reqFrom);
-          } else {
-            String[] coords = null;
-            if (selection.indexOf("http:") != -1) {
-              String queryForCoordinates = "PREFIX km4c:<http://www.disit.org/km4city/schema#>"
-                      + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>"
-                      + "SELECT ?lat ?long {{"
-                      + " <" + selection + "> km4c:hasAccess ?entry."
-                      + " ?entry geo:lat ?lat."
-                      //+ " FILTER (?lat>40) "
-                      + " ?entry geo:long ?long."
-                      //+ " FILTER (?long>10) ."
-                      + "}UNION{"
-                      + " <" + selection + "> km4c:isInRoad ?road."
-                      + " <" + selection + "> geo:lat ?lat."
-                      //+ " FILTER (?lat>40) "
-                      + " <" + selection + "> geo:long ?long."
-                      //+ " FILTER (?long>10) ."
-                      + "}UNION{"
-                      + " <" + selection + "> geo:lat ?lat."
-                      //+ " FILTER (?lat>40) "
-                      + " <" + selection + "> geo:long ?long."
-                      //+ " FILTER (?long>10) ."
-                      + "} "
-                      + "}LIMIT 1";
-              TupleQuery tupleQueryForCoordinates = con.prepareTupleQuery(QueryLanguage.SPARQL, queryForCoordinates);
-              TupleQueryResult resultCoord = tupleQueryForCoordinates.evaluate();
-              if(resultCoord.hasNext()) {
-                BindingSet bindingSetCoord = resultCoord.next();
-                selection = bindingSetCoord.getValue("lat").stringValue() + ";" + bindingSetCoord.getValue("long").stringValue();
-              }
-            }
-            if(selection.startsWith("wkt:") || selection.startsWith("geo:")) {
-              String[] coordWkt = { selection };
-              coords = coordWkt;              
-            } else if(selection.contains(";")) {
-              coords = selection.split(";");
-            }
-            // get services by lat/long
-            if(coords!=null && (coords.length==2 || coords.length==4 || (coords.length==1 && (coords[0].startsWith("wkt:") || selection.startsWith("geo:")))))
-              serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, reqFrom!=null);
-              logAccess(ip, null, ua, selection, categorie, null, "api-services-by-gps", risultati, raggi, queryId, textToSearch, "json", uid, reqFrom);
           }
         }
       } catch (Exception e) {

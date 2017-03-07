@@ -1,17 +1,18 @@
 <%/* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2
-   of the License, or (at your option) any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 %>
 <%@page language="java" contentType="text/html; charset=ISO-8859-1" pageEncoding="ISO-8859-1"%>
 <%@taglib prefix='c' uri='http://java.sun.com/jsp/jstl/core' %>
@@ -44,6 +45,7 @@
 <!--        <script src="${pageContext.request.contextPath}/js/dataTables.bootstrap.min.js"></script>-->
         <script src="${pageContext.request.contextPath}/js/moment.min.js"></script>
         <script src="${pageContext.request.contextPath}/js/datetime-moment.js"></script>
+        <script src="${pageContext.request.contextPath}/js/zoomHandler.js"></script>
         <!-- code per gallery -->
         <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/lib/jquery.mousewheel-3.0.6.pack.js"></script>
         <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/jquery.fancybox.css" type="text/css" media="screen" />
@@ -61,7 +63,7 @@
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/jquery.dataTables.min.css" type="text/css" />
     </head>
-    <body class="Chrome" onload="mostraElencoAgenzie(); changeLanguage('ENG')">
+    <body class="Chrome" onload="mostraElencoAgenzie(); changeLanguage('ENG');">
         <% if (!gaCode.isEmpty()) {%>
         <script>
             (function (i, s, o, g, r, a, m) {
@@ -86,7 +88,9 @@
         </script>
         <% } %>
         <script>
-            var mode = "${param.mode}";</script>
+            var mode = "${param.mode}";
+            var api = "${param.api}";
+        </script>
 
         <div id="dialog"></div>        
         <!-- <div id="QueryConfirmSave" title="'Save Query"> <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0; display: none;"></span>Do you want to save this query?</p> </div> !-->
@@ -113,12 +117,30 @@
             <img src="${pageContext.request.contextPath}/img/save.png" alt="Salva la configurazione" width="28" onclick="save_handler(null, null, null, true);" />
         </div>
         <div class="menu" id="embed">
-            <img src="${pageContext.request.contextPath}/img/embed_icon.png" alt="Embed Servie Map" width="28" onclick="embedConfiguration();" /> 
+            <img src="${pageContext.request.contextPath}/img/embed_icon.png" alt="Embed Service Map" width="28" onclick="embedConfiguration();" /> 
         </div>
+        <div id="menu-alto-hidden" class="menu-logo">
+            <div id="siiMob"> <a href="http://km4city.org"  target="_blank" ><img src="${pageContext.request.contextPath}/img/km4city.png"
+                                                          height="28" margin-left="15px" alt="KM4City" > </img></a></div>
+            <div id="km4city"> <a href="http://www.sii-mobility.org"  target="_blank" ><img src="${pageContext.request.contextPath}/img/SiiMobility_logo.png"
+                                                                      width="60"  alt="SiiMobility" > </img></a></div>
+        </div>
+                                                                      
         <div id="menu-alto" class="menu">
-            <div id="lang" value="ENG"><img id="icon_lang"></img></div>
+            <div id="lang" value="ENG"><img width="40" id="icon_lang"></img></div>
+            <div id="siiMob"> <a href="http://km4city.org"  target="_blank" ><img src="${pageContext.request.contextPath}/img/km4city.png"
+                                                                      height="28" margin-left="15px" alt="KM4City" > </img></a></div>
+            <div id="km4city"> <a href="http://www.sii-mobility.org"  target="_blank" ><img src="${pageContext.request.contextPath}/img/SiiMobility_logo.png"
+                                                                      width="60"  alt="SiiMobility" > </img></a></div>
+            
+            <!--
+            <a href="http://www.google.com" target="_blank"> 
+                <img width="40" height="40" border="0" align="center"  src="${pageContext.request.contextPath}/img/embed_icon.png" /> 
+            </a>-->
+            <div class="header-container">
             <div class="header">
                 <span name="lbl" caption="Hide_Menu_sx"> - Hide Menu</span>
+            </div>
             </div>
             <div class="content">
                 <div id="tabs">
@@ -207,17 +229,38 @@
                             </div> 
                         </div>
                     </div>
+                    
+                          
                     <div id="tabs-Event" style="padding-top:10px;">
                         <span name="lbl" caption="Select_Time">Select a time interval: </span>
-                        <input type="radio" name="event_choice" value="day" onchange="searchEvent(this.value, null, null)"><span name="lbl" caption="Day">Day</span></input>
-                        <input type="radio" name="event_choice" value="week" onchange="searchEvent(this.value, null, null)"><span name="lbl" caption="Week">Week</span></input>
-                        <input type="radio" name="event_choice" value="month" onchange="searchEvent(this.value, null, null)"><span name="lbl" caption="Month">Month</span></input>
+                        <input type="radio" id= "event_choice_d" name="event_choice" value="day" onchange="searchEvent(this.value, null, null)"><span name="lbl" caption="Day">Day</span></input>
+                        <input type="radio" id= "event_choice_w" name="event_choice" value="week" onchange="searchEvent(this.value, null, null)"><span name="lbl" caption="Week">Week</span></input>
+                        <input type="radio" id= "event_choice_m" name="event_choice" value="month" onchange="searchEvent(this.value, null, null)"><span name="lbl" caption="Month">Month</span></input>
+                        <img id="saveEventSearch" src="${pageContext.request.contextPath}/img/save.png" alt="Salva la query" width="28" onclick="save_handler('event', null, null, false, null);" />
                         <fieldset id="event"> 
                             <legend><span name="lbl" caption="Event_Florence">Events in Florence</span></legend>
                             <div id="eventNum" style="display:none;"></div>
                             <div id="eventList"></div>
                         </fieldset>
                     </div>
+                    <!--  
+                    <div id="tabs-Event" style="padding-top:10px;">
+                        <div id="event_radio">
+                        <span name="lbl" caption="Select_Time">Select a time interval: </span>
+                        <input type="radio" id= "event_choice" name="event_choice" value="day" ><span name="lbl" caption="Day">Day</span></input>
+                        <input type="radio" id= "event_choice" name="event_choice" value="week" ><span name="lbl" caption="Week">Week</span></input>
+                        <input type="radio" id= "event_choice" name="event_choice" value="month" ><span name="lbl" caption="Month">Month</span></input>
+                        </div>
+                        <img id="EventSearch" src="${pageContext.request.contextPath}/img/search_icon.png" alt="Salva la query" width="28" onclick="searchEvent($(#event_radio).value), null, null)" />
+                        <img id="saveEventSearch" src="${pageContext.request.contextPath}/img/save.png" alt="Salva la query" width="28" onclick="save_handler('event', null, null, false, null);" />
+                        <fieldset id="event"> 
+                            <legend><span name="lbl" caption="Event_Florence">Events in Florence</span></legend>
+                            <div id="eventNum" style="display:none;"></div>
+                            <div id="eventList"></div>
+                        </fieldset>
+                    -->
+                    </div>
+                        
                     <fieldset id="selection"> 
                         <legend><span name="lbl" caption="Actual_Selection">Actual Selection</span></legend>
                         <span id="selezione" >No selection</span> <br>
@@ -257,7 +300,7 @@
                         <div class="use-case-4">
                             <!-- <input type="text" name="serviceTextFilter" id="serviceTextFilter" placeholder="search text into service" onkeypress="event.keyCode == 13 ? ricercaServizi('categorie', null, null) : false"/><br /> -->
                             <span name="lbl" caption="Services_Categories_R">Services Categories</span> 
-                            <br />
+                            <br /> 
                             <input type="checkbox" name="macro-select-all" id="macro-select-all" value="Select All" /> <span name="lbl" caption="Select_All_R">De/Select All</span>
                             <div id="categorie">
                                 <%
@@ -516,9 +559,9 @@
                             </div>
                             <!--<input type="checkbox" name="open_path" value="open_path" id="apri_path" />  <span>Open Path/Area</span>-->
                             <!-- DA DECOMMENTARE QUANDO SARA' FATTO IL SALVATAGGIO DEI SERVIZI TRASVERSALI -->
-                            <!-- <div class="menu" id="saveQuery">
-                              <img src="${pageContext.request.contextPath}/img/save.png" alt="Salva la query" width="28" onclick="save_handler();" />
-                            </div> -->
+                            <div class="menu" id="saveQuery">
+                              <img src="${pageContext.request.contextPath}/img/save.png" alt="Salva la query" width="28" onclick="save_handler(null, null, null, null, 'query_t');" />
+                            </div>
                             <br />
 
                         </div>
@@ -555,6 +598,7 @@
                                     var ctx = "${pageContext.request.contextPath}";
                                     //var ctx = "http://servicemap.disit.org/WebAppGrafo";
                                     var query = new Object();
+                                    //var query_event = new Object();//michela
                                     var parentQuery = "";
                                     var listOfPopUpOpen = [];
                                     var pins = "";
@@ -776,7 +820,7 @@
                                     }
 
                                     function showResults(parameters) {
-                                        if (mode != "embed") {
+                                        if (mode != "embed") {//caso in cui il link che sto visualizando è del tipo: http://.../ServiceMap/api/v1?queryId=...' o 
                                             var queryId = parameters["queryId"];
                                             if (queryId != null) {
                                                 $.ajax({
@@ -805,7 +849,26 @@
                                                             $("#freeSearch").val(msg.text);
                                                             $("#numberResults").val(msg.numeroRisultatiServizi);
                                                             showResultsFreeSearch(msg.text, msg.numeroRisultatiServizi);
-                                                        } else {
+                                                        }else if(typeSaving == "event"){
+                                                            //searchEvent(param, raggioRic, centroRic, numEv, text) 
+                                                            searchEvent(msg.actualSelection, null, null, "0", null);
+                                                        }
+                                                        else if (typeSaving == "weather"){
+                                                                //fammi vedere il meteo
+                                                                $.ajax({
+                                                                    url: "${pageContext.request.contextPath}/ajax/get-weather.jsp",
+                                                                    type: "GET",
+                                                                    async: true,
+                                                                    data: {
+                                                                        nomeComune: msg.weatherCity
+                                                                    },
+                                                                    success: function (msg) {
+                                                                        parameters["info"]='wheather';
+                                                                        $('#info-aggiuntive .content').html(msg);
+                                                                    }
+                                                                });
+                                                            } 
+                                                        else {//caso di embed
                                                             parentQuery = msg.parentQuery;
                                                             if (msg.nomeProvincia != "") {
                                                                 $("#elencoprovince").val(msg.nomeProvincia);
@@ -816,6 +879,10 @@
                                                                 //getBusLines("query");
                                                                 $("#elencolinee").val(msg.line);
                                                                 mostraElencoFermate(msg.line, msg.stop);
+                                                            }
+                                                            if((msg.actualSelection=="day") || (msg.actualSelection=="week") ||
+                                                                    (msg.actualSelection=="mounth") ){
+                                                                searchEvent(msg.actualSelection, "", msg.center, "0", null);
                                                             }
                                                             var categorie = msg.categorie;
                                                             $("#categorie :not(:checked)").each(function () {
@@ -840,6 +907,8 @@
                                                             $("#serviceTextFilter").val(text);
                                                             $('#selezione').html(msg.actualSelection);
                                                             selezione = unescape(msg.actualSelection);
+                                                           
+                                                            
                                                             if (typeSaving == "embed" && selezione.indexOf("COMUNE di") != -1)
                                                                 coordinateSelezione = null;
                                                             else
@@ -847,6 +916,20 @@
                                                             //  if(msg.idService == "null" || msg.idService == "" || msg.idService== null)
                                                             if (stringaCategorie != "null")
                                                                 mostraServiziAJAX_new(stringaCategorie, msg.actualSelection, coordinateSelezione, msg.nomeComune, msg.numeroRisultatiServizi, msg.numeroRisultatiSensori, msg.numeroRisultatiBus, msg.raggioServizi, msg.raggioSensori, msg.raggioBus, null, text, "categorie");
+                                                            if(msg.weatherCity!=''){
+                                                                $.ajax({
+                                                                    url: "${pageContext.request.contextPath}/ajax/get-weather.jsp",
+                                                                    type: "GET",
+                                                                    async: true,
+                                                                    data: {
+                                                                        nomeComune: msg.weatherCity
+                                                                    },
+                                                                    success: function (msg) {
+                                                                        parameters["info"]='wheather';
+                                                                        $('#info-aggiuntive .content').html(msg);
+                                                                    }
+                                                                });
+                                                            }
                                                         }
                                                     }
                                                 });
@@ -915,11 +998,19 @@
                                                 for (var i = 0; i < idServices.length; i++)
                                                     showService(idServices[i]);
                                             }
+                                            else if (api=="shortestpath") {
+                                              pathStart = parameters["source"];
+                                              pathEnd = parameters["destination"];
+                                              $("#path_start").html("From: "+pathStart);
+                                              $("#path_end").html("To: "+pathEnd);
+                                              $("#path").show();
+                                              doSearchPath(false,true); //fit
+                                            }
                                             else {
                                                 alert("invalid API call");
                                             }
-                                        } else { //mode=="embed"
-                                            var idConf = parameters["idConf"];
+                                        } else { //mode=="embed" // 'http://.../ServiceMap/api/embed/?idConf=....
+                                            var idConf = parameters["idConf"]; // SO che sono in embed e uso di relativo all'embed
                                             if (idConf != null) {
                                                 $.ajax({
                                                     data: {
@@ -1129,6 +1220,9 @@
                                             async: true,
                                             dataType: 'json',
                                             success: function (msg) {
+                                                if("Service" in msg) {
+                                                  msg = msg.Service;
+                                                }
                                                 if (msg != null && msg.meteo != null) {
                                                     $.ajax({
                                                         url: "${pageContext.request.contextPath}/ajax/get-weather.jsp",
@@ -1152,6 +1246,8 @@
                                                         },
                                                         onEachFeature: function (feature, layer) {
                                                             var tipo = feature.properties.tipo;
+                                                            if(tipo==undefined)
+                                                              tipo = feature.properties.serviceType;
                                                             var divMM = feature.id + "-multimedia";
                                                             var multimediaResource = feature.properties.multimedia;
                                                             var htmlDiv;
@@ -1180,6 +1276,11 @@
                                                                     //$(".leaflet-popup-content-wrapper").css("width", "300px"); 
                                                                     $('#' + divId).closest('div.leaflet-popup-content-wrapper').css("width", "300px");
                                                                 }
+                                                                if(feature.realtime!=undefined) {
+                                                                  mostraRealTimeData(divId+"-info", feature.realtime);
+                                                                  //popup_fixpos(div);
+                                                                }
+
                                                                 popup_fixpos(divId);
                                                             }
                                                             else {
@@ -1357,7 +1458,7 @@
                                     var map = L.map('map', {
                                         center: [43.3555664, 11.0290384],
                                         zoom: 8,
-                                        layers: [satellite]
+                                        layers: [streets]
                                     });
                                     var baseMaps = {
                                         "Streets": streets,
@@ -1411,9 +1512,11 @@
                                         var idServizio = markerPopup.feature.id;
                                         currentServiceUri = markerPopup.feature.properties.serviceUri;
                                         var tipoServizio = markerPopup.feature.properties.tipo;
+                                        if(tipoServizio==undefined)
+                                          tipoServizio=markerPopup.feature.properties.serviceType;
                                         var serviceType = markerPopup.feature.properties.serviceType;
                                         var nome = markerPopup.feature.properties.name;
-                                        var divId = idServizio + "-" + markerPopup.feature.properties.tipo;//assegnazione degli id ai div relativi ai servizi
+                                        var divId = idServizio + "-" + tipoServizio;//assegnazione degli id ai div relativi ai servizi
                                         var coordinates = markerPopup.feature.geometry.coordinates;
                                         if (markerPopup.feature.properties.multimedia != "" && markerPopup.feature.properties.multimedia != null) {
                                             $('#' + divId).closest('div.leaflet-popup-content-wrapper').css("width", "300px");
@@ -1568,8 +1671,12 @@
                                             if (mode == "query" && controls == undefined)
                                                 controls = "collapsed";
                                             if (controls == "false" || controls == "hidden" || controls == undefined) {
+                                                //michela SE NON vedo il menu DEVO METTERE i logo
+                                                
                                                 $("#menu-dx").hide();
-                                                $("#menu-alto").hide();
+                                                $("#menu-alto").hide();//al posto di questo devo mettere i logo
+                                                $("#menu-alto-hidden").show();
+                                                
                                                 $("#embed.menu").hide();
                                             }
                                             else if (controls == "collapsed") {
@@ -1577,7 +1684,7 @@
                                                 $("#menu-alto .header").click();
                                             }
                                             var info = parameters["info"];
-                                            if (info == "false" || info == "hidden" || info ==undefined) {
+                                            if (info == "false" || info == "hidden" /*|| info ==undefined*/){
                                                 $("#info-aggiuntive").hide();
                                             }
                                             else if (info == "collapsed") {
@@ -2090,7 +2197,7 @@
                                                 // SE HO RICHIESTO LA POSIZIONE ATTUALE ESTRAGGO LE COORDINATE
                                                 centroRicerca = GPSControl._currentLocation.lat + ";" + GPSControl._currentLocation.lng;
                                             }
-                                            else if ((selezione.indexOf("Fermata Bus:") != -1) || (selezione.indexOf("Bus Stop:") != -1)) {
+                                            /*else if ((selezione.indexOf("Fermata Bus:") != -1) || (selezione.indexOf("Bus Stop:") != -1)) {
                                                 centroRicerca = coordinateSelezione;
                                             }
                                             else if (selezione.indexOf("Coord:") != -1 || selezione.indexOf("Numero Bus:") != -1) {
@@ -2101,10 +2208,11 @@
                                             }
                                             else if (selezione.indexOf("point") != -1) {
                                                 centroRicerca = coordinateSelezione;
-                                            }
+                                            }*/
                                             else
                                                 centroRicerca = coordinateSelezione;
-                                            query = saveQueryServices(centroRicerca, raggi, categorie, numRis, selezione);
+                                            var text = $('#serviceTextFilter').val();
+                                            query = saveQueryServices(centroRicerca, raggi, categorie, numRis, selezione, text);
                                             var coord = centroRicerca.split(";");
                                             if(raggioServizi!="geo")
                                               clickLayer.clearLayers();
@@ -2127,10 +2235,221 @@
                                             var numTotServices = 0;
                                             var numTotBusStops = 0;
                                             var numTotSensors = 0;
-                                            
-                                            
-                                            
+                                            if (centroRicerca!=null && centroRicerca.indexOf("COMUNE di") != -1) {
+                                                //getServices in MunicipalityMICHELA INIZIO
+                                                $.ajax({
+                                                    url: ctx + "/ajax/json/get-services-in-municipality.jsp",
+                                                    type: "GET",
+                                                    async: true,
+                                                    dataType: 'json',
+                                                    data: {
+                                                        nomeProvincia: provincia,
+                                                        nomeComune: nomeComune,
+                                                        categorie: categorie,
+                                                        textFilter: textFilter,
+                                                        numeroRisultatiServizi: numeroRisultatiServizi,
+                                                        numeroRisultatiSensori: numeroRisultatiSensori,
+                                                        numeroRisultatiBus: numeroRisultatiBus,
+                                                        cat_servizi: tipo_categoria
+                                                    },
+                                                    success: function (msg) {
+                                                        //console.log(msg);
+                                                        if (mode == "JSON") {
+                                                            $("#body").replaceWith(JSON.stringify(msg));
+                                                        }
+                                                        else {
+                                                            if ($("#elencocomuni").val() != 'all') {
+                                                                //if (selectOption.options[selectOption.options.selectedIndex].value != 'all'){
+                                                                /*
+                                                                 $.ajax({
+                                                                 url : "${pageContext.request.contextPath}/ajax/get-weather.jsp",
+                                                                 type : "GET",
+                                                                 async: true,
+                                                                 //dataType: 'json',
+                                                                 data : {
+                                                                 nomeComune: $("#elencocomuni").val()
+                                                                 },
+                                                                 success : function(msg) {
+                                                                 $('#info-aggiuntive .content').html(msg);
+                                                                 }
+                                                                 });
+                                                                 */
+                                                            }
+                                                            var array = new Array();
+                                                             var delta = new Array();
+                                                            var sin = new Array();
+                                                            var cos = new Array();
+                                                            var sx = new Array();
+                                                            var dx = new Array();
+                                                            var fract = 0.523599;
+                                                            var dist = 1.2;
+                                                            var passo = 0.00007;
                                                         
+                                                            for (var r = 0; r < 10; r++) {
+                                                            array[r] = new Array();
+                                                            for (var c = 0; c < 2; c++) {
+                                                                array[r][c] = 0;
+                                                            }
+                                                                delta[r] = 0;
+                                                                sin[r] = 0;
+                                                                cos[r] = 0;
+                                                                sx[r] = 0;
+                                                                dx[r] = 0;
+                                                            }
+
+                                                            $('#loading').hide();
+                                                            if (msg.features.length > 0) {
+                                                                var i = 0;
+                                                                var count = 0;
+                                                            for (i = 0; i < msg.features.length; i++) {
+                                                                if (msg.features[i].properties.serviceType == 'TourismService_Tourist_trail') {
+                                                                    if (count == 0) {
+                                                                        array[0][0] = msg.features[i].geometry.coordinates[0];
+                                                                        array[0][1] = msg.features[i].geometry.coordinates[1];
+                                                                    } else {
+                                                                        for (var k = 0; k < count; k++) {
+                                                                            if ((msg.features[i].geometry.coordinates[0] == array[k][0]) && (msg.features[i].geometry.coordinates[1] == array[k][1])) {
+                                                                                delta[count] = (fract*count);
+                                                                                sin[count] = Math.sin(delta[count]);
+                                                                                cos[count] = Math.cos(delta[count]);
+                                                                                sx[count] = (sin[count]*passo*dist*count);
+                                                                                dx[count] = (cos[count]*passo*dist*count);;
+                                                                                
+                                                                                //array[count][0] = msg.features[i].geometry.coordinates[0] + (Math.random() - .4) / 1500;
+                                                                                //array[count][1] = msg.features[i].geometry.coordinates[1] + (Math.random() - .4) / 1500;
+                                                                                //msg.features[i].geometry.coordinates[0] = array[count][0];
+                                                                                //msg.features[i].geometry.coordinates[1] = array[count][1];
+                                                                                
+                                                                                array[count][0] = (array[0][0])+sx[count];
+                                                                                array[count][1] = (array[0][1])+dx[count];
+                                                                                msg.features[i].geometry.coordinates[0] = array[count][0];
+                                                                                msg.features[i].geometry.coordinates[1] = array[count][1];
+                                                                            } else {
+                                                                                array[count][0] = msg.features[i].geometry.coordinates[0];
+                                                                                array[count][1] = msg.features[i].geometry.coordinates[1];
+                                                                            }
+
+                                                                        }
+
+                                                                    }
+                                                                    count++;
+                                                                }
+
+                                                            }
+                                                                
+                                                                
+                                                                servicesLayer = L.geoJson(msg, {
+                                                                    pointToLayer: function (feature, latlng) {
+                                                                        marker = showmarker(feature, latlng);
+                                                                        return marker;
+                                                                    },
+                                                                    onEachFeature: function (feature, layer) {
+                                                                        var contenutoPopup = "";
+                                                                        var divId = feature.id + "-" + feature.properties.tipo;
+                                                                        // X TEMPI DI CARICAMENTO INFO SCHEDA ALL'APERTURA DEL POPUP LUNGHI, VISUALIZZARE NOME, LOD E TIPOLOGIA DI SERVIZIO
+                                                                        /*if (feature.properties.nome != null && feature.properties.nome != "")
+                                                                         contenutoPopup = "<h3>" + feature.properties.nome + "</h3>";
+                                                                         else {
+                                                                         if (feature.properties.identifier != null && feature.properties.identifier != "")
+                                                                         contenutoPopup = "<h3>" + feature.properties.identifier + "</h3>";
+                                                                         }
+                                                                         contenutoPopup = contenutoPopup + "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
+                                                                         contenutoPopup = contenutoPopup + "<b>Tipologia: </b>" + feature.properties.category +" - "+ feature.properties.subCategory + "<br />";*/
+                                                                        contenutoPopup = contenutoPopup + "<div id=\"" + divId + "\" ></div>";
+                                                                        layer.bindPopup(contenutoPopup);
+                                                                        if (feature.properties.serviceType == "TransferServiceAndRenting_BusStop") {
+                                                                            numeroBus++;
+                                                                        }
+                                                                        else {
+                                                                            if (feature.properties.serviceType == "TransferServiceAndRenting_SensorSite") {
+                                                                                numeroSensori++;
+                                                                            }
+                                                                            else {
+                                                                                numeroServizi++;
+                                                                            }
+                                                                        }
+
+                                                                    }
+                                                                });
+                                                                <%if (clusterResults > 0) {%>
+                                                                if (msg.features.length >=<%=clusterResults%>) {
+                                                                    markers = new L.MarkerClusterGroup({maxClusterRadius: <%=clusterDistance%>, disableClusteringAtZoom: <%=noClusterAtZoom%>});
+                                                                    servicesLayer = markers.addLayer(servicesLayer);
+                                                                    //$("#cluster-msg").text("più di <%=clusterResults%> risultati, attivato clustering");
+                                                                    $("#cluster-msg").text("more than <%=clusterResults%> results, clustering enabled");
+                                                                    $("#cluster-msg").show();
+                                                                }
+                                                                else
+                                                                    $("#cluster-msg").hide();
+            <%}%>
+                                                                servicesLayer.addTo(map);
+                                                                if (mode == "embed") {
+                                                                    for (i in servicesLayer._layers) {
+                                                                        var uri = servicesLayer._layers[i].feature.properties.serviceUri;
+                                                                        if (include(openPins, uri))
+                                                                            servicesLayer._layers[i].openPopup();
+                                                                    }
+                                                                }
+                                                                var markerJson = JSON.stringify(msg.features);
+                                                                pins = markerJson;
+                                                                //if (mode != "embed") {
+                                                                var confiniMappa = servicesLayer.getBounds();
+                                                                map.fitBounds(confiniMappa, {padding: [50, 50]});
+                                                                //}
+                                                                //numeroServizi = numeroServizi;
+                                                                //numeroBus = numeroBus;
+                                                                //numeroSensori = numeroSensori;
+                                                                /*if (msg.features.length < numeroRisultati || numeroRisultati == 0) {
+                                                                 risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 0);
+                                                                 }
+                                                                 else {
+                                                                 risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 0);
+                                                                 }*/
+                                                                if (tipo_categoria == "categorie" || tipo_categoria.indexOf("categorie:") != -1) {
+                                                                    risultatiRicerca((numeroServizi + numeroBus + numeroSensori), 0, 0, 1, null, 0, 0, 0);
+                                                                } else {
+                                                                    //risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 2); //DA DECOMMENTARE QUANDO SISTEMATI TRANSVERSE SERVICE
+                                                                    risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 1, null, 0, 0, 0);
+                                                                }
+                                                            }
+                                                            else {
+                                                                //MICHELA: qui Nel caso di BUsStop senza centro mappa NON ci devo arrivare!!!!
+                                                                risultatiRicerca(0, 0, 0, 0, null, 0, 0, 0);
+                                                            }
+                                                        }
+                                                        if (categorie.indexOf("Event") != -1) {
+                                                            numEventi = searchEvent("transverse", null, null, numeroRisultatiServizi, textFilter);
+                                                            if (numEventi != 0) {
+                                                                risultatiRicerca((numeroServizi + numEventi), numeroBus, numeroSensori, 1, null, 0, 0, 0);
+                                                                $("input[name=event_choice][value=day]").attr('checked', 'checked');
+                                                            }
+                                                        }
+                                                    },
+                                                    error: function (request, status, error) {
+
+                                                        //console.log(error);
+                                                        if ($("#elencocomuni").val() != 'all') {
+                                                            $.ajax({
+                                                                url: "${pageContext.request.contextPath}/ajax/get-weather.jsp",
+                                                                type: "GET",
+                                                                async: true,
+                                                                //dataType: 'json',
+                                                                data: {
+                                                                    nomeComune: $("#elencocomuni").val()
+                                                                },
+                                                                success: function (msg) {
+                                                                    $('#info-aggiuntive .content').html(msg);
+                                                                }
+                                                            });
+                                                        }
+                                                        $('#loading').hide();
+                                                        console.log(error);
+                                                        alert('Si è verificato un errore');
+                                                    }
+                                                });
+                                                //getServices in municipality FINE
+                                                }else
+                                            {            
                                             $.ajax({
                                                 url: "${pageContext.request.contextPath}/ajax/json/get-services.jsp",
                                                 type: "GET",
@@ -2349,7 +2668,7 @@
                                                         }
                                                     }
                                                     if (categorie.indexOf("Event") != -1) {
-                                                        numEventi = searchEvent("transverse", raggioServizi, centroRicerca, numeroRisultatiServizi, textFilter);
+                                                        numEventi = searchEvent("transverse", raggioServizi, null/*centroRicerca*/, numeroRisultatiServizi, textFilter);
                                                         if (numEventi != 0) {
                                                             risultatiRicerca((numeroServizi + numEventi), numeroBus, numeroSensori, 1, null, (numTotServices + numEventi), numTotBusStops, numTotSensors);
                                                             $("input[name=event_choice][value=day]").attr('checked', 'checked');
@@ -2366,6 +2685,7 @@
                                                     }
                                                 }
                                             });
+                                            }//MICHELA
                                             if (categorie.indexOf("PublicTransportLine") != -1) {
                                                 var i = 0;
                                                 $.ajax({

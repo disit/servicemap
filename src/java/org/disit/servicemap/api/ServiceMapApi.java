@@ -1,17 +1,18 @@
 /* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2
-   of the License, or (at your option) any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 package org.disit.servicemap.api;
 
@@ -2058,14 +2059,35 @@ public class ServiceMapApi {
       }
       if(obj!=null && findGeometry!=null && (findGeometry.equals("true") || findGeometry.equals("geometry"))) {
         double wktDist = Double.parseDouble(Configuration.getInstance().get("wktDistance", "0.0004"));
-        query="select distinct ?s ?name ?class ?geo where {\n" +
+        query="select * {\n" +
+            "{\n" +
+            "select distinct ?s ?name ?class ?geo where {\n" +
             "?s <http://www.opengis.net/ont/geosparql#hasGeometry> [geo:geometry ?geo].\n" +
             "filter(bif:st_contains(?geo,bif:st_point("+lng+","+lat+"),0.01))\n" +
             "?s a ?class.\n" +
-            "OPTIONAL{{?s <http://schema.org/name> ?name} UNION {?s foaf:name ?name}}.\n" +
-            "filter (?class!=km4c:RegularService && ?class!=km4c:DigitalLocation)\n" +
-            "}";
+            "{?s <http://schema.org/name> ?name} UNION {?s foaf:name ?name}.\n" +
+            "filter (?class!=km4c:RegularService && ?class!=km4c:DigitalLocation && ?class!=km4c:Route && ?class!=km4c:Tramline)\n" +
+            "}\n" +
+            "} UNION {\n" +
+            "select (min(?t) as ?s) ?name (gtfs:Route as ?class) ?agency ?dir ?geo ?rtype {\n" +
+            "?r a gtfs:Route.\n" +
+            "OPTIONAL{?r gtfs:shortName ?sname.}\n" +
+            "?r gtfs:longName ?lname.\n" +
+            "?r gtfs:agency/foaf:name ?agency.\n" +
+            "?t gtfs:route ?r.\n" +
+            "?r gtfs:routeType ?rtype.\n" +
+            "?t <http://www.opengis.net/ont/geosparql#hasGeometry> ?sh.\n" +
+            "OPTIONAL{?t gtfs:headsign ?dir.}\n" +
+            "?sh geo:geometry ?geo.\n" +
+            "?t gtfs:service/dcterms:date ?d.\n" +
+            "filter(xsd:date(?d)=xsd:date(now())) \n" +
+            "filter(bif:st_contains(?geo,bif:st_point("+lng+","+lat+"),0.01))\n" +
+            "BIND(IF(?sname,?sname,?lname) as ?name)\n" +
+            "} group by ?sh ?name ?agency ?rtype ?dir ?geo\n" +
+            "}\n" +
+            "}order by ?agency ?name";
         tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+        System.out.println(query);
         results = tupleQuery.evaluate();
         ServiceMap.logQuery(query,"get-area",sparqlType,lat+";"+lng,0);
 
@@ -2082,6 +2104,9 @@ public class ServiceMapApi {
           String _class = binding.getValue("class").stringValue();
           String name = binding.getValue("name")==null ? "" : binding.getValue("name").stringValue();
           String geo = binding.getValue("geo").stringValue();
+          String agency = binding.getValue("agency")==null ? null : binding.getValue("agency").stringValue();
+          String routeType = binding.getValue("rtype")==null ? null : binding.getValue("rtype").stringValue();
+          String direction = binding.getValue("dir")==null ? null : binding.getValue("dir").stringValue();
           
           try {
             Geometry g=wktReader.read(geo);
@@ -2097,7 +2122,12 @@ public class ServiceMapApi {
                 area.put("type", "LineString");
               else if(g instanceof Point)
                 area.put("type", "Point");
-              
+              if(agency!=null)
+                area.put("agency", agency);
+              if(routeType!=null)
+                area.put("routeType", routeType.replace("http://vocab.gtfs.org/terms#",""));
+              if(direction!=null)
+                area.put("direction", direction);
               if(findGeometry.equals("geometry"))
                 area.put("geometry", geo);
               area.put("distance", g.distance(position));

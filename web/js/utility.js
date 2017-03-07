@@ -1,19 +1,18 @@
 /* ServiceMap.
- Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
- 
- This program is free software; you can redistribute it and/or
- modify it under the terms of the GNU General Public License
- as published by the Free Software Foundation; either version 2
- of the License, or (at your option) any later version.
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
+   Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
 
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 function mostraElencoAgenzie(whoCalls) {
 //if(mode!="query" && mode!="embed"){
@@ -661,8 +660,14 @@ function loadServiceInfo(uri, div, id, coord) {
                 async: true,
                 dataType: 'json',
                 success: function (data) {
+                    if("Service" in data) {
+                      var realtime = data.realtime;
+                      data = data.Service;
+                    }
                     if (data.features.length > 0) {
                         var tipo = data.features[0].properties.tipo;
+                        if(tipo==undefined)
+                          tipo = data.features[0].properties.typeLabel;
                         //selezione = 'Servizio: ' + data.features[0].properties.nome;
                         if (tipo == 'fermata') {
                             selezione = 'Bus Stop: ' + data.features[0].properties.name;
@@ -689,6 +694,9 @@ function loadServiceInfo(uri, div, id, coord) {
                             mostraAVMAJAX(name, divInfo);
                             mostraLineeBusAJAX(serviceUri, divLinee, divRoute);
                             mostraOrariAJAX(serviceUri, divTimetable);
+                        } else if(realtime!=undefined) {
+                            mostraRealTimeData(divInfo, realtime);
+                            popup_fixpos(div);
                         }
                     } else {
                         contenutoPopup = "No info related to Service" + uri;
@@ -786,7 +794,10 @@ function createContenutoPopup(feature, div, id) {
             contenutoPopup = "<div class=\"description\"><h3>" + feature.properties.name + "</h3></div>";
         }
         contenutoPopup = contenutoPopup + "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
-        contenutoPopup = contenutoPopup + "<b><span name=\"lbl\" caption=\"tipology\">Tipology</span>:</b> " + feature.properties.tipologia + "<br />";
+        var tipologia = feature.properties.tipologia;
+        if(tipologia==undefined)
+          tipologia = feature.properties.serviceType.replace("_"," - ");
+        contenutoPopup = contenutoPopup + "<b><span name=\"lbl\" caption=\"tipology\">Tipology</span>:</b> " + tipologia + "<br />";
         if (feature.properties.digitalLocation != "" && feature.properties.digitalLocation)
             contenutoPopup = contenutoPopup + "<span style='border:1px solid #E87530; padding:2px;'><b>Digital Location</b></span><br />";
         if (feature.properties.email != "" && feature.properties.email)
@@ -801,10 +812,10 @@ function createContenutoPopup(feature, div, id) {
             contenutoPopup = contenutoPopup + "<b><span name=\"lbl\" caption=\"phone\">Phone</span>:</b> " + feature.properties.phone + "<br />";
         if (feature.properties.fax != "" && feature.properties.fax)
             contenutoPopup = contenutoPopup + "<b>Fax:</b> " + feature.properties.fax + "<br />";
-        if (feature.properties.indirizzo != "" && feature.properties.indirizzo)
-            contenutoPopup = contenutoPopup + "<b><span name=\"lbl\" caption=\"address\">Address:</span></b> " + feature.properties.indirizzo;
-        if (feature.properties.numero != "" && feature.properties.numero)
-            contenutoPopup = contenutoPopup + ", " + feature.properties.numero + "<br />";
+        if (feature.properties.address != "" && feature.properties.address)
+            contenutoPopup = contenutoPopup + "<b><span name=\"lbl\" caption=\"address\">Address:</span></b> " + feature.properties.address;
+        if (feature.properties.civic != "" && feature.properties.civic)
+            contenutoPopup = contenutoPopup + ", " + feature.properties.civic + "<br />";
         else
             contenutoPopup = contenutoPopup + "<br />";
         if (feature.properties.linkDBpedia != "" && feature.properties.linkDBpedia) {
@@ -880,12 +891,51 @@ $(".header").click(function () {
     $content.slideToggle(200, function () {
         //execute this after slideToggle is done
         //change text of header based on visibility of content div
-        $header.text(function () {
-            //change text based on condition
-            return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
-        });
+        //$header.text(function () {
+        if($("#lang").val()=='ENG'){
+            $header.html(function () {
+                //change text based on condition
+                //return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
+                return $content.is(":visible") ? '<span name="lbl" caption="Hide_Menu_sx"> - Hide Menu</span>' : '<span name="lbl" caption="Show_Menu_sx"> + Show Menu</span>';
+            });
+        }
+        else{
+            $header.html(function () {
+                //change text based on condition
+                //return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
+                return $content.is(":visible") ? '<span name="lbl" caption="Hide_Menu_sx"> - Nascondi Menu</span>' : '<span name="lbl" caption="Show_Menu_sx"> + Apri Menu</span>';
+            });
+        }
     });
 });
+$(".header-container").click(function () {
+    $header = $(this);
+    //getting the next element
+    $content = $header.next();
+    //open up the content needed - toggle the slide- if visible, slide up, if not slidedown.
+    $content.slideToggle(200, function () {
+        //execute this after slideToggle is done
+        //change text of header based on visibility of content div
+        //$header.text(function () {
+        if($("#lang").val()=='ENG'){
+            $header.html(function () {
+                //change text based on condition
+                //return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
+                return $content.is(":visible") ? '<div class="header"><span name="lbl" caption="Hide_Menu_sx"> - Hide Menu</span></div>' : 
+                                                 '<div class="header"><span name="lbl" caption="Show_Menu_sx"> + Show Menu</span></div>';
+            });
+        }
+        else{
+            $header.html(function () {
+                //change text based on condition
+                //return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
+                return $content.is(":visible") ? '<div class="header"><span name="lbl" caption="Hide_Menu_sx"> - Nascondi Menu</span></div>' :
+                                                 '<div class="header"><span name="lbl" caption="Show_Menu_sx"> + Apri Menu</span></div>';
+            });
+        }
+    });
+});
+
 //FUNZIONE PER MOSTRARE/NASCONDERE LE SUB CATEGORY
 $(".toggle-subcategory").click(function () {
     $tsc = $(this);
@@ -1353,14 +1403,23 @@ function mostraAutobusRT(zoom) {
 function searchEvent(param, raggioRic, centroRic, numEv, text) {
     //$('#selection').hide();
     //$('.leaflet-marker-icon.event.leaflet-zoom-animated.leaflet-clickable').remove();
+    //$('#loading').html(msg).show('fast');//show('slow');
     if (eventLayer != null) {
         map.removeLayer(eventLayer);
     }
-    /*if(param != "transverse"){
+    //michela
+    //Quello sotto è il metodo per scrivere nella variabile globale query... 
+    //si scrive solo nel caso in cui la ricerca provenga dal tab degli eventi
+    //da capire se sovrascrivere altri valori con il default o meno, in caso di save in modalità embed...
+    if($("#event_choice_d").is(':checked') || $("#event_choice_w").is(':checked') || $("#event_choice_m").is(':checked'))
+       query_event = saveQueryEvent(param); 
+    /*
+    if(param != "transverse"){
      $('#searchOutput').hide();
      }*/
-
+     
     var eventNum = 0;
+    
     $.ajax({
         url: ctx + "/ajax/json/get-event-list.jsp",
         type: "GET",
@@ -1374,6 +1433,7 @@ function searchEvent(param, raggioRic, centroRic, numEv, text) {
             textFilter: text
         },
         success: function (msg) {
+            //metto attive le previsioni del tempo, so che gli eventi allo stato attuale (gennaio 2017 sono solo su Firenze)
             $.ajax({
                 url: "ajax/get-weather.jsp",
                 type: "GET",
@@ -1383,12 +1443,16 @@ function searchEvent(param, raggioRic, centroRic, numEv, text) {
                     nomeComune: "FIRENZE"
                 },
                 success: function (msg) {
+                    //$('#loading').hide();
                     $('#info-aggiuntive .content').html(msg);
                 }
             });
+
+            
             if (param != "free_text") {
                 $('#loading').hide();
             }
+            
             var i = 0;
             if (msg.Event.features.length > 0) {
                 $('#event').show();
@@ -1517,7 +1581,7 @@ function searchEvent(param, raggioRic, centroRic, numEv, text) {
                 $('#eventNum').html("No events planned.");
                 $('#eventNum').show();
             }
-
+            //$('#loading').html(msg).show('fast').hide('fast');//show('slow');//michela
         }
     });
     return(eventNum);
@@ -1612,6 +1676,7 @@ function getLanguageResources(lang) {
             resource['Position_Bus'] = msg.Position_Bus;
             resource['Hide_Menu_dx'] = msg.Hide_Menu;
             resource['Hide_Menu_sx'] = msg.Hide_Menu;
+            resource['Show_Menu_sx'] = msg.Show_Menu;            
             resource['Hide_Menu_meteo'] = msg.Hide_Menu;
             resource['Actual_Selection'] = msg.Actual_Selection;
             //resource['Selection'] = msg.Selection;
@@ -2262,4 +2327,40 @@ function showChart(selezione, raggioRicerca, coordinateSelezione) {
     }
 }
 
-        
+function mostraRealTimeData(divInfo, realtime) {
+  var html = "";
+  var time = "";
+  if(!("results" in realtime)) {
+    $("#"+divInfo).html("<b>No realtime data</b>");
+    return;
+  }
+  html = "<div class=\"sensori\"><table>";
+  if(realtime.results.bindings.length==1) {
+    html += "<tr><td><b>Property</b></td><td><b>Value</b></td></tr>";
+    $.each( realtime.results.bindings[0], function( key, v ) {
+      if(key == "measuredTime")
+        time = v.value;
+      else
+        html +="<tr><td>"+key+"</td><td>"+v.value+"</td></tr>";
+    });
+  } else {
+    html += "<tr>";
+    for(var v in realtime.head.vars) {
+      if(realtime.head.vars[v]!="measuredTime" && typeof realtime.head.vars[v] == "string")
+        html +="<td><b>"+realtime.head.vars[v]+"</b></td>";
+    }
+    html += "</tr>";
+    for(var b in realtime.results.bindings) {
+      html += "<tr>";
+      $.each( realtime.results.bindings[b], function( key, v ) {
+        if(key == "measuredTime")
+          time = v.value;
+        else
+          html +="<td>"+v.value+"</td>";
+      });
+      html += "</tr>";
+    }
+  }
+  html += "</table><div class=\"aggiornamento\"><span name=\"lbl\" caption=\"last_update\" >Latest Update</span>: " + time + "</div></div>";
+  $("#"+divInfo).html(html);
+}

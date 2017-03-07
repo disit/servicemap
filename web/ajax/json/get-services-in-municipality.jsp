@@ -21,17 +21,18 @@
 /* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2
-   of the License, or (at your option) any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
     RepositoryConnection con = ServiceMap.getSparqlConnection();
     
@@ -327,7 +328,7 @@
                     + filtroLocalita
                     + fc
                     + " ?ser a ?sType. FILTER(?sType!=km4c:RegularService && ?sType!=km4c:Service&& ?sType!=km4c:DigitalLocation && ?sType!=km4c:TransverseService && ?sType!=km4c:BusStop && ?sType!=km4c:SensorSite)\n"
-                    + " OPTIONAL { ?sType rdfs:subClassOf ?sCategory. FILTER(?sCategory!=<http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing>)}\n"
+                    + " OPTIONAL { ?sType rdfs:subClassOf* ?sCategory. ?sCategory rdfs:subClassOf km4c:Service.}\n"
                     + " OPTIONAL { ?sType rdfs:label ?labelIta. FILTER(LANG(?labelIta)=\"it\")}\n"
                     + "}";
             if (!numeroRisultatiServizi.equals("0")) {

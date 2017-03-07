@@ -1,17 +1,18 @@
 /* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; either version 2
-   of the License, or (at your option) any later version.
+   This program is free software: you can redistribute it and/or modify
+   it under the terms of the GNU Affero General Public License as
+   published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA. */
+   GNU Affero General Public License for more details.
+
+   You should have received a copy of the GNU Affero General Public License
+   along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 package org.disit.servicemap;
 
@@ -30,6 +31,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.mail.Message;
 import javax.mail.MessagingException;
 import javax.mail.Session;
@@ -37,6 +40,7 @@ import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import javax.servlet.http.HttpServletRequest;
+import org.json.simple.JSONObject;
 import org.openrdf.query.Binding;
 import org.openrdf.query.BindingSet;
 import org.openrdf.query.QueryLanguage;
@@ -90,7 +94,7 @@ public class ServiceMap {
       BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
       bufferWritter.write(("#QUERYID|"+id+"|"+type+"|"+args+"|"+(time/1000000)+"|"+formattedDate+"|"+query+"\n#####################\n").replace("\n", "\r\n"));
       bufferWritter.close();
-      //System.out.println("#QUERYID:"+id+":"+type+":"+args+":"+(time/1000000));
+      System.out.println("#QUERYID:"+id+":"+type+":"+args+":"+(time/1000000));
       //System.out.println(query);
     }
     catch(Exception e) {
@@ -102,12 +106,14 @@ public class ServiceMap {
     Configuration conf = Configuration.getInstance();
     BufferedWriter out = null;
     File f = null;
-    String filePath = conf.get("accessLogFile","");
+    String filePath = conf.get("accessLogFile",null);
     try {
         Date now = new Date();
-        FileWriter fstream = new FileWriter(filePath, true); //true tells to append data.
-        out = new BufferedWriter(fstream);
-        out.write( now + "|" + mode + "|" + ip + "|" + UA + "|" + serviceUri + "|" + email + "|" + sel + "|" + categorie + "|" + numeroRisultati +"|" + raggio + "|" + queryId + "|" + text + "|" + format + "|"+uid+"|"+reqFrom+"\n");
+        if(filePath!=null) {
+          FileWriter fstream = new FileWriter(filePath, true); //true tells to append data.
+          out = new BufferedWriter(fstream);
+          out.write( now + "|" + mode + "|" + ip + "|" + UA + "|" + serviceUri + "|" + email + "|" + sel + "|" + categorie + "|" + numeroRisultati +"|" + raggio + "|" + queryId + "|" + text + "|" + format + "|"+uid+"|"+reqFrom+"\n");
+        }  
 
         //Class.forName("com.mysql.jdbc.Driver");
         Connection conMySQL = ConnectionPool.getConnection();
@@ -150,7 +156,7 @@ public class ServiceMap {
   static public String escapeJSON(String s) {
     if(s==null)
       return null;
-    return s.replace("\"", "\\\"").replace("\t", "\\t").replace("\n", "\\n");
+    return JSONObject.escape(s); //)s.replace("\"", "\\\"").replace("\t", "\\t").replace("\n", "\\n");
   }
 
   static final public String prefixes =
@@ -321,6 +327,7 @@ public class ServiceMap {
       int n=0;
       for(String c:listaCategorie) {
         //FIX temporaneo
+        c = c.trim();
         if(macroCats.contains(c)) {
           if(n>0)
             filtroQuery += "UNION";
@@ -796,5 +803,87 @@ public class ServiceMap {
           }
       }
       return request.getRemoteAddr();
-  }  
+  }
+  
+  public static String[] parsePosition(String position) throws Exception {
+    if(position==null)
+      return null;
+    String[] latLng = position.split(";");
+    if(latLng.length==2)
+      return latLng;
+    if(!position.startsWith("http://")) {
+      return null;
+    }
+    latLng = new String[2];
+    Map<String,String> info = getServiceInfo(position,"en");
+    if(info.isEmpty())
+      return null;
+    latLng[0] = info.get("lat");
+    latLng[1] = info.get("long");
+    return latLng;
+  }
+  
+  public static String[] findTime(String s) {
+    String[] times=new String[2];
+    if(s==null || s.isEmpty())
+      return times;
+    Pattern r = Pattern.compile("[^0-9]([0-9]?[0-9])[\\.:,]([0-5][0-9])\\s*-\\s*([0-9]?[0-9])[\\.:,]([0-5][0-9])[^0-9]");
+    Matcher m = r.matcher(" "+s+" ");
+    int pos=0;
+    System.out.println("-- "+s);
+    int i=0;
+    if(m.find(pos)) {
+      System.out.println(">> Found: " + m.group(1)+":"+m.group(2)+"-"+m.group(3)+":"+m.group(4));
+      String c = m.group(1);
+      if(c.length()<2)
+        c="0"+c;
+      times[i] = c+":"+m.group(2);
+      if(times[i].compareTo("00:00")>=0 && times[i].compareTo("23:59")<=0) {
+        c = m.group(3);
+        if(c.length()<2)
+          c="0"+c;
+        times[i+1] = c+":"+m.group(4);
+        if(times[i+1].compareTo("00:00")>=0 && times[i+1].compareTo("23:59")<=0) {
+          i += 2;
+        } else
+          times[i+1]=null;
+      } else
+        times[i]=null;
+    }
+    if(i==0) {
+      r = Pattern.compile("[^0-9]([0-9]?[0-9])[\\.:,]([0-5][0-9])[^0-9]");
+      m = r.matcher(" "+s+" ");
+      if(m.find()) {
+        System.out.println(">> Found: " + m.group(1)+":"+m.group(2));
+        String c = m.group(1);
+        if(c.length()<2)
+          c="0"+c;
+        times[i] = c+":"+m.group(2);
+        if(!(times[i].compareTo("00:00")>=0 && times[i].compareTo("23:59")<=0)) {
+          times[i] = null;
+        }
+      }
+    }
+    return times;
+  }
+  
+  public static boolean validateUID(String uid) {
+    if(uid==null || (uid.length()!=64 && uid.length()!=47))
+      return false;
+    if(uid.equals("null") || uid.matches("[0-9a-fA-F]*"))
+      return true;
+    return false;
+  }
+  
+  public static String replaceHTMLEntities(String s) {
+    return s.replace("&agrave;", "à")
+            .replace("&egrave;", "è")
+            .replace("&ugrave;", "ù")
+            .replace("&igrave;", "ì")
+            .replace("&ograve;", "ò")
+            .replace("&eacute;", "é")
+            .replace("&aacute;", "á")
+            .replace("&eacuto;", "é")
+            .replace("&aacuto;", "á");
+  }
 }
