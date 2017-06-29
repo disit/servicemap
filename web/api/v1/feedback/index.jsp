@@ -22,8 +22,6 @@
   response.addHeader("Access-Control-Allow-Origin", "*");
   ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
-  RepositoryConnection con = ServiceMap.getSparqlConnection();
-
   String serviceUri = request.getParameter("serviceUri");
   if(serviceUri==null) {
     response.sendError(404, "missing serviceUri");
@@ -49,35 +47,40 @@
     }
   }
   
-  String serviceName = ServiceMap.getServiceName(con, serviceUri);
-  if(serviceName == null)
-    serviceName = ServiceMap.getServiceIdentifier(con, serviceUri);
-  if(serviceName==null) {
-    response.sendError(404,"invalid serviceUri (no name/id found)");
-    System.out.println("request invalid serviceUri "+serviceUri);
-    return;
-  }
+  RepositoryConnection con = ServiceMap.getSparqlConnection();
+  try {
+    String serviceName = ServiceMap.getServiceName(con, serviceUri);
+    if(serviceName == null)
+      serviceName = ServiceMap.getServiceIdentifier(con, serviceUri);
+    if(serviceName==null) {
+      response.sendError(404,"invalid serviceUri (no name/id found)");
+      System.out.println("request invalid serviceUri "+serviceUri);
+      return;
+    }
 
-  String ip = ServiceMap.getClientIpAddress(request);
-  String ua = request.getHeader("User-Agent");
-  String reqFrom = request.getParameter("requestFrom");
+    String ip = ServiceMap.getClientIpAddress(request);
+    String ua = request.getHeader("User-Agent");
+    String reqFrom = request.getParameter("requestFrom");
 
 
-  if(stars>0) {
-    serviceMapApi.setStarsToService(uid, serviceUri, stars);
-    logAccess(ip, null, ua, null, null, serviceUri, "api-service-stars", null, null, null, ""+stars, null, uid, reqFrom);
+    if(stars>0) {
+      serviceMapApi.setStarsToService(uid, serviceUri, stars);
+      logAccess(ip, null, ua, null, null, serviceUri, "api-service-stars", null, null, null, ""+stars, null, uid, reqFrom);
+    }
+
+    String comment =  request.getParameter("comment");
+    if(comment!=null) {
+      comment = java.net.URLDecoder.decode(comment, "UTF-8");
+      //comment = new String(comment.getBytes("iso-8859-1"), "UTF-8"); //workaround! when utf8 data is sent via GET
+      serviceMapApi.addCommentToService(uid, serviceUri, serviceName, comment);
+      logAccess(ip, null, ua, null, null, serviceUri, "api-service-comment", null, null, null, null, null, uid, reqFrom);
+    }
+    else if(stars==0) {
+      response.sendError(404,"stars or comment parameter should be provided");
+      return;
+    }
+    out.println("\"OK\"");
+  } finally {
+    con.close();
   }
-  
-  String comment =  request.getParameter("comment");
-  if(comment!=null) {
-    comment = java.net.URLDecoder.decode(comment, "UTF-8");
-    //comment = new String(comment.getBytes("iso-8859-1"), "UTF-8"); //workaround! when utf8 data is sent via GET
-    serviceMapApi.addCommentToService(uid, serviceUri, serviceName, comment);
-    logAccess(ip, null, ua, null, null, serviceUri, "api-service-comment", null, null, null, null, null, uid, reqFrom);
-  }
-  else if(stars==0) {
-    response.sendError(404,"stars or comment parameter should be provided");
-    return;
-  }
-  out.println("\"OK\"");
 %>

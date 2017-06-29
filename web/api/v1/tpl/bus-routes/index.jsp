@@ -22,7 +22,6 @@
     response.addHeader("Access-Control-Allow-Origin", "*");
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
-    RepositoryConnection con = ServiceMap.getSparqlConnection();
     String agency = request.getParameter("agency");
     String line = request.getParameter("line");
     String stopName = request.getParameter("busStopName");
@@ -40,7 +39,9 @@
       response.sendError(HttpServletResponse.SC_BAD_REQUEST,"missing 'line' or 'busStopName' or 'agency' parameters");
     }
     else {
+      RepositoryConnection con = ServiceMap.getSparqlConnection();
       serviceMapApi.queryBusRoutes(out, con, agency, line, stopName, "true".equals(geometry));
+      con.close();
       logAccess(ip, null, ua, agency+";"+line+";"+stopName, null, null, "api-tpl-bus-routes", null, null, null, null, "json", uid, reqFrom);
     }
 %>

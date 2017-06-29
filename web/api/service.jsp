@@ -38,8 +38,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
   RepositoryConnection con = ServiceMap.getSparqlConnection();
-  String idService = "";
-  idService = request.getParameter("serviceUri");
+  String idService = request.getParameter("serviceUri");
   String ip = ServiceMap.getClientIpAddress(request);
   String ua = request.getHeader("User-Agent");
   //System.out.println("MIC-----------------  "+idService);
@@ -57,7 +56,7 @@
   try {
     //se esiste un mapping per un tipo associato al servizio usa le API altrimenti ritorna al vecchio codice
     ServiceMapping.MappingData serviceMapping = ServiceMapping.getInstance().getMappingForServiceType(1, types);
-    if (serviceMapping!=null) {
+    if (serviceMapping!=null && (serviceMapping.detailsQuery!=null || serviceMapping.realTimeSparqlQuery!=null)) {
       ServiceMapApiV1 api = new ServiceMapApiV1();
       api.queryService(out, con, idService, "en", "true", null, types);
     } else if ((types.contains("BusStop") || types.contains("Tram_stops") || types.contains("Train_station") || types.contains("Ferry_stop")) && !types.contains("DigitalLocation")) {
@@ -298,7 +297,7 @@
               + "PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>\n"
               + "PREFIX opengis:<http://www.opengis.net/ont/geosparql#>\n"
               + "PREFIX dcterms:<http://purl.org/dc/terms/>\n"
-              + "SELECT ?serAddress ?serNumber ?elat ?elong ?lsUri ?lsName ?sName ?sNum ?sType ?type ?sTypeIta ?sCategory ?email ?note ?description ?multimedia ?phone ?fax ?website ?prov ?city ?cap ?DLtype ?cordList WHERE{\n"
+              + "SELECT ?serAddress ?serNumber ?elat ?elong ?lsUri ?lsName (IF(?sName1,?sName1,?sName2) as ?sName) ?sNum ?sType ?type ?sTypeIta ?sCategory ?email ?note ?description ?multimedia ?phone ?fax ?website ?prov ?city ?cap ?DLtype ?cordList WHERE{\n"
               + " BIND(<" + idService + "> as ?ser)\n"
               + " OPTIONAL {{\n"
               + "  ?ser km4c:hasAccess ?entry.\n"
@@ -308,7 +307,8 @@
               + "  ?ser geo:lat ?elat;\n"
               + "   geo:long ?elong.\n"
               + " }}\n"
-              + " OPTIONAL {?ser schema:name ?sName.}\n"
+              + " OPTIONAL {?ser schema:name ?sName1.}\n"
+              + " OPTIONAL {?ser foaf:name ?sName2.}\n"
               + " OPTIONAL {?ser schema:streetAddress ?serAddress.}\n"
               + " OPTIONAL { {<"+idService+"> km4c:hasRegularService ?lsUri. OPTIONAL { ?lsUri schema:name ?lsName. }}\n"
               + "  UNION {<"+idService+"> km4c:hasTransverseService ?lsUri. OPTIONAL { ?lsUri schema:name ?lsName. }}}\n"

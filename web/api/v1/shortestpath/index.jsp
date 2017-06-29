@@ -20,11 +20,15 @@
   String source = request.getParameter("source");
   String destination = request.getParameter("destination");
   if(source==null || destination==null) {
-    response.sendError(404, "missing source or destination parameters");
+    response.sendError(400, "missing source or destination parameters");
     return;
   }
   
   String routeType = request.getParameter("routeType");
+  if(routeType!=null && !"foot_shortest".equals(routeType) && !"foot_quiet".equals(routeType) && !"car".equals(routeType) && !"feet".equals(routeType)) {
+    response.sendError(400, "invalid routeType parameter (foot_shortest, foot_quiet, car) ");    
+    return;
+  }
   String maxFeetKM = request.getParameter("maxFeetKM");
   String startDatetime = request.getParameter("startDatetime");
 
@@ -52,7 +56,7 @@
     String dstLatLng[] = ServiceMap.parsePosition(destination);
 
     if(srcLatLng==null || dstLatLng==null) {
-      response.sendError(404, "wrong source or destination parameters");
+      response.sendError(400, "wrong source or destination parameters");
       return;
     }
     RepositoryConnection con = ServiceMap.getSparqlConnection();
@@ -60,9 +64,10 @@
     try {
       serviceMapApi.makeShortestPath(out, con, srcLatLng, dstLatLng, startDatetime, routeType, maxFeetKM);
     }catch(IllegalArgumentException e) {
-      response.sendError(404, e.getMessage());
+      response.sendError(400, e.getMessage());
     }
 
     logAccess(ip, null, ua, null, null, source+";"+destination+";"+startDatetime+";"+routeType+";"+maxFeetKM, "api-shortestpath", null, null, null, null, "json", uid, reqFrom);
+    con.close();
   }  
 %>

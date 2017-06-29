@@ -26,11 +26,11 @@
     String range = request.getParameter("range");
     if(range==null)
       range = "day";
-    if(!range.equals("day") && !range.equals("week") && !range.equals("month"))
-      response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'range' parameter value (day,week,month)");
+    if(!range.equals("day") && !range.equals("week") && !range.equals("month") && !range.equals("15-days"))
+      response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'range' parameter value (day,week,15-days,month)");
     String categories = request.getParameter("categories");
     if(categories==null)
-      categories = "Archaeological_site;Botanical_and_zoological_gardens;Churches;Cultural_sites;Historical_buildings;Monument_location;Museum;Squares";
+      categories = "Event;Archaeological_site;Botanical_and_zoological_gardens;Churches;Cultural_sites;Historical_buildings;Monument_location;Museum;Squares";
 
     String maxDists = request.getParameter("maxDists");
     if(maxDists == null)
@@ -49,4 +49,5 @@
     
     serviceMapApi.queryNextPOS(out, con, range, coords, categories, maxDists, text, reqFrom!=null);
     logAccess(ip, null, ua, null, null, null, "api-nextpos-"+range, null, maxDists, null, null, "json", uid, reqFrom);
+    con.close();
 %>

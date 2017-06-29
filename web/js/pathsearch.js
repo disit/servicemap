@@ -61,12 +61,14 @@ function doSearchPath(v, fit) {
     pathPins["position"]=null;
   }
   
+  var routeType = $("#path_type").val();
+  
   $("#loading").show();
   if(!v) {
     $.ajax({
           url: ctx+"/ajax/json/shortestpath.jsp",
           type: "GET",
-          data: { "source": pathStart, "destination": pathEnd},
+          data: { "source": pathStart, "destination": pathEnd, "routeType": routeType},
           async: true,
           dataType: 'json',
           success: function (response) {
@@ -88,16 +90,36 @@ function doSearchPath(v, fit) {
                   if(pathPins["end"]==null)
                     updatePathPin("end",response.journey.destination_node.lat,response.journey.destination_node.lon,"finish2",map);
                 }
-                html +="<li><span style='color:"+pathDefaults.color+";font-weight:bold'>Length: "+Math.floor(response.journey.routes[r].distance*1000)+"m</span><ol>";
+                html +="<li><span style='color:"+pathDefaults.color+";font-weight:bold'>Length: "+
+                        Math.floor(response.journey.routes[r].distance*1000)+"m arrival time:"+
+                        response.journey.routes[r].eta+" ("+response.journey.routes[r].time+")</span><ol>";
+                var street = "";
+                var dist = 0;
+                var h = "";
+                var startTime;
+                var showPin;
                 for(var j=0;j<route.arc.length; j++) {
-                  html+="<li><a style='cursor:pointer;' onclick='showPin("+r+","+j+")'>"+route.arc[j].transport+" "+Math.floor(route.arc[j].distance*1000)+"m ("+route.arc[j].end_datetime+")</a></li>";
+                  if(route.arc[j].desc!=street) {
+                    if(street!="")
+                      html+="<li><a style='cursor:pointer;' onclick='"+showPin+"'><b>"+street+"</b> "+Math.floor(dist*1000)+"m ("+startTime+")</a><ol>"+h+"</ol></li>";
+                    street=route.arc[j].desc;
+                    h = "";
+                    dist = 0;
+                    startTime = route.arc[j].start_datetime
+                    showPin = "showPin("+r+","+j+")";
+                  }
+                  h+="<li><a style='cursor:pointer;' onclick='showPin("+r+","+j+")'>"+route.arc[j].transport+" "+Math.floor(route.arc[j].distance*1000)+"m ("+route.arc[j].end_datetime+")</a></li>";
+                  dist += route.arc[j].distance;
                 }
+                html+="<li><a style='cursor:pointer;' onclick='"+showPin+"'><b>"+street+"</b> "+Math.floor(dist*1000)+"m ("+startTime+")</a><ol>"+h+"</ol></li>";
                 html+="</ol>";
                 $("#pathresult").html(html);
+                if(fit)
+                  map.fitBounds(pathLayer.getLayers()[0].getBounds());
               }
+            } else {
+              $("#pathresult").html("No paths found.");
             }
-            if(fit)
-              map.fitBounds(pathLayer.getLayers()[0].getBounds());
             $("#loading").hide();
           },
           error: function () {

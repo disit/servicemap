@@ -56,6 +56,8 @@ function mostraElencoLinee(selectOption) {
                 var value;
                 if(msg.BusLines[i].shortName != ""){
                     value = msg.BusLines[i].shortName;
+                    if(msg.BusLines[i].longName!="")
+                      value += " - "+msg.BusLines[i].longName;
                 }
                 else
                      value = msg.BusLines[i].longName;
@@ -777,15 +779,14 @@ function createContenutoPopup(feature, div, id) {
     }
     
     $(document).ready(function() {
-	$("."+divPhotos).fancybox({
-		openEffect	: 'none',
-		closeEffect	: 'none'
-	});
-        var show_number_of_thumbnails = 10;
-        $("."+divPhotos+':gt(' + (show_number_of_thumbnails - 1) + ')').hide();
+      $("."+divPhotos).fancybox({
+        openEffect	: 'none',
+        closeEffect	: 'none'
+      });
+      var show_number_of_thumbnails = 10;
+      $("."+divPhotos+':gt(' + (show_number_of_thumbnails - 1) + ')').hide();
     });
-    
-    
+        
     var divInfo = div + "-info";
     var divInfoPlus = div + "-infoplus";
     var linkDBpedia = "";
@@ -834,6 +835,11 @@ function createContenutoPopup(feature, div, id) {
             contenutoPopup = contenutoPopup + "<b><span name=\"lbl\" caption=\"multimedia\">Multimedia Content</span>:</b></br>" + htmlDiv;
         }
         
+        if (feature.properties.startDate != "" && feature.properties.startDate)
+            contenutoPopup = contenutoPopup + "<b>Da: </b>" + feature.properties.startDate+"<br />";
+        if (feature.properties.endDate != "" && feature.properties.endDate)
+            contenutoPopup = contenutoPopup + "<b>A: </b>" + feature.properties.endDate + "<br />";
+          
         if ((feature.properties.photos != "" && feature.properties.photos) || multimedia != "") {
             contenutoPopup = contenutoPopup + "<b><span name=\"lbl\" caption=\"photos\">Photos</span>:</b></br>" + htmlPhotos;
             
@@ -882,79 +888,150 @@ function createContenutoPopup(feature, div, id) {
     }
     return contenutoPopup;
 }
-//FUNZIONE PER MOSTRARE/NASCONDERE I MENU
-$(".header").click(function () {
-    $header = $(this);
-    //getting the next element
-    $content = $header.next();
-    //open up the content needed - toggle the slide- if visible, slide up, if not slidedown.
-    $content.slideToggle(200, function () {
-        //execute this after slideToggle is done
-        //change text of header based on visibility of content div
-        //$header.text(function () {
-        if($("#lang").val()=='ENG'){
-            $header.html(function () {
-                //change text based on condition
-                //return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
-                return $content.is(":visible") ? '<span name="lbl" caption="Hide_Menu_sx"> - Hide Menu</span>' : '<span name="lbl" caption="Show_Menu_sx"> + Show Menu</span>';
-            });
-        }
-        else{
-            $header.html(function () {
-                //change text based on condition
-                //return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
-                return $content.is(":visible") ? '<span name="lbl" caption="Hide_Menu_sx"> - Nascondi Menu</span>' : '<span name="lbl" caption="Show_Menu_sx"> + Apri Menu</span>';
-            });
-        }
-    });
-});
-$(".header-container").click(function () {
-    $header = $(this);
-    //getting the next element
-    $content = $header.next();
-    //open up the content needed - toggle the slide- if visible, slide up, if not slidedown.
-    $content.slideToggle(200, function () {
-        //execute this after slideToggle is done
-        //change text of header based on visibility of content div
-        //$header.text(function () {
-        if($("#lang").val()=='ENG'){
-            $header.html(function () {
-                //change text based on condition
-                //return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
-                return $content.is(":visible") ? '<div class="header"><span name="lbl" caption="Hide_Menu_sx"> - Hide Menu</span></div>' : 
-                                                 '<div class="header"><span name="lbl" caption="Show_Menu_sx"> + Show Menu</span></div>';
-            });
-        }
-        else{
-            $header.html(function () {
-                //change text based on condition
-                //return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
-                return $content.is(":visible") ? '<div class="header"><span name="lbl" caption="Hide_Menu_sx"> - Nascondi Menu</span></div>' :
-                                                 '<div class="header"><span name="lbl" caption="Show_Menu_sx"> + Apri Menu</span></div>';
-            });
-        }
-    });
+
+$(document).ready(function() {
+  //FUNZIONE PER MOSTRARE/NASCONDERE I MENU
+  $(".header").click(function () {
+      $header = $(this);
+      //getting the next element
+      $content = $header.next();
+      //open up the content needed - toggle the slide- if visible, slide up, if not slidedown.
+      $content.slideToggle(200, function () {
+          //execute this after slideToggle is done
+          //change text of header based on visibility of content div
+          //$header.text(function () {
+          if($("#lang").val()=='ENG'){
+              $header.html(function () {
+                  //change text based on condition
+                  //return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
+                  return $content.is(":visible") ? '<span name="lbl" caption="Hide_Menu_sx"> - Hide Menu</span>' : '<span name="lbl" caption="Show_Menu_sx"> + Show Menu</span>';
+              });
+          }
+          else{
+              $header.html(function () {
+                  //change text based on condition
+                  //return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
+                  return $content.is(":visible") ? '<span name="lbl" caption="Hide_Menu_sx"> - Nascondi Menu</span>' : '<span name="lbl" caption="Show_Menu_sx"> + Apri Menu</span>';
+              });
+          }
+      });
+  });
+  $(".header-container").click(function () {
+      $header = $(this);
+      //getting the next element
+      $content = $header.next();
+      //open up the content needed - toggle the slide- if visible, slide up, if not slidedown.
+      $content.slideToggle(200, function () {
+          //execute this after slideToggle is done
+          //change text of header based on visibility of content div
+          //$header.text(function () {
+          if($("#lang").val()=='ENG'){
+              $header.html(function () {
+                  //change text based on condition
+                  //return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
+                  return $content.is(":visible") ? '<div class="header"><span name="lbl" caption="Hide_Menu_sx"> - Hide Menu</span></div>' : 
+                                                   '<div class="header"><span name="lbl" caption="Show_Menu_sx"> + Show Menu</span></div>';
+              });
+          }
+          else{
+              $header.html(function () {
+                  //change text based on condition
+                  //return $content.is(":visible") ? "- Hide Menu" : "+ Show Menu";
+                  return $content.is(":visible") ? '<div class="header"><span name="lbl" caption="Hide_Menu_sx"> - Nascondi Menu</span></div>' :
+                                                   '<div class="header"><span name="lbl" caption="Show_Menu_sx"> + Apri Menu</span></div>';
+              });
+          }
+      });
+  });
+
+  //FUNZIONE PER MOSTRARE/NASCONDERE LE SUB CATEGORY
+  $(".toggle-subcategory").click(function () {
+      $tsc = $(this);
+      //getting the next element
+      $content = $tsc.next();
+      if (!$content.is(":visible")) {
+          $('.subcategory-content').hide();
+          $('.toggle-subcategory').html('+');
+      }
+  //open up the content needed - toggle the slide- if visible, slide up, if not slidedown.
+      $content.slideToggle(200, function () {
+  //execute this after slideToggle is done
+  //change text of header based on visibility of content div
+          $tsc.text(function () {
+  //change text based on condition
+              return $content.is(":visible") ? "-" : "+";
+          });
+      });
+  });
+
+  //CHECKBOX SELECT/DESELECT ALL
+  $('#macro-select-all').change(function () {
+      if ($('#macro-select-all').prop('checked')) {
+          $('#categorie .macrocategory').prop('checked', 'checked');
+          $("#categorie .macrocategory").trigger("change");
+      }
+      else {
+          $('#categorie .macrocategory').prop('checked', false);
+          $("#categorie .macrocategory").trigger("change");
+      }
+  });
+  //CHECKBOX SELECT/DESELECT ALL TRANSVERSAL
+  $('#macro-select-all_t').change(function () {
+      if ($('#macro-select-all_t').prop('checked')) {
+          $('#categorie_t .macrocategory').not('#PublicTransportLine').prop('checked', 'checked');
+          $("#categorie_t .macrocategory").not('#PublicTransportLine').trigger("change");
+          if (!($('#PublicTransportLine').prop('disabled'))) {
+              $('#PublicTransportLine').prop('checked', 'checked');
+              $('#PublicTransportLine').trigger("change");
+          }
+      }
+      else {
+          $('#categorie_t .macrocategory').prop('checked', false);
+          $("#categorie_t .macrocategory").trigger("change");
+      }
+  });
+  // DESELEZIONE SELECT_ALL REGULAR
+  $('#categorie .macrocategory').change(function () {
+      if (($('#categorie .macrocategory:checked').length) == 0) {
+          $('#macro-select-all').prop('checked', false);
+      }
+  });
+  // DESELEZIONE SELECT_ALL TRANSVERSAL
+  $('#categorie_t .macrocategory').change(function () {
+      if (($('#categorie_t .macrocategory:checked').length) == 0) {
+          $('#macro-select-all_t').prop('checked', false);
+      }
+  });
+
+  // SELEZIONA/DESELEZIONA TUTTE LE CATEGORIE - SOTTOCATEGORIE
+  $('.macrocategory').change(function () {
+      $cat = $(this).next().next().attr('class');
+      $cat = $cat.replace(" macrocategory-label", "");
+      //console.log($cat);
+
+      if ($(this).prop('checked')) {
+          $('.sub_' + $cat).prop('checked', 'checked');
+      }
+      else {
+          $('.sub_' + $cat).prop('checked', false);
+      }
+  });
+  // SELEZIONE/DESELEZIONE MACROCATEGORIA DA SOTTOCATEGORIA
+  $('.subcategory').change(function () {
+      $subcat = $(this).next().next().attr('class');
+      $cat = $subcat.replace(" subcategory-label", "");
+      if ($(this).prop('checked')) {
+          $('.' + $cat + '.macrocategory-label').prev().prev().prop('checked', 'checked');
+      }
+      else {
+          if (($('input.sub_' + $cat + '.subcategory:checked').length) == 0) {
+              $('.' + $cat + '.macrocategory-label').prev().prev().prop('checked', false);
+          }
+
+      }
+  });
 });
 
-//FUNZIONE PER MOSTRARE/NASCONDERE LE SUB CATEGORY
-$(".toggle-subcategory").click(function () {
-    $tsc = $(this);
-    //getting the next element
-    $content = $tsc.next();
-    if (!$content.is(":visible")) {
-        $('.subcategory-content').hide();
-        $('.toggle-subcategory').html('+');
-    }
-//open up the content needed - toggle the slide- if visible, slide up, if not slidedown.
-    $content.slideToggle(200, function () {
-//execute this after slideToggle is done
-//change text of header based on visibility of content div
-        $tsc.text(function () {
-//change text based on condition
-            return $content.is(":visible") ? "-" : "+";
-        });
-    });
-});
 //FUNZIONE PER MOSTRARE/NASCONDERE LS SCHEDA DEL LINKED SERVICE
 function openLinkServInfo(uri, divID, id) {
     var content = $("#" + divID).html();
@@ -974,49 +1051,6 @@ function openLinkServInfo(uri, divID, id) {
     }
 }
 
-//CHECKBOX SELECT/DESELECT ALL
-$('#macro-select-all').change(function () {
-    if ($('#macro-select-all').prop('checked')) {
-        $('#categorie .macrocategory').prop('checked', 'checked');
-        $("#categorie .macrocategory").trigger("change");
-    }
-    else {
-        $('#categorie .macrocategory').prop('checked', false);
-        $("#categorie .macrocategory").trigger("change");
-    }
-});
-//CHECKBOX SELECT/DESELECT ALL TRANSVERSAL
-$('#macro-select-all_t').change(function () {
-    if ($('#macro-select-all_t').prop('checked')) {
-
-        $('#categorie_t .macrocategory').not('#PublicTransportLine').prop('checked', 'checked');
-        $("#categorie_t .macrocategory").not('#PublicTransportLine').trigger("change");
-        if (!($('#PublicTransportLine').prop('disabled'))) {
-            $('#PublicTransportLine').prop('checked', 'checked');
-            $('#PublicTransportLine').trigger("change");
-        }
-//$('#Sensor').prop('checked', 'checked');
-//$('#Bus').prop('checked', 'checked');
-    }
-    else {
-        $('#categorie_t .macrocategory').prop('checked', false);
-        $("#categorie_t .macrocategory").trigger("change");
-        //$('#Sensor').prop('checked', false);
-        //$('#Bus').prop('checked', false);
-    }
-});
-// DESELEZIONE SELECT_ALL REGULAR
-$('#categorie .macrocategory').change(function () {
-    if (($('#categorie .macrocategory:checked').length) == 0) {
-        $('#macro-select-all').prop('checked', false);
-    }
-});
-// DESELEZIONE SELECT_ALL TRANSVERSAL
-$('#categorie_t .macrocategory').change(function () {
-    if (($('#categorie_t .macrocategory:checked').length) == 0) {
-        $('#macro-select-all_t').prop('checked', false);
-    }
-});
 function getUrlParameter(sParam)
 {
     var sPageURL = window.location.search.substring(1);
@@ -1114,33 +1148,6 @@ function resetTotale() {
     resetPath();
 }
 
-// SELEZIONA/DESELEZIONA TUTTE LE CATEGORIE - SOTTOCATEGORIE
-$('.macrocategory').change(function () {
-    $cat = $(this).next().next().attr('class');
-    $cat = $cat.replace(" macrocategory-label", "");
-    //console.log($cat);
-
-    if ($(this).prop('checked')) {
-        $('.sub_' + $cat).prop('checked', 'checked');
-    }
-    else {
-        $('.sub_' + $cat).prop('checked', false);
-    }
-});
-// SELEZIONE/DESELEZIONE MACROCATEGORIA DA SOTTOCATEGORIA
-$('.subcategory').change(function () {
-    $subcat = $(this).next().next().attr('class');
-    $cat = $subcat.replace(" subcategory-label", "");
-    if ($(this).prop('checked')) {
-        $('.' + $cat + '.macrocategory-label').prev().prev().prop('checked', 'checked');
-    }
-    else {
-        if (($('input.sub_' + $cat + '.subcategory:checked').length) == 0) {
-            $('.' + $cat + '.macrocategory-label').prev().prev().prop('checked', false);
-        }
-
-    }
-});
 function getRequest(name) {
     if (name = (new RegExp('[?&]' + encodeURIComponent(name) + '=([^&]*)')).exec(location.search))
         return decodeURIComponent(name[1]);
@@ -1345,8 +1352,6 @@ function nascondiRisultati() {
 var circle = $('.leaflet-overlay-pane').children('path');
 //Function che mostra gli autobur RT
 function mostraAutobusRT(zoom) {
-
-
     if (($('.leaflet-marker-icon.busRT.leaflet-zoom-animated.leaflet-clickable.selected').length) == 0) {
         $('#selezione').html("No selection");
         $('#approximativeAddress').html("");
@@ -2363,4 +2368,78 @@ function mostraRealTimeData(divInfo, realtime) {
   }
   html += "</table><div class=\"aggiornamento\"><span name=\"lbl\" caption=\"last_update\" >Latest Update</span>: " + time + "</div></div>";
   $("#"+divInfo).html(html);
+}
+
+function mapLatLngClick(latLngPunto, zoom) {
+  listOfPopUpOpen = [];
+  if (ricercaInCorso == false) {
+    $('#raggioricerca').prop('disabled', false);
+    $('#raggioricerca_t').prop('disabled', false);
+    $('#PublicTransportLine').prop('disabled', false);
+    $('#nResultsServizi').prop('disabled', false);
+    $('#nResultsSensori').prop('disabled', false);
+    $('#nResultsBus').prop('disabled', false);
+    ricercaInCorso = true;
+    $('#approximativeAddress').html("Address: <img src=\"img/ajax-loader.gif\" width=\"16\" />");
+    clickLayer.clearLayers();
+    clickLayer = L.layerGroup([new L.marker(latLngPunto)]).addTo(map);
+    if(zoom)
+      map.setView(latLngPunto, zoom);
+    coordinateSelezione = latLngPunto.lat + ";" + latLngPunto.lng;
+    var latPunto = new String(latLngPunto.lat);
+    var lngPunto = new String(latLngPunto.lng);
+    selezione = 'Coord: ' + latPunto.substring(0, 7) + "," + lngPunto.substring(0, 7);
+    $('#selezione').html(selezione);
+    $.ajax({
+        url: ctx+"/ajax/get-address.jsp",
+        type: "GET",
+        async: true,
+        data: {
+            lat: latPunto,
+            lng: lngPunto
+        },
+        success: function (msg) {
+            $('#approximativeAddress').html(msg);
+            ricercaInCorso = false;
+        }
+    });
+  }  
+}
+
+function quickSearch(request, response) {
+  var excludePOI=$("#quick-search-poi").is(':checked');
+  var searchMode=$("#quick-search-and").is(':checked') ? "AND" : "";
+  var categories = $("#quick-search-categories").val();
+  var position = $("#quick-search-position").val();
+  var sortByDist=$("#quick-search-sortdist").is(':checked');
+  var maxDists = $("#quick-search-maxdists").val();
+  
+  $.ajax({
+    url: ctx+"/ajax/json/search-location.jsp",
+    type: "GET",
+    data: { "search": request.term, "maxResults":20, "excludePOI":excludePOI, "searchMode" : searchMode, "categories" : categories, "position": position, "sortByDistance": sortByDist, "maxDists": maxDists },
+    async: true,
+    dataType: 'json',
+    success: function (data) {
+      var r=data.features;
+      for(var i=0; i<r.length; i++)
+        if(r[i].properties.serviceType=="StreetNumber")
+          r[i].label=r[i].properties.address+", "+r[i].properties.civic+", "+r[i].properties.city;
+        else if(r[i].properties.serviceType=="Municipality")
+          r[i].label=r[i].properties.city;
+        else
+          r[i].label=r[i].properties.name+" - "+r[i].properties.city;
+          
+      response(r);
+    },
+    error: function () {
+      response(['error']);
+    }
+  });
+}
+
+function quickSearchSelect(event,ui) {
+  console.log("quickSearch select: "+ui.item.properties.serviceUri);
+  var latlng=new L.LatLng(ui.item.geometry.coordinates[1],ui.item.geometry.coordinates[0]);
+  mapLatLngClick(latlng, 17);
 }

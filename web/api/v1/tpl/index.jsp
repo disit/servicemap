@@ -22,7 +22,6 @@
     response.addHeader("Access-Control-Allow-Origin", "*");
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
-    RepositoryConnection con = ServiceMap.getSparqlConnection();
     String selection = request.getParameter("selection");
     String uid = request.getParameter("uid");
     if(uid!=null && !ServiceMap.validateUID(uid)) {
@@ -52,7 +51,9 @@
     else {
       String c[] = selection.split(";");
       if(c.length>=2) {
+        RepositoryConnection con = ServiceMap.getSparqlConnection();
         serviceMapApi.queryTplLatLng(out, con, c, maxDist, agency, maxResults, "true".equalsIgnoreCase(geometry));
+        con.close();
         logAccess(ip, null, ua, selection, null, null, "api-tpl-latlng", null, null, null, null, "json", uid, reqFrom);
       }
       else

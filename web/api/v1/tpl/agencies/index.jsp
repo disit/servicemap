@@ -25,7 +25,6 @@
     response.addHeader("Access-Control-Allow-Origin", "*");
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
-    RepositoryConnection con = ServiceMap.getSparqlConnection();
     String uid = request.getParameter("uid");
     if(uid!=null && !ServiceMap.validateUID(uid)) {
       response.sendError(404, "invalid uid");
@@ -35,6 +34,8 @@
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
 
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
     serviceMapApi.queryTplAgencyList(out, con);
+    con.close();
     logAccess(ip, null, ua, "", null, null, "api-tpl-agencies", null, null, null, null, "json", uid, reqFrom);
 %>

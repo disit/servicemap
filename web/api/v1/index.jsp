@@ -320,10 +320,12 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         serviceMapApi.queryEvent(out, con, idService, lang, uid);
         types = "Service;Event";
       }
-      else
-        response.sendError(400, "no info found for "+idService);
+      else {
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, uid, serviceTypes);
+        System.out.println(serviceTypes);
+        //response.sendError(400, "no info found for "+idService);
+      }
       logAccess(ip, null, ua, null, types, idService, "api-service-info", null, null, queryId, null, "json", uid, reqFrom);
-      con.close();
     } else {
       try {
         List<String> listaCategorie = new ArrayList<String>();
@@ -376,7 +378,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
           }
           // get services by lat/long
           if(coords!=null && (coords.length==2 || coords.length==4 || (coords.length==1 && (coords[0].startsWith("wkt:") || selection.startsWith("geo:"))))) {
-            serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, reqFrom!=null);
+            serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, true);
             logAccess(ip, null, ua, selection, categorie, null, "api-services-by-gps", risultati, raggi, queryId, textToSearch, "json", uid, reqFrom);
           }
           else {
@@ -390,5 +392,6 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         e.printStackTrace();
       }
     }
+    con.close();
   }
 %>

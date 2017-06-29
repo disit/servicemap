@@ -1311,7 +1311,9 @@ public class ServiceMapApi {
             // GESTIONE CATEGORIE
             listaCategorie = Arrays.asList(arrayCategorie);
         }
-        String nomeComune = selection.substring(selection.indexOf("COMUNE di") + 10);
+        String nomeComune = selection; 
+        if(selection.startsWith("COMUNE di "))
+          nomeComune = selection.substring(10);
         String filtroLocalita = "";
         filtroLocalita += "{ ?ser km4c:hasAccess ?entry . ";
         filtroLocalita += "	?entry geo:lat ?elat . ";
@@ -2019,7 +2021,7 @@ public class ServiceMapApi {
     return null;    
     }
     
-    public JSONObject queryLocation(RepositoryConnection con, String lat, String lng, String findGeometry) throws Exception {
+    public JSONObject queryLocation(RepositoryConnection con, String lat, String lng, String findGeometry, Double wktDist) throws Exception {
       String sparqlType=Configuration.getInstance().get("sparqlType", "virtuoso");
       JSONObject obj = null;
       String query = ServiceMap.latLngToAddressQuery(lat, lng, sparqlType);
@@ -2046,7 +2048,7 @@ public class ServiceMapApi {
         query = ServiceMap.latLngToMunicipalityQuery(lat, lng, sparqlType);
         tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
         results = tupleQuery.evaluate();
-        ServiceMap.logQuery(query,"get-municipality",sparqlType,lat+";"+lng,0);
+        //ServiceMap.logQuery(query,"get-municipality",sparqlType,lat+";"+lng,0);
 
         if (results.hasNext()) {
           obj = new JSONObject();
@@ -2058,7 +2060,7 @@ public class ServiceMapApi {
         }        
       }
       if(obj!=null && findGeometry!=null && (findGeometry.equals("true") || findGeometry.equals("geometry"))) {
-        double wktDist = Double.parseDouble(Configuration.getInstance().get("wktDistance", "0.0004"));
+        //double wktDist = Double.parseDouble(Configuration.getInstance().get("wktDistance", "0.0004"));
         query="select * {\n" +
             "{\n" +
             "select distinct ?s ?name ?class ?geo where {\n" +
@@ -2146,8 +2148,8 @@ public class ServiceMapApi {
       return obj;
     }
     
-    public void queryLocation(JspWriter out, RepositoryConnection con, String lat, String lng, String findArea) throws Exception {
-      JSONObject obj = queryLocation(con, lat, lng, findArea);
+    public void queryLocation(JspWriter out, RepositoryConnection con, String lat, String lng, String findArea, double wktDist) throws Exception {
+      JSONObject obj = queryLocation(con, lat, lng, findArea, wktDist);
       if(obj!=null)
         out.print(obj.toString());
       else

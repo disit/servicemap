@@ -1,3 +1,4 @@
+<%@page import="org.json.simple.JSONArray"%>
 <%/* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
@@ -55,6 +56,10 @@
         <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-media.js"></script>
         <script src="${pageContext.request.contextPath}/js/wicket.js"></script>
         <script src="${pageContext.request.contextPath}/js/wicket-leaflet.js"></script>
+        <!--  CARICAMENTO DEL FILE utility.js CON FUNZIONI NECESSARIE  -->
+        <script type="text/javascript" charset="utf-8" src="${pageContext.request.contextPath}/js/utility.js"></script>
+        <script type="text/javascript" src="${pageContext.request.contextPath}/js/pathsearch.js"></script>
+        <script type="text/javascript" src="${pageContext.request.contextPath}/js/save_embed.js"></script>
 
         <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-thumbs.css" type="text/css" media="screen" />
         <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-thumbs.js"></script>
@@ -62,8 +67,12 @@
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/MarkerCluster.Default.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/jquery.dataTables.min.css" type="text/css" />
+        
+        <!-- aggiunto michela -->
+        <!-- Michela: mettere qui fancy tree -->
+        
     </head>
-    <body class="Chrome" onload="mostraElencoAgenzie(); changeLanguage('ENG');">
+    <body class="Chrome" onload="">
         <% if (!gaCode.isEmpty()) {%>
         <script>
             (function (i, s, o, g, r, a, m) {
@@ -146,9 +155,10 @@
                 <div id="tabs">
                     <ul>
                         <li><a href="#tabs-1"><span name="lbl" caption="Bus_Search">Tuscan Public Transport</span></a></li>
-                        <li><a href="#tabs-2"><span name="lbl" caption="Municipality_Search">Tuscan Municipalities</span></a></li>
+                        <li><a href="#tabs-2"><span name="lbl" caption="Municipality_Search">Municipalities</span></a></li>
                             <%-- <li><a href="#tabs-3">Posizione</a></li> --%>
                         <li><a href="#tabs-search"><span name="lbl" caption="Text_Search">Text Search</span></a></li>
+                        <li><a href="#tabs-addr-search"><span name="lbl" caption="Text_AddrSearch">Address Search</span></a></li>
                         <li><a href="#tabs-Event"><span name="lbl" caption="Event_Search">Events</span></a></li>
                     </ul>
                     <div id="tabs-1">
@@ -186,16 +196,19 @@
                             <select id="elencoprovince" name="elencoprovince" onchange="mostraElencoComuni(this);">
                                 <option value=""> - Select a Province - </option>
                                 <option value="all">ALL THE PROVINCES</option>
-                                <option value="AREZZO">AREZZO</option>
-                                <option value="FIRENZE">FIRENZE</option>
-                                <option value="GROSSETO">GROSSETO</option>
-                                <option value="LIVORNO">LIVORNO</option>
-                                <option value="LUCCA">LUCCA</option>
-                                <option value="MASSA-CARRARA">MASSA-CARRARA</option>
-                                <option value="PISA">PISA</option>
-                                <option value="PISTOIA">PISTOIA</option>
-                                <option value="PRATO">PRATO</option>
-                                <option value="SIENA">SIENA</option>
+                                <option disabled>--TOSCANA----------</option>
+                                <option value="Arezzo">AREZZO</option>
+                                <option value="Firenze">FIRENZE</option>
+                                <option value="Grosseto">GROSSETO</option>
+                                <option value="Livorno">LIVORNO</option>
+                                <option value="Lucca">LUCCA</option>
+                                <option value="Massa Carrara">MASSA-CARRARA</option>
+                                <option value="Pisa">PISA</option>
+                                <option value="Pistoia">PISTOIA</option>
+                                <option value="Prato">PRATO</option>
+                                <option value="Siena">SIENA</option>
+                                <option disabled>--SARDEGNA---------</option>
+                                <option value="Cagliari">CAGLIARI</option>
                             </select>
                             <br />
                             <span name="lbl" caption="Select_Municipality">Select a municipality</span>:
@@ -227,10 +240,25 @@
                             <div class="menu" id="saveQuerySearch">
                                 <img src="${pageContext.request.contextPath}/img/save.png" alt="Salva la query" width="28" onclick="save_handler(null, null, null, false, 'freeText');" />
                             </div> 
+                            <!--<fieldset id="address-selection" style="margin-top:10px"> 
+                                <legend><span name="lbl" caption="">Quick address/location search</span></legend>
+                                exclude POI:<input type="checkbox" id="quick-search-poi">
+                                AND mode:<input type="checkbox" id="quick-search-and">
+                                <input id="quick-search" >
+                            </fieldset>-->
                         </div>
-                    </div>
-                    
-                          
+                    </div>                          
+                    <div id="tabs-addr-search">
+                        <div class="use-case-addr-search">
+                                exclude POI:<input type="checkbox" id="quick-search-poi">
+                                AND mode:<input type="checkbox" checked="checked" id="quick-search-and">
+                                sort by distance:<input type="checkbox" checked="checked" id="quick-search-sortdist"><br>
+                                position:<input id="quick-search-position" value="">
+                                maxDists:<input id="quick-search-maxdists" value=""><br>
+                                categories:<input id="quick-search-categories" value="BusStop;StreetNumber;Municipality">
+                                <input id="quick-search" >
+                        </div>
+                    </div>                          
                     <div id="tabs-Event" style="padding-top:10px;">
                         <span name="lbl" caption="Select_Time">Select a time interval: </span>
                         <input type="radio" id= "event_choice_d" name="event_choice" value="day" onchange="searchEvent(this.value, null, null)"><span name="lbl" caption="Day">Day</span></input>
@@ -260,7 +288,6 @@
                         </fieldset>
                     -->
                     </div>
-                        
                     <fieldset id="selection"> 
                         <legend><span name="lbl" caption="Actual_Selection">Actual Selection</span></legend>
                         <span id="selezione" >No selection</span> <br>
@@ -270,9 +297,14 @@
                         <legend><span name="lbl" caption="Path">Path</span></legend>
                         <div id="path_start">From: ?</div>
                         <div id="path_end">To: ?</div>
+                        Route via: <select id="path_type">
+                          <option value="foot_shortest">foot_shortest</option>
+                          <option value="foot_quiet">foot_quiet</option>
+                          <option value="car">car</option>
+                        </select><br>
                         <button style="margin:10px 0px;" onclick="doSearchPath()">Search Path</button>
                         <hr>
-                        <div id="pathresult" style="max-height:400px;overflow:auto;"></div>
+                        <div id="pathresult" style="max-height:250px;overflow:auto;"></div>
                     </fieldset>
                     <div id="queryBox"></div>
                 </div>
@@ -295,43 +327,48 @@
                     <ul>
                         <li><a href="#tabs-4"><span name="lbl" caption="Search_Regular_Services">Regular Services</span></a></li>
                         <li><a href="#tabs-5"><span name="lbl" caption="Search_Transversal_Services">Transversal Services</span></a></li>
-                    </ul>
+                        <!-- <li><a href="#tree"><span name="lbl" caption="Search_Services">Test Tree Services</span></a></li> -->
+                    </ul>    
                     <div id="tabs-4">
+                        <span name="lbl" caption="Filter_Results_dx_R">Filter</span>:
+                        <input type="text" name="serviceTextFilter" id="serviceTextFilter" placeholder="search text into categories" onkeypress="event.keyCode == 13 ? ricercaCategorie() : false"/><br />
+                            
                         <div class="use-case-4">
                             <!-- <input type="text" name="serviceTextFilter" id="serviceTextFilter" placeholder="search text into service" onkeypress="event.keyCode == 13 ? ricercaServizi('categorie', null, null) : false"/><br /> -->
                             <span name="lbl" caption="Services_Categories_R">Services Categories</span> 
                             <br /> 
                             <input type="checkbox" name="macro-select-all" id="macro-select-all" value="Select All" /> <span name="lbl" caption="Select_All_R">De/Select All</span>
                             <div id="categorie">
+                                
                                 <%
-                                    conMySQL = ConnectionPool.getConnection(); //DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
+                                   conMySQL = ConnectionPool.getConnection(); //DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
                                     String query = "SELECT distinct MacroClass FROM ServiceCategory_menu_NEW where TypeOfService not like 'T_Service' AND Visible = '1' order by MacroClass";
 
                                     // create the java statement
                                     st = conMySQL.createStatement();
-
                                     // execute the query, and get a java resultset
                                     rs = st.executeQuery(query);
-
+                                    
                                     // iterate through the java resultset
                                     while (rs.next()) {
+                                        
                                         String macroClass = rs.getString("MacroClass");
-                                        //String iniziale = classe.substring(0, 1).toLowerCase();
-                                        //String classe_ico = iniziale.concat(classe.substring(1, classe.length()));
                                         out.println("<input type='checkbox' name='" + macroClass + "' value='" + macroClass + "' class='macrocategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + macroClass + ".png' height='23' width='20' align='top'> <span class='" + macroClass + " macrocategory-label'>" + macroClass + "</span> <span class='toggle-subcategory' title='Mostra sottocategorie'>+</span>");
                                         out.println("<div class='subcategory-content'>");
-                                        //conMySQL2 = DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
+                                        
                                         String query2 = "SELECT distinct SubClass FROM ServiceCategory_menu_NEW WHERE MacroClass = '" + macroClass + "' AND TypeOfService not like 'T_Service' AND Visible = '1' ORDER BY SubClass ASC";
                                         // create the java statement
                                         st2 = conMySQL.createStatement();
                                         // execute the query, and get a java resultset
                                         rs2 = st2.executeQuery(query2);
                                         // iterate through the java resultset
+                                        
                                         while (rs2.next()) {
+                                            
                                             //String sub_nome = rs2.getString("Ita");
                                             String subClass = rs2.getString("SubClass");
                                             String subClass_ico = macroClass + "_" + subClass;
-                                            //String sub_numero = rs2.getString("NUMERO");
+                                            
                                             out.println("<input type='checkbox' name='" + subClass + "' value='" + subClass + "' class='sub_" + macroClass + " subcategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + subClass_ico + ".png' height='19' width='16' align='top'>");
                                             // modifica per RTZgate
                                             //if (sub_en_name.equals("rTZgate")) {
@@ -340,15 +377,18 @@
                                             out.println("<span class='" + macroClass + " subcategory-label'>" + subClass + "</span>");
                                             out.println("<br />");
                                         }
+                                        
                                         out.println("</div>");
                                         out.println("<br />");
-
                                         st2.close();
                                         //conMySQL2.close();
                                     }
                                     st.close();
                                     conMySQL.close();
                                 %>
+                                
+                                
+                                
                                 <br />
 
                             </div>
@@ -518,6 +558,18 @@
                                 <input type="checkbox" name="near-train-station" value="Train_station" class="macrocategory" id="Train" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Train_station.png' height='23' width='20' align='top'/> <span class="public-transport-line macrocategory-label">Train_station</span>
                                 <br/>
                                 <input type="checkbox" name="near-ferry-stops" value="Ferry_stop" class="macrocategory" id="Ferry" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Ferry_stop.png' height='23' width='20' align='top'/> <span class="public-transport-line macrocategory-label">Ferry_stop</span>
+                                <br/>
+                                <input type="checkbox" name="near-air-quality-stations" value="Air_quality_monitoring_station" class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_Air_quality_monitoring_station.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">Air_quality_monitoring_station</span>
+                                <br/>
+                                <input type="checkbox" name="near-pollen-monitoring-stations" value="Pollen_monitoring_station"  class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_Pollen_monitoring_station.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">Pollen_monitoring_station</span>
+                                <br/>
+                                <input type="checkbox" name="near-smart-waste-container" value="Smart_waste_container"  class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_Smart_waste_container.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">Smart_waste_container</span>
+                                <br/>
+                                <input type="checkbox" name="near-smart-irrigator" value="Smart_irrigator"  class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_Smart_irrigator.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">Smart_irrigator</span>
+                                <br/>
+                                <input type="checkbox" name="near-smart-bench" value="Smart_bench"  class="macrocategory" id="Entertainment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Entertainment_Smart_bench.png' height='23' width='20' align='top'/> <span class="Entertainment macrocategory-label">Smart_bench</span>
+                                <br/>
+                                <input type="checkbox" name="near-first-aid" value="First_aid"  class="macrocategory" id="Emergency" /> <img src='${pageContext.request.contextPath}/img/mapicons/Emergency_First_aid.png' height='23' width='20' align='top'/> <span class="Emergency macrocategory-label">First_aid</span>
                             </div>
                             
                             <br />
@@ -566,6 +618,8 @@
 
                         </div>
                     </div>
+                    <div id="tree">
+                    </div>
                 </div>
                 <fieldset id="searchOutput"> 
                     <legend><span name="lbl" caption="Search_Results">Search Results</span></legend>
@@ -589,10 +643,6 @@
             </div>
             <div class="content"></div>
         </div>
-        <!--  CARICAMENTO DEL FILE utility.js CON FUNZIONI NECESSARIE  -->
-        <script type="text/javascript" charset="utf-8" src="${pageContext.request.contextPath}/js/utility.js"></script>
-        <script type="text/javascript" src="${pageContext.request.contextPath}/js/pathsearch.js"></script>
-        <script type="text/javascript" src="${pageContext.request.contextPath}/js/save_embed.js"></script>
         <script>
                                     // $("#embed").hide();
                                     var ctx = "${pageContext.request.contextPath}";
@@ -1001,8 +1051,11 @@
                                             else if (api=="shortestpath") {
                                               pathStart = parameters["source"];
                                               pathEnd = parameters["destination"];
+                                              routeType = parameters["routeType"];
                                               $("#path_start").html("From: "+pathStart);
                                               $("#path_end").html("To: "+pathEnd);
+                                              if(routeType)
+                                                $("#path_type").val(routeType);
                                               $("#path").show();
                                               doSearchPath(false,true); //fit
                                             }
@@ -1477,10 +1530,11 @@
                                     }
 
                                     // DEFINIZIONE DEI CONFINI MASSIMI DELLA MAPPA
-                                    if(mode!="query") {
+                                    /*if(mode!="query") {
                                       var bounds = new L.LatLngBounds(new L.LatLng(41.7, 8.4), new L.LatLng(44.930222, 13.4));
                                       map.setMaxBounds(bounds);
-                                    }
+                                    }*/
+  
                                     // GENERAZIONE DEI LAYER PRINCIPALI
                                     var busStopsLayer = new L.LayerGroup();
                                     var servicesLayer = new L.LayerGroup();
@@ -1611,42 +1665,7 @@
                                     });
                                     // AL CLICK CERCO L'INDIRIZZO APPROSSIMATIVO	
                                     map.on('click', function (e) {
-                                        listOfPopUpOpen = [];
-                                        if (/*selezioneAttiva == */true) {
-                                            if (ricercaInCorso == false) {
-                                                $('#raggioricerca').prop('disabled', false);
-                                                $('#raggioricerca_t').prop('disabled', false);
-                                                $('#PublicTransportLine').prop('disabled', false);
-                                                $('#nResultsServizi').prop('disabled', false);
-                                                $('#nResultsSensori').prop('disabled', false);
-                                                $('#nResultsBus').prop('disabled', false);
-                                                ricercaInCorso = true;
-                                                $('#approximativeAddress').html("Address: <img src=\"img/ajax-loader.gif\" width=\"16\" />");
-                                                clickLayer.clearLayers();
-                                                //clickLayer = new L.LatLng(e.latlng);
-                                                clickLayer = L.layerGroup([new L.marker(e.latlng)]).addTo(map);
-                                                var latLngPunto = e.latlng;
-                                                coordinateSelezione = latLngPunto.lat + ";" + latLngPunto.lng;
-                                                var latPunto = new String(latLngPunto.lat);
-                                                var lngPunto = new String(latLngPunto.lng);
-                                                selezione = 'Coord: ' + latPunto.substring(0, 7) + "," + lngPunto.substring(0, 7);
-                                                $('#selezione').html(selezione);
-                                                $.ajax({
-                                                    url: "${pageContext.request.contextPath}/ajax/get-address.jsp",
-                                                    type: "GET",
-                                                    async: true,
-                                                    //dataType: 'json',
-                                                    data: {
-                                                        lat: latPunto,
-                                                        lng: lngPunto
-                                                    },
-                                                    success: function (msg) {
-                                                        $('#approximativeAddress').html(msg);
-                                                        ricercaInCorso = false;
-                                                    }
-                                                });
-                                            }
-                                        }
+                                      mapLatLngClick(e.latlng);
                                     });
                                     var selezioneAttiva = false;
                                     var ricercaInCorso = false;
@@ -1656,9 +1675,26 @@
                                         init();
                                     });
                                     function init() {
+                                        mostraElencoAgenzie(); changeLanguage('ENG');
                                         // CREO LE TABS JQUERY UI NEL MENU IN ALTO
                                         $("#tabs").tabs();
                                         $("#tabs-servizi").tabs();
+                                        //$("#fancytree").fancytree();
+                                        //fancy tree INIZIO
+                                        
+                                        //fancy tree fine
+                                        $.widget( "ui.autocomplete", $.ui.autocomplete, {
+                                          _renderItem: function( ul, item ) {
+                                            var icon = item.properties.serviceType.replace(" ","_");
+                                            if(icon=="StreetNumber" || icon=="Municipality")
+                                              icon = "generic";
+                                            return $( "<li>" )
+                                              .attr( "data-value", item.value )
+                                              .append( "<img src=\""+ctx+"/img/mapicons/"+icon+".png\" height=\"23\" width=\"20\" align=\"top\">"+item.label )
+                                              .appendTo( ul );
+                                          }
+                                        });
+                                        $("#quick-search").autocomplete({source: quickSearch, select: quickSearchSelect });
                                         if (mode == "query" || mode == "embed" || mode == "bus-position") {
                                             var url = document.URL;
                                             var queryString = url.substring(url.indexOf('?') + 1);
@@ -2083,6 +2119,10 @@
 
                                         return categorie;
                                     }
+                                    function ricercaCategorie(){
+                                        var testodacercare = $("#raggioricerca").val();
+                                    }
+                                    
                                     function ricercaServizi(tipo_categorie, cat, limit) {
                                         mode = "normal";
                                         var tipo_cat = tipo_categorie;
