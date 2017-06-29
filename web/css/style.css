@@ -1256,3 +1256,18 @@ body.firefox	#query_description_container #left_bracket p{
 .img_photo:hover {
     opacity:0.4;
 }
+
+.ui-autocomplete {
+  z-index:1000;
+}
+
+#quick-search {
+  width:100%;
+}
+
+.geo-icon {
+  color: red;
+  opacity: 0.5;
+  background-color: red;
+  border-radius: 5px;
+}

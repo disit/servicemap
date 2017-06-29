@@ -25,7 +25,6 @@
     response.addHeader("Access-Control-Allow-Origin", "*");
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
-    RepositoryConnection con = ServiceMap.getSparqlConnection();
     String uid = request.getParameter("uid");
     if(uid!=null && !ServiceMap.validateUID(uid)) {
       response.sendError(404, "invalid uid");
@@ -40,6 +39,8 @@
       return;
     }
 
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
     serviceMapApi.queryAllBusLines(out, con, agency);
+    con.close();
     logAccess(ip, null, ua, "", null, null, "api-tpl-bus-lines", null, null, null, null, "json", uid, reqFrom);
 %>

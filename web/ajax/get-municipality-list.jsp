@@ -40,35 +40,46 @@
 
     out.println("<option value=\"\"> - Seleziona un Comune - </option>");
 
-    String filtroProvince = "";
-    if (!nomeProvincia.equals("all")) {
-        filtroProvince = " ?prov foaf:name \"" + nomeProvincia + "\"^^xsd:string.\n";
-    }
+    int nc = 0;
+    int ntry = 0;
+    do {
+      nc = 0;
+      String filtroProvince = "";
+      if (!nomeProvincia.equals("all")) {
+          if(ntry>0)
+            nomeProvincia = nomeProvincia.toUpperCase().replace(" ", "-");
+          filtroProvince = " ?prov foaf:name \"" + nomeProvincia + "\"^^xsd:string.\n";
+      }
 
-    String queryString = "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
-            + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-            + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
-            + "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
-            + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
-            + "SELECT distinct ?mun ?nomeComune WHERE {\n"
-            + " ?mun rdf:type km4c:Municipality.\n"
-            + " ?mun km4c:isPartOfProvince ?prov.\n"
-            + filtroProvince
-            + "?mun foaf:name ?nomeComune.\n"
-            + "}\n"
-            + "ORDER BY ?nomeComune";
-    //System.out.println(queryString);
-    TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
-    TupleQueryResult result = tupleQuery.evaluate();
-    logQuery(filterQuery(queryString),"get-municipality-list","any",nomeProvincia);
-    
-    try {
-        while (result.hasNext()) {
-            BindingSet bindingSet = result.next();
-            String valueOfNomeComune = bindingSet.getValue("nomeComune").stringValue();
-            out.println("<option value=\"" + valueOfNomeComune + "\">" + valueOfNomeComune + "</option>");
-        }
-    } catch (Exception e) {
-        out.println(e.getMessage());
-    }finally{con.close();}
+      String queryString = "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
+              + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+              + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
+              + "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
+              + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
+              + "SELECT distinct ?mun ?nomeComune WHERE {\n"
+              + " ?mun rdf:type km4c:Municipality.\n"
+              + " ?mun km4c:isPartOfProvince ?prov.\n"
+              + filtroProvince
+              + "?mun foaf:name ?nomeComune.\n"
+              + "}\n"
+              + "ORDER BY ?nomeComune";
+      //System.out.println(queryString);
+      TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
+      TupleQueryResult result = tupleQuery.evaluate();
+      logQuery(filterQuery(queryString),"get-municipality-list","any",nomeProvincia);
+
+      try {
+          while (result.hasNext()) {
+              BindingSet bindingSet = result.next();
+              String valueOfNomeComune = bindingSet.getValue("nomeComune").stringValue();
+              out.println("<option value=\"" + valueOfNomeComune + "\">" + valueOfNomeComune + "</option>");
+              nc++;
+          }
+      } catch (Exception e) {
+          out.println(e.getMessage());
+          break;
+      }
+      ntry++;
+    } while (nc==0 && ntry==1);
+    con.close();
 %>

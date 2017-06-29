@@ -48,7 +48,7 @@
 
     logAccess(ip, null, ua, latitudine+";"+longitudine, null, null, "ui-location", null, null, null, null, null, null, "user");
     ServiceMapApiV1 api = new ServiceMapApiV1();
-    JSONObject obj = api.queryLocation(con, latitudine, longitudine, "true");
+    JSONObject obj = api.queryLocation(con, latitudine, longitudine, "true", 0.0004);
     if(obj!=null) {
       String address = (String)obj.get("address");
       String number = (String)obj.get("number");
@@ -63,7 +63,7 @@
       }
       out.println("<small>Address:</small> <span id='actualAddress'><a href=\""+logEndPoint+uri+"\" target=\"_blank\">" + address + obj.get("municipality")+"</a></span>");
       
-      if(conf.get("enablePathSearch","true").equals("true") && !address.equals(""))
+      if(conf.get("enablePathSearch","true").equals("true") /*&& !address.equals("")*/)
         out.println("<br><button style='margin:10px 10px 10px 0px' id='startpathsearch' onclick='setStartSearchPath("+latitudine+","+longitudine+")'>Path from here</button><button id='endpathsearch' onclick='setEndSearchPath("+latitudine+","+longitudine+")'>Path to here</button>");
 
       out.println("<div id='intersect' style='max-height:64px;overflow:auto;'>");

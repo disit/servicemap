@@ -16,6 +16,7 @@
 <%@page import="java.net.URL"%>
 <%@page import="org.openrdf.rio.RDFFormat"%>
 <%@page import="java.text.Normalizer"%>
+<%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
 <%@include file= "/include/parameters.jsp" %>
 <%
 /* ServiceMap.
@@ -35,6 +36,8 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
     RepositoryConnection con = ServiceMap.getSparqlConnection();
+    ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
+    response.setContentType("application/json; charset=UTF-8");
     
     String cat_servizi = request.getParameter("cat_servizi");
     if(cat_servizi==null)
@@ -50,6 +53,16 @@
     String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
 
+    /*try {
+      serviceMapApi.queryMunicipalityServices(out, con, nomeComune, categorie, textFilter, numeroRisultatiServizi, numeroRisultatiServizi, numeroRisultatiServizi);
+    } catch (Exception e) {
+        e.printStackTrace();
+        out.println(e.getMessage());
+    }
+    finally{
+      con.close() ;
+    }*/   
+    
     logAccess(ip, null, ua, nomeComune, categorie, null, "ui-services-by-municipality", numeroRisultatiServizi, null, null, textFilter, null, null, null);
 
     if(textFilter==null)
@@ -319,10 +332,11 @@
                     + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
                     + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>\n"
                     + "PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>\n"
-                    + "SELECT distinct ?ser ?serAddress ?elat ?elong ?sName ?sType ?sCategory ?email ?note ?labelIta ?identifier ?x WHERE {\n"
+                    + "SELECT distinct ?ser ?serAddress ?elat ?elong (IF(?sName1,?sName1,?sName2) as ?sName) ?sType ?sCategory ?email ?note ?labelIta ?identifier ?x WHERE {\n"
                     + " ?ser rdf:type km4c:Service"+(sparqlType.equals("virtuoso")? " OPTION (inference \"urn:ontology\")":"")+".\n"
                     + ServiceMap.textSearchQueryFragment("?ser", "?p", textFilter)
-                    + " OPTIONAL{?ser schema:name ?sName. }\n"
+                    + " OPTIONAL{?ser schema:name ?sName1. }\n"
+                    + " OPTIONAL{?ser foaf:name ?sName2. }\n"
                     + " ?ser schema:streetAddress ?serAddress.\n"
                     + " OPTIONAL { ?ser dcterms:identifier ?identifier }\n"
                     + filtroLocalita
@@ -355,10 +369,11 @@
                     + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
                     + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>\n"
                     + "PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>\n"
-                    + "SELECT distinct ?ser ?serAddress ?elat ?elong ?sName ?sType ?sTypeDL ?sCategory ?email ?note ?labelIta ?identifier ?x WHERE {\n"
+                    + "SELECT distinct ?ser ?serAddress ?elat ?elong (IF(?sName1,?sName1,?sName2) as ?sName) ?sType ?sTypeDL ?sCategory ?email ?note ?labelIta ?identifier ?x WHERE {\n"
                     + " ?ser rdf:type km4c:Service"+(sparqlType.equals("virtuoso")? " OPTION (inference \"urn:ontology\")":"")+".\n"
                     + ServiceMap.textSearchQueryFragment("?ser", "?p", textFilter)
-                    + " OPTIONAL{?ser schema:name ?sName. }\n"
+                    + " OPTIONAL{?ser schema:name ?sName1. }\n"
+                    + " OPTIONAL{?ser foaf:name ?sName2. }\n"
                     + " ?ser schema:streetAddress ?serAddress.\n"
                     + " OPTIONAL { ?ser dcterms:identifier ?identifier }\n"
                     + filtroLocalita
@@ -464,6 +479,6 @@
         }
 
         out.println("] }");
-        con.close() ;      
     }
+    con.close();
 %>

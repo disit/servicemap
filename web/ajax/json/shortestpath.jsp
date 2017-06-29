@@ -38,10 +38,14 @@
     response.sendError(404, "wrong source or destination parameters");
     return;
   }
+
+  String routeType = request.getParameter("routeType");
+  String maxFeetKM = request.getParameter("maxFeetKM");
+  String startDatetime = request.getParameter("startDatetime");
   
   RepositoryConnection con = ServiceMap.getSparqlConnection();
 
-  serviceMapApi.makeShortestPath(out, con, srcLatLng, dstLatLng, null, null, null);
+  serviceMapApi.makeShortestPath(out, con, srcLatLng, dstLatLng, startDatetime, routeType, maxFeetKM);
   
-  logAccess(ip, null, ua, null, null, source+";"+destination, "ui-shortestpath", null, null, null, "", null, null, null);
+  logAccess(ip, null, ua, null, null, source+";"+destination+";"+routeType+";"+maxFeetKM+";"+startDatetime, "ui-shortestpath", null, null, null, "", null, null, null);
 %>

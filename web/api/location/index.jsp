@@ -36,7 +36,7 @@
       if(c.length>=2) {
         String lat=c[0];
         String lng=c[1];
-        serviceMapApi.queryLocation(out, con, lat, lng);
+        serviceMapApi.queryLocation(out, con, lat, lng, "false", 0.0004);
         logAccess(ip, null, ua, position, null, null, "api-location", null, null, null, null, "json", uid, reqFrom);
       }
       else

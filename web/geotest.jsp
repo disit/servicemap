@@ -127,8 +127,8 @@ select distinct ?wkt {
             toggleMap.addTo(map);
 
             // DEFINIZIONE DEI CONFINI MASSIMI DELLA MAPPA
-            var bounds = new L.LatLngBounds(new L.LatLng(41.7, 8.4), new L.LatLng(44.930222, 13.4));
-            map.setMaxBounds(bounds);
+            //var bounds = new L.LatLngBounds(new L.LatLng(41.7, 8.4), new L.LatLng(44.930222, 13.4));
+            //map.setMaxBounds(bounds);
             // AGGIUNTA DEL PLUGIN PER LA GEOLOCALIZZAZIONE
             var GPSControl = new L.Control.Gps({
                 maxZoom: 16,
@@ -163,7 +163,7 @@ select distinct ?wkt {
             });
             function geoQuery(query) {
                 defaults = {
-                icon: new L.DivIcon(),
+                icon: new L.DivIcon({className:"geo-icon"}),
                 editable: true,
                 color: '#AA0000',
                 weight: 3,

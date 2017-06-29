@@ -37,8 +37,8 @@ if ("html".equals(request.getParameter("format"))) {%>
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
     RepositoryConnection con = ServiceMap.getSparqlConnection();
-
     serviceMapApi.queryBusesLastPosition(out, con);
+    con.close();
     logAccess(ip, null, ua, "", null, null, "api-tpl-bus-stops", null, null, null, null, "json", uid, reqFrom);
 }
 %>

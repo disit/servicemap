@@ -57,6 +57,7 @@
     finally {
       connection.close();
     }
+    ServiceMap.updatedPhotos();
   } else if(id!=null && rotate!=null) {
     Configuration conf = Configuration.getInstance();
     String uploadPath = conf.get("photoUploadPath", "/tmp/servicemap");

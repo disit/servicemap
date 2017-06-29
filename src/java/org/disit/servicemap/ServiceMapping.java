@@ -46,10 +46,16 @@ public class ServiceMapping {
   
   public class MappingData {
     public String detailsQuery;
-    public String realTimeQuery;
-    public MappingData(String d, String rt) {
+    public String realTimeSparqlQuery;
+    public String realTimeSqlQuery;
+    public String predictionSqlQuery;
+    public String trendSqlQuery;
+    public MappingData(String d, String rt, String sqlrt, String p, String pt) {
       detailsQuery = d;
-      realTimeQuery = rt;
+      realTimeSparqlQuery = rt;
+      realTimeSqlQuery = sqlrt;
+      predictionSqlQuery = p;
+      trendSqlQuery = pt;
     }
   }
   
@@ -77,8 +83,11 @@ public class ServiceMapping {
         String serviceType = rs.getString("serviceType");
         String detailsQuery = rs.getString("serviceDetailsSparqlQuery");
         String realTimeQuery = rs.getString("serviceRealTimeSparqlQuery");
+        String realTimeSqlQuery = rs.getString("serviceRealTimeSqlQuery");
+        String predictionSqlQuery = rs.getString("servicePredictionSqlQuery");
+        String trendSqlQuery = rs.getString("serviceTrendSqlQuery");
         int version = rs.getInt("apiVersion");
-        maps.get(version-1).put(serviceType, new MappingData(detailsQuery, realTimeQuery));
+        maps.get(version-1).put(serviceType, new MappingData(detailsQuery, realTimeQuery, realTimeSqlQuery, predictionSqlQuery, trendSqlQuery));
     }
     rs.close();
     st.close();
