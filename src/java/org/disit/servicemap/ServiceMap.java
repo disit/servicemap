@@ -1,4 +1,4 @@
-/* ServiceMap.
+﻿/* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
    This program is free software: you can redistribute it and/or modify
@@ -31,6 +31,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.mail.Message;
@@ -59,6 +61,10 @@ public class ServiceMap {
   
   static private List<String> stopWords = null;
   
+  static private Map<String,String> photosAvailable = null; 
+  
+  static private BufferedWriter accessLog = null;
+  
   static public void initLogging() {
   }
   
@@ -66,8 +72,11 @@ public class ServiceMap {
     Repository repo;
     Configuration conf = Configuration.getInstance();
     String virtuosoEndpoint = conf.get("virtuosoEndpoint", null);
-    if(virtuosoEndpoint!=null)
-      repo = new VirtuosoRepository(virtuosoEndpoint, conf.get("virtuosoUser", "dba"), conf.get("virtuosoPwd", "dba"));
+    if(virtuosoEndpoint!=null) {
+      VirtuosoRepository vrepo = new VirtuosoRepository(virtuosoEndpoint, conf.get("virtuosoUser", "dba"), conf.get("virtuosoPwd", "dba"));
+      vrepo.setQueryTimeout(Integer.parseInt(conf.get("virtuosoTimeout", "600"))); //10min
+      repo = vrepo;
+    }
     else {
       String sparqlEndpoint = conf.get("sparqlEndpoint", null);
       repo = new SPARQLRepository(sparqlEndpoint);
@@ -104,52 +113,90 @@ public class ServiceMap {
   
   static public void logAccess(String ip, String email, String UA, String sel, String categorie, String serviceUri, String mode, String numeroRisultati, String raggio, String queryId, String text, String format, String uid, String reqFrom) throws IOException, SQLException {
     Configuration conf = Configuration.getInstance();
-    BufferedWriter out = null;
     File f = null;
     String filePath = conf.get("accessLogFile",null);
     try {
         Date now = new Date();
         if(filePath!=null) {
-          FileWriter fstream = new FileWriter(filePath, true); //true tells to append data.
-          out = new BufferedWriter(fstream);
-          out.write( now + "|" + mode + "|" + ip + "|" + UA + "|" + serviceUri + "|" + email + "|" + sel + "|" + categorie + "|" + numeroRisultati +"|" + raggio + "|" + queryId + "|" + text + "|" + format + "|"+uid+"|"+reqFrom+"\n");
+          synchronized(ServiceMap.class) {
+            if(accessLog==null) {
+              FileWriter fstream = new FileWriter(filePath, true); //true tells to append data.
+              accessLog = new BufferedWriter(fstream);
+            }
+          }
+          accessLog.write( now + "|" + mode + "|" + ip + "|" + UA + "|" + serviceUri + "|" + email + "|" + sel + "|" + categorie + "|" + numeroRisultati +"|" + raggio + "|" + queryId + "|" + text + "|" + format + "|"+uid+"|"+reqFrom+"\n");
+          accessLog.flush();
         }  
 
         //Class.forName("com.mysql.jdbc.Driver");
-        Connection conMySQL = ConnectionPool.getConnection();
-        if(conMySQL== null) {
-          System.out.println("ERROR logAccess: connection==null");
-          ((ConnectionPool)ConnectionPool.getConnection()).printStatus();
-          return;
+        if(conf.get("mysqlAccessLog", "true").equals("true")) {
+          long tss=System.currentTimeMillis();
+          Connection conMySQL = ConnectionPool.getConnection();
+          if(conMySQL== null) {
+            System.out.println("ERROR logAccess: connection==null");
+            ((ConnectionPool)ConnectionPool.getConnection()).printStatus();
+            return;
+          }
+          // DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);;
+          String query = "INSERT INTO AccessLog(mode,ip,userAgent,serviceUri,email,selection,categories,maxResults,maxDistance,queryId,text,format,uid,reqfrom) VALUES "+
+                  "(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+          //System.out.println(query);
+          PreparedStatement st = conMySQL.prepareStatement(query);
+          st.setString(1, mode);
+          st.setString(2, ip);
+          st.setString(3, UA);
+          st.setString(4, serviceUri);
+          st.setString(5, email);
+          st.setString(6, sel);
+          st.setString(7, categorie);
+          st.setString(8, numeroRisultati);
+          st.setString(9, raggio);
+          st.setString(10, queryId);
+          st.setString(11, text);
+          st.setString(12, format);
+          st.setString(13, uid);
+          st.setString(14, reqFrom);
+          st.executeUpdate();
+          st.close();
+          conMySQL.close();
+          System.out.println("mysql log time: "+(System.currentTimeMillis()-tss));
         }
-        // DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);;
-        String query = "INSERT INTO AccessLog(mode,ip,userAgent,serviceUri,email,selection,categories,maxResults,maxDistance,queryId,text,format,uid,`reqfrom`) VALUES "+
-                "(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-        //System.out.println(query);
-        PreparedStatement st = conMySQL.prepareStatement(query);
-        st.setString(1, mode);
-        st.setString(2, ip);
-        st.setString(3, UA);
-        st.setString(4, serviceUri);
-        st.setString(5, email);
-        st.setString(6, sel);
-        st.setString(7, categorie);
-        st.setString(8, numeroRisultati);
-        st.setString(9, raggio);
-        st.setString(10, queryId);
-        st.setString(11, text);
-        st.setString(12, format);
-        st.setString(13, uid);
-        st.setString(14, reqFrom);
-        st.executeUpdate();
-        st.close();
-        conMySQL.close();
+        if(conf.get("phoenixAccessLog", "true").equals("true")) {
+          long ts = System.currentTimeMillis();
+          Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
+          Connection con = DriverManager.getConnection(conf.get("phoenixJDBC", "jdbc:phoenix:localhost"));
+          String query2 = "UPSERT INTO AccessLog(id,timestamp,mode,ip,userAgent,serviceUri,email,selection,categories,maxResults,maxDistance,queryId,text,format,uid,reqfrom) VALUES "+
+                "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+          PreparedStatement stmt = con.prepareStatement(query2);
+          stmt.setLong(1, now.getTime());
+          Timestamp tstamp = new Timestamp(now.getTime());
+          System.out.println(tstamp);
+          stmt.setTimestamp(2, tstamp);
+          stmt.setString(3, mode);
+          stmt.setString(4, ip);
+          stmt.setString(5, UA);
+          stmt.setString(6, serviceUri);
+          stmt.setString(7, email);
+          stmt.setString(8, sel);
+          stmt.setString(9, categorie);
+          stmt.setString(10, numeroRisultati);
+          stmt.setString(11, raggio);
+          stmt.setString(12, queryId);
+          stmt.setString(13, text);
+          stmt.setString(14, format);
+          stmt.setString(15, uid);
+          stmt.setString(16, reqFrom);
+          stmt.executeUpdate();
+          stmt.close();
+          con.commit();
+          con.close();
+          System.out.println("phoenix log time: "+(System.currentTimeMillis()-ts));
+        }
     } catch (IOException e) {
         System.err.println("Error: " + e.getMessage());
-    } finally {
-        if (out != null) {
-            out.close();
-        }
+    } catch (ClassNotFoundException ex) {
+        System.err.println("Error: " + ex.getMessage());
+        ex.printStackTrace();
     }
   }
 
@@ -512,7 +559,9 @@ public class ServiceMap {
   static public int countQuery(RepositoryConnection con, String query) throws Exception {
     //return -1;
     TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+    long ts = System.currentTimeMillis();
     TupleQueryResult result = tupleQuery.evaluate();
+    System.out.println("SPARQL count time:"+(System.currentTimeMillis()-ts));
     if(result.hasNext()) {
       BindingSet binding = result.next();
       String count = binding.getValue("count").stringValue();
@@ -664,8 +713,31 @@ public class ServiceMap {
   static public String getServicePhotos(String uri) throws IOException,SQLException {
     return getServicePhotos(uri, "");
   }
-  
+
+  static public void updatedPhotos() {
+    synchronized(ServiceMap.class) {
+      photosAvailable = null;
+    }
+  }
+
   static public String getServicePhotos(String uri, String type) throws IOException,SQLException {
+    synchronized(ServiceMap.class) {
+      if(photosAvailable == null) {
+        photosAvailable = new HashMap<>();
+        Connection connection = ConnectionPool.getConnection();
+        PreparedStatement st = connection.prepareStatement("SELECT DISTINCT serviceUri FROM ServicePhoto WHERE status='validated'");
+        ResultSet rs = st.executeQuery();
+        while(rs.next()) {
+          photosAvailable.put(rs.getString("serviceUri"),"");
+        }
+        st.close();
+        connection.close();
+      }
+    }
+    if(photosAvailable!= null && !photosAvailable.containsKey(uri)) {
+      //System.out.println("no photo for "+uri);
+      return "[]";
+    }
     String json = "[";
     Connection connection = ConnectionPool.getConnection();
     String baseApiUrl = Configuration.getInstance().get("baseApiUrl", "");
@@ -885,5 +957,12 @@ public class ServiceMap {
             .replace("&aacute;", "á")
             .replace("&eacuto;", "é")
             .replace("&aacuto;", "á");
+  }
+  
+  public static Connection getRTConnection() throws Exception {
+    Configuration conf = Configuration.getInstance();
+    Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
+    //Class.forName("org.apache.phoenix.queryserver.client.Driver");
+    return DriverManager.getConnection(conf.get("phoenixJDBC", "jdbc:phoenix:localhost"));
   }
 }
