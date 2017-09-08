@@ -65,6 +65,8 @@ public class ServiceMap {
   
   static private BufferedWriter accessLog = null;
   
+  static private Map<String,String> icons = null; 
+
   static public void initLogging() {
   }
   
@@ -169,7 +171,8 @@ public class ServiceMap {
                 "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
           PreparedStatement stmt = con.prepareStatement(query2);
           stmt.setLong(1, now.getTime());
-          Timestamp tstamp = new Timestamp(now.getTime());
+          //Timestamp tstamp = new Timestamp(now.getTime());
+          Timestamp tstamp = new Timestamp(now.getYear(),now.getMonth(),now.getDate(),now.getHours(),now.getMinutes(),now.getSeconds(),0);
           System.out.println(tstamp);
           stmt.setTimestamp(2, tstamp);
           stmt.setString(3, mode);
@@ -197,6 +200,27 @@ public class ServiceMap {
     } catch (ClassNotFoundException ex) {
         System.err.println("Error: " + ex.getMessage());
         ex.printStackTrace();
+    }
+  }
+  
+  static public void logNoRoute(Object r) {
+    try {
+      String norouteLog = Configuration.getInstance().get("noRouteLogFile", "noroute.log");
+      File file =new File(norouteLog);
+      if(!file.exists()){
+        file.createNewFile();
+      }
+
+      Date now = new Date();
+      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      String formattedDate = formatter.format(now);
+      FileWriter fileWriter = new FileWriter(file.getAbsolutePath(),true);
+      BufferedWriter noRouteLog = new BufferedWriter(fileWriter);
+      noRouteLog.write( formattedDate + "|" + r.toString() + "\n");
+      noRouteLog.close();
+    }
+    catch(Exception e) {
+      e.printStackTrace();
     }
   }
 
@@ -374,17 +398,18 @@ public class ServiceMap {
       int n=0;
       for(String c:listaCategorie) {
         //FIX temporaneo
-        c = c.trim();
+        c = c.trim().replace(" ", "_");
+        c = c.substring(0, 1).toUpperCase()+c.substring(1);
         if(macroCats.contains(c)) {
           if(n>0)
             filtroQuery += "UNION";
-          filtroQuery += " { ?ser a km4c:"+(c.substring(0, 1).toUpperCase()+c.substring(1))+(sparqlType.equals("virtuoso")? " OPTION (inference \"urn:ontology\")":"")+".}\n";
+          filtroQuery += " { ?ser a km4c:"+c+(sparqlType.equals("virtuoso")? " OPTION (inference \"urn:ontology\")":"")+".}\n";
           n++;
         }
         else if(!c.equals("Service") && !c.equals("BusStop") && !c.equals("SensorSite") && !c.equals("Event") && !c.equals("PublicTransportLine")) {
           if(microCat.length()>0)
             microCat+=",";
-          microCat+="km4c:"+(c.substring(0, 1).toUpperCase()+c.substring(1))+"\n";
+          microCat+="km4c:"+c+"\n";
         }
       }
       if(microCat.length()>0) {
@@ -499,8 +524,8 @@ public class ServiceMap {
     String sparqlType = conf.get("sparqlType", "virtuoso");
 
     return (sparqlType.equals("virtuoso")
-            ? " " + subj + " geo:geometry ?geo.  filter(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + "))<= " + dist + ")\n"
-            + " BIND(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")) AS ?dist)\n"
+            ? " " + subj + " geo:geometry ?geo.  filter(IF(bif:GeometryType(?geo)=\"POINT\",bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")),100)<= " + dist + ")\n"
+            + " BIND(IF(bif:GeometryType(?geo)=\"POINT\",bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")),100) AS ?dist)\n"
             //"  ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+dist+"))\n" :
             : " " + subj + " omgeo:nearby(" + lat + " " + lng + " \"" + dist + "km\") .\n"); //ATTENZIONE per OWLIM non viene aggiunto il BIND
   }
@@ -519,7 +544,7 @@ public class ServiceMap {
         //cerca su tabella la geometria dove fare ricerca
         Connection conMySQL = ConnectionPool.getConnection();
         Statement st = conMySQL.createStatement();
-        ResultSet rs = st.executeQuery("SELECT wkt FROM ServiceMap.Geometry WHERE label='"+geom+"'");
+        ResultSet rs = st.executeQuery("SELECT wkt FROM Geometry WHERE label='"+geom+"'");
         if (rs.next()) {
           geom = rs.getString("wkt");
         }
@@ -536,11 +561,19 @@ public class ServiceMap {
     String lng = coords[1];
     
     if(coords.length==2) {
-      return (sparqlType.equals("virtuoso")
-              ? " " + subj + " geo:geometry ?geo.  filter(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + "))<= " + dist + ")\n"
+      if(sparqlType.equals("virtuoso")) {
+        if(conf.get("forcePointCheck","false").equals("true")) //in alcuni casi fallisce st_distance
+          return //IF(bif:GeometryType(?geo)=\"POINT\",...,100)
+               " " + subj + " geo:geometry ?geo.  filter(IF(bif:GeometryType(?geo)=\"POINT\",bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")),100)<= " + dist + ")\n"
               //"  " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+dist+"))\n"
-              + " BIND(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")) AS ?dist)\n"
-              : " " + subj + " omgeo:nearby(" + lat + " " + lng + " \"" + dist + "km\") .\n"); //ATTENZIONE per OWLIM non viene aggiunto il BIND
+              + " BIND(IF(bif:GeometryType(?geo)=\"POINT\",bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")),100) AS ?dist)\n";
+        else
+          return " " + subj + " geo:geometry ?geo.  filter(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + "))<= " + dist + ")\n"
+              //"  " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+dist+"))\n"
+              + " BIND(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")) AS ?dist)\n";
+      }
+      else
+        return " " + subj + " omgeo:nearby(" + lat + " " + lng + " \"" + dist + "km\") .\n"; //ATTENZIONE per OWLIM non viene aggiunto il BIND
     }
     String lat2 = coords[2];
     String lng2 = coords[3];
@@ -964,5 +997,5 @@ public class ServiceMap {
     Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
     //Class.forName("org.apache.phoenix.queryserver.client.Driver");
     return DriverManager.getConnection(conf.get("phoenixJDBC", "jdbc:phoenix:localhost"));
-  }
+  }  
 }

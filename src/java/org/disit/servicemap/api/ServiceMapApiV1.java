@@ -825,8 +825,9 @@ public void queryAllBusLines(JspWriter out, RepositoryConnection con, String age
                   + ServiceMap.textSearchQueryFragment("?bs", "foaf:name", textToSearch)
                   + (km4cVersion.equals("old") ? " FILTER ( datatype(?bslat ) = xsd:float )\n"
                           + " FILTER ( datatype(?bslong ) = xsd:float )\n" : "")
-                  + " ?st gtfs:stop ?bs.\n"
-                  + " ?st gtfs:trip/gtfs:route/gtfs:agency ?ag.\n"
+                  //+ " ?st gtfs:stop ?bs.\n"
+                  //+ " ?st gtfs:trip/gtfs:route/gtfs:agency ?ag.\n"
+                  + " ?bs gtfs:agency ?ag.\n"
                   + " ?ag foaf:name ?agname.\n"
                   + " OPTIONAL {?bs owl:sameAs ?sameas }"
                   //+ " FILTER NOT EXISTS {?bs owl:sameAs ?bb }\n" //eliminate duplicate
@@ -1095,8 +1096,10 @@ public void queryAllBusLines(JspWriter out, RepositoryConnection con, String age
                           + " ?sType rdfs:label ?sTypeIta. FILTER(LANG(?sTypeIta)=\"" + lang + "\")\n" : "")
                   + (getGeometry || inside ? " OPTIONAL {?ser opengis:hasGeometry [opengis:asWKT ?wktGeometry].}\n" : "")
                   + "   OPTIONAL {?ser km4c:multimediaResource ?multimedia}.\n"
-                  + "   OPTIONAL {?st gtfs:stop ?ser.\n"
-                  + "     ?st gtfs:trip/gtfs:route/gtfs:agency ?ag.\n"
+                  //+ "   OPTIONAL {?st gtfs:stop ?ser.\n"
+                  //+ "     ?st gtfs:trip/gtfs:route/gtfs:agency ?ag.\n"
+                  //+ "     ?ag foaf:name ?agname.}\n"
+                  + "   OPTIONAL {?ser gtfs:agency ?ag.\n"
                   + "     ?ag foaf:name ?agname.}\n"
                   + "}"
                   + (type != null ? "}" : " ORDER BY ?dist");
@@ -1309,10 +1312,11 @@ public void queryAllBusLines(JspWriter out, RepositoryConnection con, String age
                 + (getGeometry ? " OPTIONAL {?ser opengis:hasGeometry [opengis:asWKT ?wktGeometry].}\n" : "")
                 + " OPTIONAL {?ser km4c:multimediaResource ?multimedia}.\n"
                 + " OPTIONAL {\n"
-                + "  {?st gtfs:stop ?ser.}UNION{?st gtfs:stop [owl:sameAs ?ser]}\n" 
-                + "  ?st gtfs:trip ?t.\n"
-                +"   ?t gtfs:route/gtfs:agency ?ag.\n"
-                +"   ?ag foaf:name ?agname.\n"
+                //+ "  {?st gtfs:stop ?ser.}UNION{?st gtfs:stop [owl:sameAs ?ser]}\n" 
+                //+ "  ?st gtfs:trip ?t.\n"
+                //+"   ?t gtfs:route/gtfs:agency ?ag.\n"
+                + "   {?ser gtfs:agency ?ag.}UNION{?ser ^owl:sameAs/gtfs:agency ?ag}\n"
+                + "   ?ag foaf:name ?agname.\n"
                 + " }\n"
                 + "} "
                 + (type != null ? "}" : "ORDER BY DESC(?sc)");
@@ -2628,7 +2632,7 @@ public void queryAllBusLines(JspWriter out, RepositoryConnection con, String age
           if (bindingSetParking.getValue("free") != null) {
             valueOfFree = bindingSetParking.getValue("free").stringValue();
           }
-          String valueOfOccupied = "";
+          String valueOfOccupied = null;
           if (bindingSetParking.getValue("occupied") != null) {
             valueOfOccupied = bindingSetParking.getValue("occupied").stringValue();
           }
@@ -2639,6 +2643,14 @@ public void queryAllBusLines(JspWriter out, RepositoryConnection con, String age
           String valueOfcpStatus = "";
           if (bindingSetParking.getValue("cpStatus") != null) {
             valueOfcpStatus = bindingSetParking.getValue("cpStatus").stringValue();
+          }
+          
+          //calcola il valore di occupied in base a capacity e free
+          if(valueOfOccupied==null) {
+            int occupied = Integer.parseInt(valueOfCapacity)-Integer.parseInt(valueOfFree);
+            if(occupied<0)
+              occupied=0;
+            valueOfOccupied=""+occupied;
           }
 
           if (p != 0) {
@@ -4104,42 +4116,48 @@ public void queryAllBusLines(JspWriter out, RepositoryConnection con, String age
       if(statusCode == 200) {
         String resultJson = EntityUtils.toString(response.getEntity());
         JSONParser parser = new JSONParser();
-        JSONObject r=(JSONObject)parser.parse(new StringReader(resultJson));
-        JSONObject journey = (JSONObject) r.get("journey");
-        JSONArray routes= (JSONArray)journey.get("routes");
-        for(int i=0; i<routes.size(); i++) {
-          JSONObject route=(JSONObject)routes.get(i);
-          JSONArray arcs=(JSONArray)route.get("arc");
-          String wkt="LINESTRING(";
-          String startTime="", endTime="";
-          for(int j=0;j<arcs.size();j++) {
-            JSONObject arc=(JSONObject) arcs.get(j);
-            wkt += ((JSONObject)arc.get("source_node")).get("lon") + " " + ((JSONObject)arc.get("source_node")).get("lat") + ",";
-            if(j==0)
-              startTime = (String)arc.get("start_datetime");
-            else if(j==arcs.size()-1)
-              endTime = (String)arc.get("start_datetime");
+        JSONObject r = (JSONObject)parser.parse(new StringReader(resultJson));
+        JSONObject resp = (JSONObject) r.get("response");
+        if(resp.get("error_code").equals("0")) { //route found
+          JSONObject journey = (JSONObject) r.get("journey");
+          JSONArray routes= (JSONArray)journey.get("routes");
+          for(int i=0; i<routes.size(); i++) {
+            JSONObject route=(JSONObject)routes.get(i);
+            JSONArray arcs=(JSONArray)route.get("arc");
+            String wkt="LINESTRING(";
+            String startTime="", endTime="";
+            for(int j=0;j<arcs.size();j++) {
+              JSONObject arc=(JSONObject) arcs.get(j);
+              wkt += ((JSONObject)arc.get("source_node")).get("lon") + " " + ((JSONObject)arc.get("source_node")).get("lat") + ",";
+              if(j==0)
+                startTime = (String)arc.get("start_datetime");
+              else if(j==arcs.size()-1)
+                endTime = (String)arc.get("start_datetime");
+            }
+            JSONObject arc=(JSONObject) arcs.get(arcs.size()-1);
+            wkt += ((JSONObject)arc.get("destination_node")).get("lon") + " " + ((JSONObject)arc.get("destination_node")).get("lat") + ")";
+            route.put("wkt",wkt);
+
+            SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
+            Date date1 = format.parse(startTime);
+            Date date2 = format.parse(endTime);
+            long millis = date2.getTime() - date1.getTime();
+            long second = (millis / 1000) % 60;
+            long minute = (millis / (1000 * 60)) % 60;
+            long hour = (millis / (1000 * 60 * 60)) % 24;
+            String timeTaken = String.format("%02d:%02d:%02d", hour, minute, second);
+            route.put("time", timeTaken);
           }
-          JSONObject arc=(JSONObject) arcs.get(arcs.size()-1);
-          wkt += ((JSONObject)arc.get("destination_node")).get("lon") + " " + ((JSONObject)arc.get("destination_node")).get("lat") + ")";
-          route.put("wkt",wkt);
-          long time=System.currentTimeMillis()-start;
-          r.put("elapsed_ms", time);
-          
-          SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss");
-          Date date1 = format.parse(startTime);
-          Date date2 = format.parse(endTime);
-          long millis = date2.getTime() - date1.getTime();
-          long second = (millis / 1000) % 60;
-          long minute = (millis / (1000 * 60)) % 60;
-          long hour = (millis / (1000 * 60 * 60)) % 24;
-          String timeTaken = String.format("%02d:%02d:%02d", hour, minute, second);
-          route.put("time", timeTaken);
+        } else { //no route or failure
+          ServiceMap.logNoRoute(r);
         }
+        long time=System.currentTimeMillis()-start;
+        r.put("elapsed_ms", time);
         out.print(r.toString());
       } else {
         String result = EntityUtils.toString(response.getEntity());
         out.println("{ errorcode: "+statusCode+" }"+result);
+        ServiceMap.logNoRoute(statusCode+"-"+result);
         System.out.println("FAILED shorttest path "+statusCode+"-"+result);
       }
     } catch(Exception e) {
@@ -4208,6 +4226,14 @@ public void queryAllBusLines(JspWriter out, RepositoryConnection con, String age
     } else if(excludePOI)
       query.addFilterQuery("entityType_s:StreetNumber OR entityType_s:Municipality");
     query.setRows(Integer.parseInt(maxResults));
+    query.addField("id");
+    query.addField("entityType_s");
+    query.addField("geo_coordinate_p");
+    query.addField("roadName_s_lower");
+    query.addField("streetNumber_s");
+    query.addField("municipalityName_s_lower");
+    query.addField("name_s_lower");
+    query.addField("score");
     QueryResponse qr=solr.query(query);
     SolrDocumentList sdl=qr.getResults();
     long nfound=sdl.getNumFound();
@@ -4234,6 +4260,7 @@ public void queryAllBusLines(JspWriter out, RepositoryConnection con, String age
         name = escapeJSON((String)d.getFieldValue("name_s_lower"));
         municipalityName = (String)d.getFieldValue("municipalityName_s_lower");
       }
+      Object score = d.getFieldValue("score");
       out.println("{  \"geometry\": {\n" +
           "     \"type\": \"Point\",\n" +
           "    \"coordinates\": [ "+ g[1]+","+g[0] +"]\n" +
@@ -4246,6 +4273,7 @@ public void queryAllBusLines(JspWriter out, RepositoryConnection con, String age
           (roadName==null ?     "" : "    \"address\": \""+roadName+"\",\n") +
           (streetNumber==null ? "" : "    \"civic\": \""+streetNumber+"\",\n") +
           "    \"city\": \""+municipalityName+"\",\n" +
+          "    \"score\": \""+score+"\",\n" +
           " \"id\": " + Integer.toString(i + 1) + "}}");
       i++;
     }
