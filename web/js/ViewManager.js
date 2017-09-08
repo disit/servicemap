@@ -17,13 +17,14 @@ var ViewManager = {
         var template = "";
         if (templateName == null) {
             for (var pageType in data) {
-                template = this.loadTemplate("templates/" + pageType + ".mst.html");
+                template = this.loadTemplate(ctx + "/templates/" + pageType + ".mst.html");
                 break;
             }
         } else {
-            template = this.loadTemplate("templates/" + templateName + ".mst.html");
+            template = this.loadTemplate(ctx + "/templates/" + templateName + ".mst.html");
         }
 
+        var html = "";
         if (template != "") {
             html = Mustache.render(template, data);
         }

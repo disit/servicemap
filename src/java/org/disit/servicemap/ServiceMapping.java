@@ -74,7 +74,7 @@ public class ServiceMapping {
 
     conMySQL = ConnectionPool.getConnection();
 
-    String query = "SELECT * FROM ServiceMap.ServiceMapping ORDER BY priority";
+    String query = "SELECT * FROM ServiceMapping ORDER BY priority";
 
     st = conMySQL.createStatement();
 

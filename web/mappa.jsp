@@ -356,7 +356,7 @@
                                         out.println("<input type='checkbox' name='" + macroClass + "' value='" + macroClass + "' class='macrocategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + macroClass + ".png' height='23' width='20' align='top'> <span class='" + macroClass + " macrocategory-label'>" + macroClass + "</span> <span class='toggle-subcategory' title='Mostra sottocategorie'>+</span>");
                                         out.println("<div class='subcategory-content'>");
                                         
-                                        String query2 = "SELECT distinct SubClass FROM ServiceCategory_menu_NEW WHERE MacroClass = '" + macroClass + "' AND TypeOfService not like 'T_Service' AND Visible = '1' ORDER BY SubClass ASC";
+                                        String query2 = "SELECT distinct SubClass,icon FROM ServiceCategory_menu_NEW WHERE MacroClass = '" + macroClass + "' AND TypeOfService not like 'T_Service' AND Visible = '1' ORDER BY SubClass ASC";
                                         // create the java statement
                                         st2 = conMySQL.createStatement();
                                         // execute the query, and get a java resultset
@@ -367,7 +367,9 @@
                                             
                                             //String sub_nome = rs2.getString("Ita");
                                             String subClass = rs2.getString("SubClass");
-                                            String subClass_ico = macroClass + "_" + subClass;
+                                            String subClass_ico = rs2.getString("icon");
+                                            if(subClass_ico == null)
+                                              subClass_ico = macroClass + "_" + subClass;
                                             
                                             out.println("<input type='checkbox' name='" + subClass + "' value='" + subClass + "' class='sub_" + macroClass + " subcategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + subClass_ico + ".png' height='19' width='16' align='top'>");
                                             // modifica per RTZgate

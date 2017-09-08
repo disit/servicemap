@@ -69,15 +69,17 @@
               + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
               + "PREFIX omgeo:<http://www.ontotext.com/owlim/geo#>\n"
               + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
-              + "SELECT distinct ?nomeFermata ?bslat ?bslong ?agname WHERE {\n"
+              + "SELECT distinct ?nomeFermata ?sType ?bslat ?bslong ?agname WHERE {\n"
               + "	<" + idService + "> \n"
+              + "  a ?sType;"
               + "	 foaf:name ?nomeFermata;\n"
               + "	 geo:lat ?bslat;\n"
               + "	 geo:long ?bslong.\n"
               + "  {?st gtfs:stop <"+idService+">.}UNION{?st gtfs:stop [owl:sameAs <"+idService+">]}" 
               + "  ?st gtfs:trip ?t."
-              +"   ?t gtfs:route/gtfs:agency ?ag."
-              +"   ?ag foaf:name ?agname."
+              + "   ?t gtfs:route/gtfs:agency ?ag."
+              + "   ?ag foaf:name ?agname."
+              + "  FILTER(?sType!=gtfs:Stop)"
               + "}LIMIT 1";
       //System.out.println("MIC service.jsp -----------------  "+queryStringBusStop);
 
@@ -94,6 +96,8 @@
           String valueOfBSLong = bindingSetBusStop.getValue("bslong").stringValue();
           nomeFermata = bindingSetBusStop.getValue("nomeFermata").stringValue();
           String agency = bindingSetBusStop.getValue("agname").stringValue();
+          String serviceType = bindingSetBusStop.getValue("sType").stringValue();
+          serviceType = serviceType.replace("http://www.disit.org/km4city/schema#", "");
           if (i != 0) {
             out.println(", ");
           }
@@ -110,11 +114,11 @@
                   + "    \"agency\": \"" + agency + "\",\n"
                   + "    \"serviceUri\": \"" + idService + "\",\n"
                   + "    \"tipo\": \"fermata\",\n"
-                  + "    \"serviceType\": \"TransferServiceAndRenting_BusStop\",\n"
-                  + "    \"photos\": "+ServiceMap.getServicePhotos(idService) + ",\n"
-                  + "    \"avgStars\": "+avgServiceStars[0] + ",\n"
-                  + "    \"starsCount\": "+(int)avgServiceStars[1] + ",\n"
-                  + "    \"comments\": "+ServiceMap.getServiceComments(idService)
+                  + "    \"serviceType\": \"TransferServiceAndRenting_" + serviceType + "\",\n"
+                  + "    \"photos\": " + ServiceMap.getServicePhotos(idService) + ",\n"
+                  + "    \"avgStars\": " + avgServiceStars[0] + ",\n"
+                  + "    \"starsCount\": " + (int)avgServiceStars[1] + ",\n"
+                  + "    \"comments\": " + ServiceMap.getServiceComments(idService)
                   + "},\n"
                   + "\"id\": " + Integer.toString(i + 1) + "\n"
                   + "}\n");
