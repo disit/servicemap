@@ -69,6 +69,8 @@
             }
         }
     } catch (Exception e) {
-        out.println(result);
-    }finally{con.close();}
+        ServiceMap.notifyException(e);
+    } finally {
+      con.close();
+    }
 %>

@@ -33,9 +33,14 @@
     String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
+    if(! ServiceMap.checkIP(ip, "api")) {
+      response.sendError(403,"API calls daily limit reached");
+      return;
+    }      
 
     RepositoryConnection con = ServiceMap.getSparqlConnection();
-    serviceMapApi.queryTplAgencyList(out, con);
+    int results = serviceMapApi.queryTplAgencyList(out, con);
+    ServiceMap.updateResultsPerIP(ip, "api", results);
     con.close();
-    logAccess(ip, null, ua, "", null, null, "api-tpl-agencies", null, null, null, null, "json", uid, reqFrom);
+    ServiceMap.logAccess(request, null, "", null, null, "api-tpl-agencies", null, null, null, null, "json", uid, reqFrom);
 %>

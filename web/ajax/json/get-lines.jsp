@@ -41,7 +41,10 @@
  RepositoryConnection conn = ServiceMap.getSparqlConnection();
 
  String agency = request.getParameter("agency");
- 
- api.queryAllBusLines(out, conn, agency);
+ try {
+  api.queryAllBusLines(out, conn, agency);
+ } finally {
+   conn.close();
+ }
 
 %>

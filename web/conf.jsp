@@ -28,13 +28,10 @@
     <h1>Configuration</h1>
     <%
       //is client behind something?
-      String ipAddress = request.getHeader("X-Forwarded-For");  
-      if (ipAddress == null) {  
-        ipAddress = ServiceMap.getClientIpAddress(request);  
-      }
+      String ipAddress = ServiceMap.getClientIpAddress(request);  
       
-      if(ipAddress.startsWith("192.168.0.") || ipAddress.equals("127.0.0.1")) {
-        Configuration conf=Configuration.getInstance();
+      Configuration conf=Configuration.getInstance();
+      if(ipAddress.startsWith(conf.get("internalNetworkIpPrefix", "192.168.0.")) || ipAddress.equals("127.0.0.1")) {
         if(request.getParameter("reset")!=null) {
           conf.load();
           ServiceMapping.reset();
@@ -45,6 +42,7 @@
         out.println("<li>sparqlType="+sparqlType+"</li>");
         out.println("<li>km4cVersion="+km4cVersion+"</li>");
         out.println("</ul>");
+        out.println(ServiceMapping.getInstance().asHtml());
         out.println("<small>from: "+ipAddress+"</small>");
       }
       else {

@@ -40,12 +40,15 @@
  ServiceMapApiV1 api = new ServiceMapApiV1();
  RepositoryConnection conn = ServiceMap.getSparqlConnection();
 
- String line = request.getParameter("line");
+ try {
+  String line = request.getParameter("line");
   String agency = request.getParameter("agency");
- 
- if(line.equals("all"))
-     line = null;
- 
- api.queryBusRoutes(out, conn, agency, line, null, false);
 
+  if("all".equals(line))
+      line = null;
+
+  api.queryBusRoutes(out, conn, agency, line, null, false);
+ } finally {
+  conn.close();
+ }
 %>

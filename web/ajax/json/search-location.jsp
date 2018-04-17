@@ -42,5 +42,5 @@
   String ua = request.getHeader("User-Agent");
   
   serviceMapApi.queryLocationSearch(out, search, searchMode, position, maxDists, excludePOI.equalsIgnoreCase("true"), categories, maxResults, sortByDist.equalsIgnoreCase("true"));
-  logAccess(ip, null, ua, excludePOI+";"+position, null, null, "ui-location-search", maxResults, maxDists, null, search, "json", null, null);
+  ServiceMap.logAccess(request, null, excludePOI+";"+position, null, null, "ui-location-search", maxResults, maxDists, null, search, "json", null, null);
 %>

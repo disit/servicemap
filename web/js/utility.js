@@ -720,12 +720,17 @@ function loadServiceInfo(uri, div, id, coord) {
                 async: true,
                 //dataType: 'json',
                 data: {
-                    lat: latitude,
-                    lng: longitude
+                  lat: latitude,
+                  lng: longitude
                 },
                 success: function (msg) {
-                    $('#approximativeAddress').html(msg);
-                    ricercaInCorso = false;
+                  $('#approximativeAddress').html(msg);
+                  ricercaInCorso = false;
+                },
+                error: function(e) {
+                  console.log(e);
+                  $('#approximativeAddress').html("Address: ERROR");
+                  ricercaInCorso = false;                  
                 }
             });
         }
@@ -1402,7 +1407,7 @@ function mostraAutobusRT(zoom) {
                 }
             }
         }});
-    setTimeout(mostraAutobusRT, 30000);
+    setTimeout(mostraAutobusRT, 60000);
 }
 
 function searchEvent(param, raggioRic, centroRic, numEv, text) {
@@ -2395,12 +2400,17 @@ function mapLatLngClick(latLngPunto, zoom) {
         type: "GET",
         async: true,
         data: {
-            lat: latPunto,
-            lng: lngPunto
+          lat: latPunto,
+          lng: lngPunto
         },
         success: function (msg) {
-            $('#approximativeAddress').html(msg);
-            ricercaInCorso = false;
+          $('#approximativeAddress').html(msg);
+          ricercaInCorso = false;
+        },
+        error: function (e) {
+          console.log(e);
+          $('#approximativeAddress').html("Address: ERROR");
+          ricercaInCorso = false;
         }
     });
   }  

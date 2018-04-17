@@ -25,12 +25,10 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
   
       //is client behind something?
-      String ipAddress = request.getHeader("X-Forwarded-For");  
-      if (ipAddress == null) {  
-        ipAddress = ServiceMap.getClientIpAddress(request);  
-      }
-      
-      if(!ipAddress.startsWith("192.168.0.") && !ipAddress.equals("127.0.0.1")) {
+      String ipAddress = ServiceMap.getClientIpAddress(request);  
+
+      Configuration conf = Configuration.getInstance();
+      if(!ipAddress.startsWith(conf.get("internalNetworkIpPrefix", "192.168.0.")) && !ipAddress.equals("127.0.0.1")) {
         response.sendError(403, "unaccessible from "+ipAddress);
         return;
       }
@@ -40,7 +38,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <title>Uploaded photos</title>
-    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+    <script src="https://code.jquery.com/jquery-1.10.1.min.js"></script>
     <script type="text/javascript">
       $(document).ready( function() {
         $(".sstatus").change(function() {
@@ -122,7 +120,7 @@
       st.close();
       connection.close();
     } catch (SQLException ex) {
-      ex.printStackTrace();
+      ServiceMap.notifyException(ex);
     }%>
     </table>
     </div>

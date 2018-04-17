@@ -42,6 +42,9 @@
 
  String route = request.getParameter("route");
  
- api.queryBusStopsOfLine(out, conn, null, route, true);
-
+ try {
+  api.queryBusStopsOfLine(out, conn, null, route, true);
+ } finally {
+  conn.close();
+ }
 %>

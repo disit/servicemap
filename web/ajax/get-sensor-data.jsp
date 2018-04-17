@@ -68,7 +68,7 @@
   TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
   TupleQueryResult result = tupleQuery.evaluate();
   logQuery(filterQuery(queryString),"get-sensor-data","any",nomeSensore);
-  //System.out.println(queryString);	  
+  //ServiceMap.println(queryString);	  
   String valueOfInstantDateTime = "";
   try {
     int i = 0;
@@ -181,6 +181,8 @@
     out.println("</div>");                      
   } catch (Exception e) {
     out.println(e.getMessage());
-  }finally{con.close();}
+  }finally{
+    con.close();
+  }
   
 %>

@@ -34,7 +34,8 @@
   //is client behind something?
   String ipAddress = ServiceMap.getClientIpAddress(request);  
 
-  if(!ipAddress.startsWith("192.168.0.") && !ipAddress.equals("127.0.0.1")) {
+  Configuration conf = Configuration.getInstance();
+  if(!ipAddress.startsWith(conf.get("internalNetworkIpPrefix", "192.168.0.")) && !ipAddress.equals("127.0.0.1")) {
     response.sendError(403, "unaccessible from "+ipAddress);
     return;
   }
@@ -52,14 +53,13 @@
       out.println(n);
       st.close();
     } catch (SQLException ex) {
-      ex.printStackTrace();
+      ServiceMap.notifyException(ex);
     }
     finally {
       connection.close();
     }
     ServiceMap.updatedPhotos();
   } else if(id!=null && rotate!=null) {
-    Configuration conf = Configuration.getInstance();
     String uploadPath = conf.get("photoUploadPath", "/tmp/servicemap");
     File uploads = new File(uploadPath);
     if(!uploads.exists())
@@ -80,7 +80,7 @@
         File fcopy = new File(uploadPath, "originals/original-"+file);
         if(!fcopy.exists()) {
           Files.copy(forig.toPath(), fcopy.toPath());
-          System.out.println("copiato file originale di "+file);
+          ServiceMap.println("copiato file originale di "+file);
         }
         PhotoUploadServlet.rotateImage(forig, angle, forig);
         //rotate thumbnail photo
@@ -93,7 +93,7 @@
       }
       st.close();
     } catch(Exception e) {
-      e.printStackTrace();
+      ServiceMap.notifyException(e);
       response.sendError(500, "FAILED ROTATION");
     }
     finally {

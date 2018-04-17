@@ -122,7 +122,7 @@
         }
         out.println("<small>last: "+lst+"</small>");
       } catch(Exception e) {
-        e.printStackTrace();
+        ServiceMap.notifyException(e);
       }
       out.println("<table><tr><th>date</th><th>count</th></tr>");
       try {
@@ -140,7 +140,7 @@
         }
         out.println("<tr><td colspan='1' align='right'><b>total</b></td><td align='right'>"+n+"</td></tr>");
       } catch(Exception e) {
-        e.printStackTrace();
+        ServiceMap.notifyException(e);
       }
       out.println("</table>");
       out.println("</div>");

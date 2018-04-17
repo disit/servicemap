@@ -273,7 +273,7 @@
               tupleQuery.setMaxQueryTime(maxTime);
             TupleQueryResult result = tupleQuery.evaluate();
             //logQuery(filterQuery(queryString),"get-services-in-municipality-services",sparqlType,nomeComune+";"+nomeProvincia+";"+numeroRisultatiServizi+";"+categorie, System.nanoTime()-start);
-            //System.out.println(queryString);
+            //ServiceMap.println(queryString);
             String cat = "";
             String subCat = "";
             int num = 0;
@@ -424,7 +424,7 @@
                         + "}");
           }
         } catch(Exception e) {
-          e.printStackTrace();
+          ServiceMap.notifyException(e);
         }
         out.println("],"
         + " \"total\": \"" + total + "\" }");

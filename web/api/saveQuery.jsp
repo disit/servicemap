@@ -53,7 +53,7 @@
         //Converts message digest value in base 16 (hex) 
         md5 = new BigInteger(1, digest.digest()).toString(16);
     } catch (NoSuchAlgorithmException e) {
-        e.printStackTrace();
+        ServiceMap.notifyException(e);
     }
     return md5;
   }
@@ -83,7 +83,7 @@
     String linkRHtml = "";
     String linkEventJson = "";
     String linkEventHtml = "";
-    String apiVersion = "v1";
+    String apiVersion = "v1/";
     
     if ("true".equals(update)) {
         queryIdRW = queryId;
@@ -159,7 +159,7 @@
     String categorieEscaped = escapeURI(categorie);
     String raggi = "";
     
-    //System.out.println("MICHELA query: saveQuery.jsp  "+ raggioServizi);//Michela 
+    //ServiceMap.println("MICHELA query: saveQuery.jsp  "+ raggioServizi);//Michela 
     
     if(raggioSensori.equals(raggioServizi) && raggioBus.equals(raggioServizi))
       raggi = raggioServizi;
@@ -167,7 +167,7 @@
       raggi = raggioServizi + ";" + raggioSensori + ";" + raggioBus;
 
     
-    //System.out.println("MICHELA sovrascrivo il raggio, test "+ raggi);//Michela 
+    //ServiceMap.println("MICHELA sovrascrivo il raggio, test "+ raggi);//Michela 
     
     String raggiEscaped = escapeURI(raggi);
     if("embed".equals(typeOfSaving)){
@@ -213,7 +213,7 @@
     
     //caso di evento, separato dal resto coordSel
     if("event".equals(typeOfSaving)){
-        linkEventJson = baseApiUri + apiVersion +"/events/?range="+actualSelection;//http://servicemap.disit.org/WebAppGrafo/api/v1/events/?range=day
+        linkEventJson = baseApiUri + apiVersion +"events/?range="+actualSelection;//http://servicemap.disit.org/WebAppGrafo/api/v1/events/?range=day
         linkEventHtml = baseApiUri + apiVersion + "?queryId=" + queryIdR ;
     }
     else
@@ -221,15 +221,17 @@
         if (idService != null && !"".equals(idService)) {
             String link = "";
             if(raggiEscaped.equals("-1") )
-                link = baseApiUri + apiVersion + "?selection=" + idService + "&categories=" + categorieEscaped + "&maxResults=" + risultatiEscaped;
+                link = baseApiUri + apiVersion + "?selection=" + coordSel /*idService*/ + "&categories=" + categorieEscaped + "&maxResults=" + risultatiEscaped;
             else
-                link = baseApiUri + apiVersion + "?selection=" + idService + "&categories=" + categorieEscaped + "&maxResults=" + risultatiEscaped + "&maxDists=" + raggiEscaped;
+                link = baseApiUri + apiVersion + "?selection=" + coordSel /*idService*/  + "&categories=" + categorieEscaped + "&maxResults=" + risultatiEscaped + "&maxDists=" + raggiEscaped;
                 
             linkJSONService = link + "&format=json";
             linkHTMLService = link + "&format=html";
         }
         else {
             String link="";
+            if(selectionEscaped.equals(""))
+                selectionEscaped = coordSel;
             if(raggiEscaped.equals("-1") )
                 link = baseApiUri + apiVersion + "?selection=" + selectionEscaped + "&categories=" + categorieEscaped + "&maxResults=" + risultatiEscaped;
             else
@@ -248,10 +250,8 @@
             linkServiceHtml = baseApiUri + apiVersion + "?serviceUri=" + idService + "&format=html";
         }
     }
-    
-    
-    
-    logAccess(ip, email, ua, selection, categorie, null, "save", risultati, raggi, queryIdR, text, format, null, null);
+        
+    ServiceMap.logAccess(request, email, selection, categorie, null, "save", risultati, raggi, queryIdR, text, format, null, null);
     
     //salvataggio o update dei dati della query nel DB
     if ("false".equals(update)) {//salvataggio NUOVA QUERY
@@ -295,7 +295,7 @@
                 queryDone = true;
                 obj.put("queryDone", queryDone);
             } catch (Exception e) {
-                e.printStackTrace();
+                ServiceMap.notifyException(e);
                 queryDone = false;
                 obj.put("queryDone", queryDone);
             }
@@ -371,87 +371,63 @@
         //out.println(obj);
     }
     
+    String subject = "Your link for query " + title;
+    String emailMessage = "";
+    if ("event".equals(typeOfSaving)) {//evento
+      emailMessage = "<html><head><title>ServiceMap</title></head>"
+              + "<body><p>Thanks a lot for using Service Map by DISIT at <a href=\"http://servicemap.disit.org\">http://servicemap.disit.org</a></p>"
+              + "<p>Your query \"" + title + "\" has been saved. </p>"
+              + "<p>Description:</br>" + description + "</p>" + "<p>Link to obtain results in format json based on the selected events: <a href='" + linkEventJson + "'>'" + linkEventJson + "'</a><br></p>"
+              + "<p>Link to obtain results in format html  based on the selected events: <a href='" + linkEventHtml + "'>'" + linkEventHtml + "'</a><br></p>";
+
+    } else {
+      emailMessage = "<html><head><title>ServiceMap</title></head>"
+              + "<body><p>Thanks a lot for using Service Map by DISIT at <a href=\"http://servicemap.disit.org\">http://servicemap.disit.org</a></p>"
+              + "<p>Your query \"" + title + "\" has been saved. </p>"
+              + "<p>Description:</br>" + description + "</p>";
+      // if("".equals(text) || text==null){  
+      emailMessage = emailMessage + "<p>You can access to the query results on Service Map by clicking on these links: </p>"
+              + "<p>Link for read only result in format json: <a href='" + linkRJson + "'>'" + linkRJson + "'</a> <br></p>"
+              + "<p>Link for read only result in html: <a href='" + linkRHtml + "'>'" + linkRHtml + "'</a> <br></p>"
+              + "<p>Link for overwrite this query on Service Map: <a href='" + linkRW + "'>'" + linkRW + "'</a> <br></p>";
+      //  }
+      if ("query".equals(typeOfSaving)) {
+        if (idService != null && !"".equals(idService)) {
+          emailMessage = emailMessage + "<p>Link to obtain results in format json based on the selected Service Uri: <a href='" + linkJSONService + "'>'" + linkJSONService + "'</a><br></p>";
+          emailMessage = emailMessage + "<p>Link to obtain results in format html  based on the selected Service Uri: <a href='" + linkHTMLService + "'>'" + linkHTMLService + "'</a><br></p>";
+        } else {
+          emailMessage = emailMessage + "<p>Link to obtain results in format json  based on the coordinates of selection: <a href='" + linkJSON + "'>'" + linkJSON + "'</a><br></p>";
+          emailMessage = emailMessage + "<p>Link to obtain results in format html based on the coordinates of selection: <a href='" + linkHTML + "'>'" + linkHTML + "'</a><br></p>";
+        }
+      } else {
+        if ("embed".equals(typeOfSaving)) {
+          emailMessage = emailMessage + "<p>Link for access to your configuration: <a href='" + linkConfR + "'>'" + linkConfR + "'</a> <br></p>";
+          // emailMessage = emailMessage +"<p>Link for access and modify to your configuration: <a href='" + linkConfRW + "'>'" + linkConfRW + "'</a> <br></p>";
+        } else {
+          if ("freeText".equals(typeOfSaving)) {
+            emailMessage = emailMessage + "Link to obtain  results in format json : <a href='" + linkFreeTextJson + "'>'" + linkFreeTextJson + "'</a><br>";
+            emailMessage = emailMessage + "Link to obtain  results in format html : <a href='" + linkFreeTextHtml + "'>'" + linkFreeTextHtml + "'</a><br>";
+          } else {
+            emailMessage = emailMessage + "Link to obtain  results in format json : <a href='" + linkServiceJson + "'>'" + linkServiceJson + "'</a><br>";
+            emailMessage = emailMessage + "Link to obtain  results in format html : <a href='" + linkServiceHtml + "'>'" + linkServiceHtml + "'</a><br>";
+          }
+        }
+      }
+    }
+    emailMessage = emailMessage + "<p>or copy paste it on your browser. </p>"
+            + "<p>You can share the link with your friends.</p>"
+            + "<p>Best regards<br>"
+            + "ServiceMap.disit.org team<br>"
+            + "You can contact us at info@disit.org or visit our web page at <a href=\"http://www.disit.org\">http://www.disit.org</a>"
+            + "</body>"
+            + "</html>";
     //invio della e-mail
-    boolean emailSent = false;
+    boolean emailSent = ServiceMap.sendEmail(email, subject, emailMessage, "text/html");
     String to = email;
     Properties properties = System.getProperties();
     properties.put("mail.smtp.host", smtp);
     properties.put("mail.smtp.port", portSmtp);
-    Session mailSession = Session.getDefaultInstance(properties);
-    try {
-        MimeMessage message = new MimeMessage(mailSession);
-        message.setFrom(new InternetAddress(mailFrom));
-        message.addRecipient(Message.RecipientType.TO,
-                new InternetAddress(to));
-        message.setSubject("Your link for query " + title);
-        String emailMessage = "";
-        if("event".equals(typeOfSaving)){//evento
-                emailMessage =  "<html><head><title>ServiceMap</title></head>"
-                + "<body><p>Thanks a lot for using Service Map by DISIT at <a href=\"http://servicemap.disit.org\">http://servicemap.disit.org</a></p>"
-                + "<p>Your query \"" + title + "\" has been saved. </p>"
-                + "<p>Description:</br>" + description + "</p>" + "<p>Link to obtain results in format json based on the selected events: <a href='" + linkEventJson + "'>'" + linkEventJson + "'</a><br></p>"
-                + "<p>Link to obtain results in format html  based on the selected events: <a href='" + linkEventHtml + "'>'" + linkEventHtml + "'</a><br></p>"
-                ;
-              
-            }
-        else{
-        
-            emailMessage = "<html><head><title>ServiceMap</title></head>"
-                + "<body><p>Thanks a lot for using Service Map by DISIT at <a href=\"http://servicemap.disit.org\">http://servicemap.disit.org</a></p>"
-                + "<p>Your query \"" + title + "\" has been saved. </p>"
-                + "<p>Description:</br>" + description + "</p>";
-             // if("".equals(text) || text==null){  
-              emailMessage= emailMessage  + "<p>You can access to the query results on Service Map by clicking on these links: </p>"
-                + "<p>Link for read only result in format json: <a href='" + linkRJson + "'>'" + linkRJson + "'</a> <br></p>"
-                + "<p>Link for read only result in html: <a href='" + linkRHtml + "'>'" + linkRHtml + "'</a> <br></p>"
-                + "<p>Link for overwrite this query on Service Map: <a href='" + linkRW + "'>'" + linkRW + "'</a> <br></p>";
-            //  }
-            if ("query".equals(typeOfSaving)) {
-
-
-                    if (idService != null && !"".equals(idService)) {
-                        emailMessage = emailMessage + "<p>Link to obtain results in format json based on the selected Service Uri: <a href='" + linkJSONService + "'>'" + linkJSONService + "'</a><br></p>";
-                        emailMessage = emailMessage + "<p>Link to obtain results in format html  based on the selected Service Uri: <a href='" + linkHTMLService + "'>'" + linkHTMLService + "'</a><br></p>";
-                    } else {
-                        emailMessage = emailMessage + "<p>Link to obtain results in format json  based on the coordinates of selection: <a href='" + linkJSON + "'>'" + linkJSON + "'</a><br></p>";
-                        emailMessage = emailMessage + "<p>Link to obtain results in format html based on the coordinates of selection: <a href='" + linkHTML + "'>'" + linkHTML + "'</a><br></p>";
-                    }
-
-            } else {
-                if("embed".equals(typeOfSaving)){
-                    emailMessage = emailMessage +"<p>Link for access to your configuration: <a href='" + linkConfR + "'>'" + linkConfR + "'</a> <br></p>";
-                   // emailMessage = emailMessage +"<p>Link for access and modify to your configuration: <a href='" + linkConfRW + "'>'" + linkConfRW + "'</a> <br></p>";
-                }else{
-                    if("freeText".equals(typeOfSaving)){
-                        emailMessage = emailMessage + "Link to obtain  results in format json : <a href='" + linkFreeTextJson + "'>'" + linkFreeTextJson + "'</a><br>";
-                        emailMessage = emailMessage + "Link to obtain  results in format html : <a href='" + linkFreeTextHtml + "'>'" + linkFreeTextHtml + "'</a><br>";
-                    }else{
-                        emailMessage = emailMessage + "Link to obtain  results in format json : <a href='" + linkServiceJson + "'>'" + linkServiceJson + "'</a><br>";
-                        emailMessage = emailMessage + "Link to obtain  results in format html : <a href='" + linkServiceHtml + "'>'" + linkServiceHtml + "'</a><br>";
-                    }
-                }
-            }
-        }
-        
-        
-        
-        //+ "The SPARQL query made to obatin the results is:<br> "+queryString + "'</a><br>"
-        emailMessage = emailMessage + "<p>or copy paste it on your browser. </p>"
-                + "<p>You can share the link with your friends.</p>"
-                + "<p>Best regards<br>"
-                + "ServiceMap.disit.org team<br>"
-                + "You can contact us at info@disit.org or visit our web page at <a href=\"http://www.disit.org\">http://www.disit.org</a>"
-                + "</body>"
-                + "</html>";
-        message.setContent(emailMessage, "text/html");
-        Transport.send(message);
-        emailSent = true;
-        obj.put("emailSent", emailSent);
-    } catch (MessagingException mex) {
-        mex.printStackTrace();
-        emailSent = false;
-        obj.put("emailSent", emailSent);
-    }
+    obj.put("emailSent", emailSent);
     obj.put("email", email);
     if("embed".equals(typeOfSaving))
       obj.put("idConfR", idConfR);

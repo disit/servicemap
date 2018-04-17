@@ -22,12 +22,14 @@
     response.addHeader("Access-Control-Allow-Origin", "*");
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
-    RepositoryConnection con = ServiceMap.getSparqlConnection();
     String range = request.getParameter("range");
     if(range==null)
       range = "day";
-    if(!range.equals("day") && !range.equals("week") && !range.equals("month") && !range.equals("15-days"))
+    if(!range.equals("day") && !range.equals("week") && !range.equals("month") && !range.equals("15-days")) {
       response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'range' parameter value (day,week,15-days,month)");
+      return;
+    }
+      
     String categories = request.getParameter("categories");
     if(categories==null)
       categories = "Event;Archaeological_site;Botanical_and_zoological_gardens;Churches;Cultural_sites;Historical_buildings;Monument_location;Museum;Squares";
@@ -44,10 +46,18 @@
     String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
+    if(! ServiceMap.checkIP(ip, "api")) {
+      response.sendError(403,"API calls daily limit reached");
+      return;
+    }      
 
     String coords[] = {"43.771155796865166","11.254205703735352"};
     
+    RepositoryConnection con = ServiceMap.getSparqlConnection();
+    //ServiceMap.println("nextPOS: pre-query");
     serviceMapApi.queryNextPOS(out, con, range, coords, categories, maxDists, text, reqFrom!=null);
-    logAccess(ip, null, ua, null, null, null, "api-nextpos-"+range, null, maxDists, null, null, "json", uid, reqFrom);
+    //ServiceMap.println("nextPOS: pre-accesslog");
+    ServiceMap.logAccess(request, null, null, null, null, "api-nextpos-"+range, null, maxDists, null, null, "json", uid, reqFrom);
+    //ServiceMap.println("nextPOS: post-accesslog");
     con.close();
 %>

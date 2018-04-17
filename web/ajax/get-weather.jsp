@@ -61,7 +61,7 @@
 	TupleQuery tupleQuery1 = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString1));
 	TupleQueryResult result1 = tupleQuery1.evaluate();
   logQuery(filterQuery(queryString1),"get-weather-1","any",nomeComune);
-  //System.out.println(queryString1);
+  //ServiceMap.println(queryString1);
   
 	BindingSet bindingSet1 = (result1.hasNext() ? result1.next() : null);
   if(bindingSet1!=null) {
@@ -88,7 +88,7 @@
     TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, queryString); //tolto filterQuery() per problema temporaneo, da rimettere
     if(sparqlType.equals("owlim"))
       tupleQuery.setMaxQueryTime(maxTime);
-    //System.out.println(queryString);
+    //ServiceMap.println(queryString);
 
     TupleQueryResult result = tupleQuery.evaluate();
     logQuery(filterQuery(queryString),"get-weather-2","any",valueOfWRep);

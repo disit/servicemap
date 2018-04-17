@@ -43,6 +43,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 String uid = request.getParameter("uid");
+
 if ("html".equals(request.getParameter("format")) || (request.getParameter("format") == null && request.getParameter("queryId") != null)) {%>
 <jsp:include page="../mappa.jsp" > <jsp:param name="mode" value="query"/> </jsp:include>
 <%
@@ -112,12 +113,12 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     String text = request.getParameter("text");
     if (queryId == null) {
       if (idService != null) {
-        logAccess(ip, null, ua, null, null, idService, "api-service-info", null, null, null, null, "html", uid, null);
+        ServiceMap.logAccess(request, null, null, null, idService, "api-service-info", null, null, null, null, "html", uid, null);
       } else {
-        logAccess(ip, null, ua, selection, categorie, null, "api-services", risultati, raggi, null, text, "html", uid, null);
+        ServiceMap.logAccess(request, null, selection, categorie, null, "api-services", risultati, raggi, null, text, "html", uid, null);
       }
     } else {
-      logAccess(ip, null, ua, null, null, null, "api-services-by-queryid", null, null, queryId, null, "html", uid, null);
+      ServiceMap.logAccess(request, null, null, null, null, "api-services-by-queryid", null, null, queryId, null, "html", uid, null);
     }
   } else { //format json
     ServiceMapApi serviceMapApi = new ServiceMapApi();
@@ -239,9 +240,11 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
           raggioBus = rs.getString("raggioBus");
         }
       }
-      else 
+      else {
         response.sendError(400, "'queryId' not found");
-      st.close();
+        conMySQL.close();
+        return;
+      }
       conMySQL.close();
     }
     String ip = ServiceMap.getClientIpAddress(request);
@@ -251,7 +254,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     if (idService != null) {
       //get data of a single service
       int i = 0;
-      logAccess(ip, null, ua, null, null, idService, "api-service-info", null, null, queryId, null, "json", uid, reqFrom);
+      ServiceMap.logAccess(request, null, null, null, idService, "api-service-info", null, null, queryId, null, "json", uid, reqFrom);
       ArrayList<String> serviceTypes = ServiceMap.getTypes(con, idService);
       if(serviceTypes.size()==0) {
         response.sendError(400, "no type found for "+idService);
@@ -282,16 +285,16 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
             //String limit=request.getParameter("limit");
             //search=unescapeUri(search);
             serviceMapApi.queryFulltext(out, con, textToSearch, selection, raggioServizi, limit);
-            logAccess(ip, null, ua, selection, null, null, "api-text-search", null, raggioServizi, queryId, textToSearch, "json", uid, reqFrom);
+            ServiceMap.logAccess(request, null, selection, null, null, "api-text-search", null, raggioServizi, queryId, textToSearch, "json", uid, reqFrom);
           }
         } else {
           if (selection!=null && selection.indexOf("COMUNE di") != -1) {
             //getServices in Municipality
             serviceMapApi.queryMunicipalityServices(out, con, selection, categorie, textToSearch, risultatiBus, risultatiSensori, risultatiServizi);
-            logAccess(ip, null, ua, selection, categorie, null, "api-services-by-municipality", risultati, null, queryId, textToSearch, "json", uid, reqFrom);
+            ServiceMap.logAccess(request, null, selection, categorie, null, "api-services-by-municipality", risultati, null, queryId, textToSearch, "json", uid, reqFrom);
           } else {
             String[] coords = null;
-            if (selection.indexOf("http:") != -1) {
+            if (selection!=null && selection.startsWith("http://")) {
               String queryForCoordinates = "PREFIX km4c:<http://www.disit.org/km4city/schema#>"
                       + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>"
                       + "SELECT ?lat ?long {{"
@@ -320,18 +323,18 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
                 selection = bindingSetCoord.getValue("lat").stringValue() + ";" + bindingSetCoord.getValue("long").stringValue();
               }
             }
-            if(selection.contains(";")) {
+            else if(selection!=null && selection.contains(";")) {
               coords = selection.split(";");
             }
             // get services by lat/long
             if(coords!=null && (coords.length==2 || coords.length==4))
               serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi);
-              logAccess(ip, null, ua, selection, categorie, null, "api-services-by-gps", risultati, raggi, queryId, textToSearch, "json", uid, reqFrom);
+            ServiceMap.logAccess(request, null, selection, categorie, null, "api-services-by-gps", risultati, raggi, queryId, textToSearch, "json", uid, reqFrom);
           }
         }
       } catch (Exception e) {
-        out.println(e.getMessage());
-        e.printStackTrace();
+        ServiceMap.notifyException(e);
+        throw e;
       }
     }
   }

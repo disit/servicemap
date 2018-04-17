@@ -45,7 +45,11 @@
   
   RepositoryConnection con = ServiceMap.getSparqlConnection();
 
-  serviceMapApi.makeShortestPath(out, con, srcLatLng, dstLatLng, startDatetime, routeType, maxFeetKM);
+  try {
+    serviceMapApi.makeShortestPath(out, con, srcLatLng, dstLatLng, startDatetime, routeType, maxFeetKM);
+    ServiceMap.logAccess(request, null, null, null, source+";"+destination+";"+routeType+";"+maxFeetKM+";"+startDatetime, "ui-shortestpath", null, null, null, "", null, null, null);
+  } finally {
+    con.close();
+  }
   
-  logAccess(ip, null, ua, null, null, source+";"+destination+";"+routeType+";"+maxFeetKM+";"+startDatetime, "ui-shortestpath", null, null, null, "", null, null, null);
 %>

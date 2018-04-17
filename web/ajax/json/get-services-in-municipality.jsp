@@ -56,14 +56,13 @@
     /*try {
       serviceMapApi.queryMunicipalityServices(out, con, nomeComune, categorie, textFilter, numeroRisultatiServizi, numeroRisultatiServizi, numeroRisultatiServizi);
     } catch (Exception e) {
-        e.printStackTrace();
-        out.println(e.getMessage());
+        ServiceMap.notifyException(e);
     }
     finally{
       con.close() ;
     }*/   
     
-    logAccess(ip, null, ua, nomeComune, categorie, null, "ui-services-by-municipality", numeroRisultatiServizi, null, null, textFilter, null, null, null);
+    ServiceMap.logAccess(request, null, nomeComune, categorie, null, "ui-services-by-municipality", numeroRisultatiServizi, null, null, textFilter, null, null, null);
 
     if(textFilter==null)
       textFilter="";
@@ -93,11 +92,7 @@
         } else {
             filtroLocalita += " { ?ser km4c:hasAccess ?entry.\n";
             filtroLocalita += "  ?entry geo:lat ?elat.\n";
-            //filtroLocalita += "  FILTER (?elat>40)\n";
-            //filtroLocalita += "  FILTER ( datatype(?elat ) = xsd:float ).\n";
             filtroLocalita += "  ?entry geo:long ?elong.\n";
-            //filtroLocalita += "  FILTER (?elong>10)\n";
-            //filtroLocalita += "  FILTER ( datatype(?elong ) = xsd:float )\n";
             filtroLocalita += "  ?nc km4c:hasExternalAccess ?entry.\n";
             filtroLocalita += "  ?nc km4c:belongToRoad ?road.\n";
             filtroLocalita += "  ?road km4c:inMunicipalityOf ?mun.\n";
@@ -105,12 +100,13 @@
             filtroLocalita += " } UNION {\n";
             filtroLocalita += "  ?ser km4c:isInRoad ?road .\n";
             filtroLocalita += "  ?ser geo:lat ?elat.\n";
-            //filtroLocalita += "	 FILTER (?elat>40)\n";
-            //filtroLocalita += "	 FILTER ( datatype(?elat ) = xsd:float )\n";
             filtroLocalita += "  ?ser geo:long ?elong.\n";
-            //filtroLocalita += "	 FILTER ( datatype(?elong ) = xsd:float )\n";
-            //filtroLocalita += "	 FILTER (?elong>10)\n";
             filtroLocalita += "  ?road km4c:inMunicipalityOf ?mun.\n";
+            filtroLocalita += "  ?mun foaf:name \"" + nomeComune + "\"^^xsd:string.\n";
+            filtroLocalita += " } UNION {\n";
+            filtroLocalita += "  ?ser geo:lat ?elat.\n";
+            filtroLocalita += "  ?ser geo:long ?elong.\n";
+            filtroLocalita += "  ?ser km4c:inMunicipalityOf ?mun.\n";
             filtroLocalita += "  ?mun foaf:name \"" + nomeComune + "\"^^xsd:string.\n";
             filtroLocalita += " }\n";
         }
@@ -133,7 +129,7 @@
                     + "PREFIX schema:<http://schema.org/#>\n"
                     + "PREFIX omgeo:<http://www.ontotext.com/owlim/geo#>\n"
                     + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
-                    + "SELECT DISTINCT ?bs ?nomeFermata ?bslat ?bslong ?x WHERE {\n"
+                    + "SELECT DISTINCT ?bs ?nomeFermata ?bslat ?bslong ?ag ?agname ?x WHERE {\n"
                     + " ?bs rdf:type km4c:BusStop.\n"
                     + " ?bs foaf:name ?nomeFermata.\n"
                     + ServiceMap.textSearchQueryFragment("?bs", "foaf:name", textFilter)
@@ -141,6 +137,7 @@
                     + " ?bs geo:long ?bslong.\n"
                     + " ?bs km4c:isInMunicipality ?com.\n"
                     + " ?com foaf:name \"" + nomeComune + "\"^^xsd:string.\n"
+                    + " OPTIONAL { ?bs gtfs:agency ?ag. ?ag foaf:name ?agname. }\n"
                     + "}";
             if (!numeroRisultatiServizi.equals("0")) {
                 if(cat_servizi.equals("categorie")){
@@ -158,7 +155,7 @@
                     }
                 }
             }
-            System.out.println(queryString);
+            //ServiceMap.println(queryString);
 
             TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
             if(sparqlType.equals("owlim"))
@@ -173,6 +170,12 @@
                 String valueOfNomeFermata = bindingSet.getValue("nomeFermata").stringValue();
                 String valueOfBSLat = bindingSet.getValue("bslat").stringValue();
                 String valueOfBSLong = bindingSet.getValue("bslong").stringValue();
+                String valueOfAgName = null;
+                String valueOfAgUri = null;
+                if(bindingSet.getValue("agname")!=null)
+                  valueOfAgName = bindingSet.getValue("agname").stringValue();
+                if(bindingSet.getValue("ag")!=null)
+                  valueOfAgUri = bindingSet.getValue("ag").stringValue();
                
                 if (i != 0) {
                     out.println(", ");
@@ -191,10 +194,12 @@
                         + "    \"popupContent\": \"" + valueOfNomeFermata + " - Fermata\", "
                         + "    \"name\": \"" + valueOfNomeFermata + "\", "
                         + "    \"tipo\": \"fermata\", "
-                         + "    \"serviceType\": \"TransferServiceAndRenting_BusStop\", "
+                        + "    \"serviceType\": \"TransferServiceAndRenting_BusStop\", "
                         + "    \"email\": \"\", "
                         + "    \"note\": \"\", "
                         + "    \"serviceUri\": \"" + valueOfBS + "\", "
+                        + (valueOfAgName!=null ? ",    \"agency\": \"" + escapeJSON(valueOfAgName) + "\" " : "")
+                        + (valueOfAgUri!=null ? ",   \"agencyUri\": \"" + valueOfAgUri + "\", " : "")
                         + "    \"indirizzo\": \"\" "
                         + "}, "
                         + "\"id\": " + Integer.toString(i + 1) + "  "
@@ -247,7 +252,7 @@
                     }
                 }
             }
-            System.out.println(queryStringSensori);
+            //ServiceMap.println(queryStringSensori);
             TupleQuery tupleQuerySensori = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryStringSensori));
             if(sparqlType.equals("owlim"))
               tupleQuerySensori.setMaxQueryTime(maxTime);
@@ -314,12 +319,11 @@
           try {
               fc = filterServices(listaCategorie);
           } catch (Exception e) {
-            e.printStackTrace();
+            ServiceMap.notifyException(e);
           }
           String queryString = "";
           if(cat_servizi.equals("categorie") || cat_servizi.contains(":")){
-
-          queryString = 
+            queryString = 
                     "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
                     + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
                     + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
@@ -332,31 +336,32 @@
                     + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
                     + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>\n"
                     + "PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>\n"
-                    + "SELECT distinct ?ser ?serAddress ?elat ?elong (IF(?sName1,?sName1,?sName2) as ?sName) ?sType ?sCategory ?email ?note ?labelIta ?identifier ?x WHERE {\n"
+                    + "SELECT distinct ?ser ?serAddress ?elat ?elong (IF(?sName1,?sName1,?sName2) as ?sName) ?sType ?sCategory ?email ?note ?labelIta ?identifier ?ag ?agname ?x WHERE {\n"
                     + " ?ser rdf:type km4c:Service"+(sparqlType.equals("virtuoso")? " OPTION (inference \"urn:ontology\")":"")+".\n"
                     + ServiceMap.textSearchQueryFragment("?ser", "?p", textFilter)
                     + " OPTIONAL{?ser schema:name ?sName1. }\n"
                     + " OPTIONAL{?ser foaf:name ?sName2. }\n"
-                    + " ?ser schema:streetAddress ?serAddress.\n"
-                    + " OPTIONAL { ?ser dcterms:identifier ?identifier }\n"
+                    + " OPTIONAL{?ser schema:streetAddress ?serAddress.}\n"
+                    + " OPTIONAL{?ser dcterms:identifier ?identifier }\n"
                     + filtroLocalita
                     + fc
                     + " ?ser a ?sType. FILTER(?sType!=km4c:RegularService && ?sType!=km4c:Service&& ?sType!=km4c:DigitalLocation && ?sType!=km4c:TransverseService && ?sType!=km4c:BusStop && ?sType!=km4c:SensorSite)\n"
-                    + " OPTIONAL { ?sType rdfs:subClassOf* ?sCategory. ?sCategory rdfs:subClassOf km4c:Service.}\n"
-                    + " OPTIONAL { ?sType rdfs:label ?labelIta. FILTER(LANG(?labelIta)=\"it\")}\n"
+                    + " OPTIONAL{?sType rdfs:subClassOf* ?sCategory. ?sCategory rdfs:subClassOf km4c:Service.}\n"
+                    + " OPTIONAL{?sType rdfs:label ?labelIta. FILTER(LANG(?labelIta)=\"it\")}\n"
+                    + " OPTIONAL{?ser gtfs:agency ?ag. ?ag foaf:name ?agname. }\n"                  
                     + "}";
-            if (!numeroRisultatiServizi.equals("0")) {
+              if (!numeroRisultatiServizi.equals("0")) {
                 limitServizi = ((Integer.parseInt(numeroRisultatiServizi))-(numeroBus + numeroSensori));
                 queryString += " LIMIT " + limitServizi;
-            }
+              }
             }else{
-               String filtroDL = "";
-                if(listaCategorie.contains("Fresh_place")){
-                    filtroDL = " OPTIONAL {?ser a ?sTypeDL. FILTER(?sTypeDL=km4c:DigitalLocation)}";  
-                }else{
-                    filtroDL = " ?ser a ?sTypeDL. FILTER(?sTypeDL=km4c:DigitalLocation)"; 
-                }
-                queryString =
+              String filtroDL = "";
+              if(listaCategorie.contains("Fresh_place")){
+                filtroDL = " OPTIONAL {?ser a ?sTypeDL. FILTER(?sTypeDL=km4c:DigitalLocation)}";  
+              }else{
+                filtroDL = " ?ser a ?sTypeDL. FILTER(?sTypeDL=km4c:DigitalLocation)"; 
+              }
+              queryString =
                 "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
                     + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
                     + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
@@ -369,12 +374,12 @@
                     + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
                     + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>\n"
                     + "PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>\n"
-                    + "SELECT distinct ?ser ?serAddress ?elat ?elong (IF(?sName1,?sName1,?sName2) as ?sName) ?sType ?sTypeDL ?sCategory ?email ?note ?labelIta ?identifier ?x WHERE {\n"
+                    + "SELECT distinct ?ser ?serAddress ?elat ?elong (IF(?sName1,?sName1,?sName2) as ?sName) ?sType ?sTypeDL ?sCategory ?email ?note ?labelIta ?identifier ?ag ?agname ?x WHERE {\n"
                     + " ?ser rdf:type km4c:Service"+(sparqlType.equals("virtuoso")? " OPTION (inference \"urn:ontology\")":"")+".\n"
                     + ServiceMap.textSearchQueryFragment("?ser", "?p", textFilter)
-                    + " OPTIONAL{?ser schema:name ?sName1. }\n"
-                    + " OPTIONAL{?ser foaf:name ?sName2. }\n"
-                    + " ?ser schema:streetAddress ?serAddress.\n"
+                    + " OPTIONAL {?ser schema:name ?sName1. }\n"
+                    + " OPTIONAL {?ser foaf:name ?sName2. }\n"
+                    + " OPTIONAL {?ser schema:streetAddress ?serAddress.}\n"
                     + " OPTIONAL { ?ser dcterms:identifier ?identifier }\n"
                     + filtroLocalita
                     + fc
@@ -383,19 +388,20 @@
                     + filtroDL
                     + " OPTIONAL { ?sType rdfs:subClassOf ?sCategory. FILTER(?sCategory!=<http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing>)}\n"
                     + " OPTIONAL { ?sType rdfs:label ?labelIta. FILTER(LANG(?labelIta)=\"it\")}\n"
+                    + " OPTIONAL { ?ser gtfs:agency ?ag. ?ag foaf:name ?agname. }\n"
                     + "}";
-            if (!numeroRisultatiServizi.equals("0")) {
-                queryString += " LIMIT " + numeroRisultatiServizi;
-            }    
+              if (!numeroRisultatiServizi.equals("0")) {
+                  queryString += " LIMIT " + numeroRisultatiServizi;
+              }    
             }
-          System.out.println(queryString);
+            //ServiceMap.println(queryString);
             TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
             if(sparqlType.equals("owlim"))
               tupleQuery.setMaxQueryTime(maxTime);
             long start = System.nanoTime();            
             TupleQueryResult result = tupleQuery.evaluate();
             logQuery(filterQuery(queryString),"get-services-in-municipality-services",sparqlType,nomeComune+";"+nomeProvincia+";"+numeroRisultatiServizi+";"+categorie, System.nanoTime()-start);
-            //System.out.println(queryString);
+            //ServiceMap.println(queryString);
 
             while (result.hasNext()) {
                 BindingSet bindingSet = result.next();
@@ -441,6 +447,12 @@
                 }
                 String valueOfELat = bindingSet.getValue("elat").stringValue();
                 String valueOfELong = bindingSet.getValue("elong").stringValue();
+                String valueOfAgName = null;
+                String valueOfAgUri = null;
+                if(bindingSet.getValue("agname")!=null)
+                  valueOfAgName = bindingSet.getValue("agname").stringValue();
+                if(bindingSet.getValue("ag")!=null)
+                  valueOfAgUri = bindingSet.getValue("ag").stringValue();
 
                 if (i != 0) {
                     out.println(", ");
@@ -456,15 +468,17 @@
                         + "\"type\": \"Feature\",  "
                         + "\"properties\": {  ");
                         if(valueOfSName!=null && !valueOfSName.equals(""))
-                            out.println( "    \"popupContent\": \"" + escapeJSON(valueOfSName) + " - " + escapeJSON(valueOfSType) + "\", ");
+                            out.println( "    \"popupContent\": \"" + escapeJSON(valueOfSName) + " - " + escapeJSON(subCategory) + "\", ");
                         if(identifier!=null && !identifier.equals(""))
-                            out.println( "    \"identifier\": \"" + escapeJSON(identifier) + " - " + escapeJSON(valueOfSType) + "\", ");
+                            out.println( "    \"identifier\": \"" + escapeJSON(identifier) + " - " + escapeJSON(subCategory) + "\", ");
                         out.println( "    \"name\": \"" + escapeJSON(valueOfSName) + "\", "
                         + "    \"tipo\": \"" + escapeJSON(valueOfSTypeIta) + "\", "
                         + "    \"serviceType\": \"" + escapeJSON(serviceType) + "\", "
                         + "    \"category\": \"" + escapeJSON(category) + "\", "
                         + "    \"subCategory\": \"" + escapeJSON(subCategory) + "\", "
-                        + "    \"serviceUri\": \"" + escapeJSON(valueOfSer) + "\" "
+                        + "    \"serviceUri\": \"" + valueOfSer + "\" "
+                        + (valueOfAgName!=null ? ",    \"agency\": \"" + escapeJSON(valueOfAgName) + "\" " : "")
+                        + (valueOfAgUri!=null ? ",   \"agencyUri\": \"" + valueOfAgUri + "\", " : "")
                         + "}, "
                         + "\"id\": " + Integer.toString(i + 1) + "  "
                         + "}");
@@ -474,8 +488,8 @@
 
         }
         } catch(Exception e) {
-          out.println(e.getMessage());
-          e.printStackTrace();
+          ServiceMap.notifyException(e);
+          throw e;
         }
 
         out.println("] }");

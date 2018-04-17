@@ -37,6 +37,8 @@
     RepositoryConnection con = ServiceMap.getSparqlConnection();
 
     String nomeProvincia = request.getParameter("nomeProvincia");
+    if(nomeProvincia==null)
+      return;
 
     out.println("<option value=\"\"> - Seleziona un Comune - </option>");
 
@@ -63,7 +65,7 @@
               + "?mun foaf:name ?nomeComune.\n"
               + "}\n"
               + "ORDER BY ?nomeComune";
-      //System.out.println(queryString);
+      //ServiceMap.println(queryString);
       TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
       TupleQueryResult result = tupleQuery.evaluate();
       logQuery(filterQuery(queryString),"get-municipality-list","any",nomeProvincia);

@@ -50,22 +50,28 @@
     String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
+    if(! ServiceMap.checkIP(ip, "api")) {
+      response.sendError(403,"API calls daily limit reached");
+      return;
+    }      
 
     if(position == null && search==null) {
       response.sendError(HttpServletResponse.SC_BAD_REQUEST,"missing 'position' or 'search' parameters");
     }
     else {
       if(search!=null) {
-        serviceMapApi.queryLocationSearch(out, search, searchMode, position, maxDists, excludePOI.equalsIgnoreCase("true"), categories, maxResults, sortByDist.equalsIgnoreCase("true"));
-        logAccess(ip, null, ua, excludePOI+";"+position, null, null, "api-location-search", null, null, null, search, "json", uid, reqFrom);
+        int results = serviceMapApi.queryLocationSearch(out, search, searchMode, position, maxDists, excludePOI.equalsIgnoreCase("true"), categories, maxResults, sortByDist.equalsIgnoreCase("true"));
+        ServiceMap.updateResultsPerIP(ip, "api", results);
+        ServiceMap.logAccess(request, null, excludePOI+";"+position, null, null, "api-location-search", null, null, null, search, "json", uid, reqFrom);
       } else {
         String c[] = position.split(";");
         if(c.length>=2) {
           String lat=c[0];
           String lng=c[1];
           RepositoryConnection con = ServiceMap.getSparqlConnection();
-          serviceMapApi.queryLocation(out, con, lat, lng, intersectGeom, wktDist);
-          logAccess(ip, null, ua, position, null, null, "api-location", null, null, null, null, "json", uid, reqFrom);
+          int results = serviceMapApi.queryLocation(out, con, lat, lng, intersectGeom, wktDist);
+          ServiceMap.updateResultsPerIP(ip, "api", results);
+          ServiceMap.logAccess(request, null, position, null, null, "api-location", null, null, null, null, "json", uid, reqFrom);
           con.close();
         }
         else

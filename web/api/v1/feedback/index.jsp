@@ -54,7 +54,7 @@
       serviceName = ServiceMap.getServiceIdentifier(con, serviceUri);
     if(serviceName==null) {
       response.sendError(404,"invalid serviceUri (no name/id found)");
-      System.out.println("request invalid serviceUri "+serviceUri);
+      ServiceMap.println("request invalid serviceUri "+serviceUri);
       return;
     }
 
@@ -62,10 +62,14 @@
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
 
+    if(! ServiceMap.checkIP(ip, "api")) {
+      response.sendError(403,"API calls daily limit reached");
+      return;
+    }      
 
     if(stars>0) {
       serviceMapApi.setStarsToService(uid, serviceUri, stars);
-      logAccess(ip, null, ua, null, null, serviceUri, "api-service-stars", null, null, null, ""+stars, null, uid, reqFrom);
+      ServiceMap.logAccess(request, null, null, null, serviceUri, "api-service-stars", null, null, null, ""+stars, null, uid, reqFrom);
     }
 
     String comment =  request.getParameter("comment");
@@ -73,7 +77,7 @@
       comment = java.net.URLDecoder.decode(comment, "UTF-8");
       //comment = new String(comment.getBytes("iso-8859-1"), "UTF-8"); //workaround! when utf8 data is sent via GET
       serviceMapApi.addCommentToService(uid, serviceUri, serviceName, comment);
-      logAccess(ip, null, ua, null, null, serviceUri, "api-service-comment", null, null, null, null, null, uid, reqFrom);
+      ServiceMap.logAccess(request, null, null, null, serviceUri, "api-service-comment", null, null, null, null, null, uid, reqFrom);
     }
     else if(stars==0) {
       response.sendError(404,"stars or comment parameter should be provided");

@@ -38,9 +38,14 @@
       response.sendError(400, "missing agency paramenter");
       return;
     }
+    if(! ServiceMap.checkIP(ip, "api")) {
+      response.sendError(403,"API calls daily limit reached");
+      return;
+    }      
 
     RepositoryConnection con = ServiceMap.getSparqlConnection();
-    serviceMapApi.queryAllBusLines(out, con, agency);
+    int results = serviceMapApi.queryAllBusLines(out, con, agency);
+    ServiceMap.updateResultsPerIP(ip, "api", results);
     con.close();
-    logAccess(ip, null, ua, "", null, null, "api-tpl-bus-lines", null, null, null, null, "json", uid, reqFrom);
+    ServiceMap.logAccess(request, null, "", null, null, "api-tpl-bus-lines", null, null, null, null, "json", uid, reqFrom);
 %>

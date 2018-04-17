@@ -15,6 +15,9 @@ CREATE TABLE AccessLog (
   queryId varchar(45) DEFAULT NULL,
   format varchar(45) DEFAULT NULL,
   email varchar(45) DEFAULT NULL,
+  referer varchar DEFAULT NULL,
+  site varchar DEFAULT NULL,
   CONSTRAINT pk PRIMARY KEY (id)
 )
 
+create sequence accesslog_sequence;

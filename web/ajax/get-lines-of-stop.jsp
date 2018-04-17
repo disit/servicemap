@@ -71,11 +71,9 @@
     logQuery(filterQuery(queryString),"get-lines-of-stop","any",nomeFermata);*/
 
     TupleQueryResult result = api.queryBusLines(uriFermata, con);
-    
-        
-     
+    if(result==null)
+      return;
     try{
-        //System.out.println("testtttttttttttttttttttt-----------------");
         out.println("<div class=\"infoLinee\">");
         if(result.hasNext()){//scrivo solo per ATAF - temporaneamente
             out.println("<b>Lines:</b>");
@@ -99,7 +97,8 @@
         }
         out.println("</div>"); 
     }catch (Exception e) {
-        //MICH e.printStackTrace();
-        out.println(e.getMessage());
-    }finally{con.close();}
+        ServiceMap.notifyException(e);
+    }finally{
+      con.close();
+    }
 %>

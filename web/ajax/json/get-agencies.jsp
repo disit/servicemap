@@ -38,9 +38,9 @@
  
  ServiceMapApiV1 api = new ServiceMapApiV1();
  RepositoryConnection conn = ServiceMap.getSparqlConnection();
-
- api.queryTplAgencyList(out, conn);
-
-
-
+ try {
+  api.queryTplAgencyList(out, conn);
+ } finally {
+  conn.close();
+ }
 %>

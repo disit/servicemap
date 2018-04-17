@@ -29,12 +29,16 @@
     }
     String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
+    if(! ServiceMap.checkIP(ip, "api")) {
+      response.sendError(403,"API calls daily limit reached");
+      return;
+    }      
 
     if(selection == null) {
       response.sendError(HttpServletResponse.SC_BAD_REQUEST,"missing 'selection' parameter");
     }
     else {
       out.println("OK");
-      logAccess(ip, null, ua, selection, null, null, "api-notification", null, null, null, null, null, uid, "user");
+      ServiceMap.logAccess(request, null, selection, null, null, "api-notification", null, null, null, null, null, uid, "user");
     }
 %>

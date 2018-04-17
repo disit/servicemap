@@ -61,61 +61,58 @@ public class PhotoUploadServlet extends HttpServlet {
   @Override
   protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     String clength = request.getHeader("Content-Length");
-    System.out.println("length:"+clength);
+    ServiceMap.println("length:"+clength);
     String uid = request.getParameter("uid"); // Retrieves <input type="text" name="description">
     if(uid==null || uid.trim().isEmpty() || uid.equals("null")) {
       response.sendError(400,"missing uid");
-      System.out.println("request missing uid");
+      ServiceMap.println("photo upload: request missing uid");
       return;
     }
     if(!ServiceMap.validateUID(uid)) {
       response.sendError(404, "invalid uid");
-      System.out.println("request invalid uid");
+      ServiceMap.println("photo upload: request invalid uid");
       return;
     }
     String serviceUri = request.getParameter("serviceUri");
     if(serviceUri==null) {
       response.sendError(400,"missing serviceUri");
-      System.out.println("request missing ServiceUri");
+      ServiceMap.println("photo upload: request missing ServiceUri");
       return;
     }
     Configuration conf = Configuration.getInstance();
     //retrieve service name
-    String sparqlEndpoint = conf.get("sparqlEndpoint", "http://192.168.0.207:8890/sparql");
-    System.out.println(sparqlEndpoint);
-    Repository repo = new SPARQLRepository(sparqlEndpoint);
     String serviceName = null;
     try {
-      repo.initialize();
-      RepositoryConnection con = repo.getConnection();
+      RepositoryConnection con = ServiceMap.getSparqlConnection();
       serviceName = ServiceMap.getServiceName(con, serviceUri);
       if(serviceName == null)
         serviceName = ServiceMap.getServiceIdentifier(con, serviceUri);
+      con.close();
       if(serviceName==null) {
         response.sendError(400,"invalid serviceUri (no name/id found)");
-        System.out.println("request invalid serviceUri "+serviceUri);
+        ServiceMap.println("photo upload: request invalid serviceUri "+serviceUri);
         return;
       }
     } catch (Exception ex) {
-      ex.printStackTrace();
+      ServiceMap.notifyException(ex);
       response.sendError(500,"failed connection with RDF store");
       return;
     }
-    System.out.println("uid:" + uid);
-    System.out.println("uri:" + serviceUri);
+    ServiceMap.println("uid:" + uid);
+    ServiceMap.println("uri:" + serviceUri);
     Part filePart = request.getPart("file"); // Retrieves <input type="file" name="file">
     if (filePart == null) {
       response.sendError(400, "missing part named 'file'");
-      System.out.println("missing part");
+      ServiceMap.println("photo upload: missing part");
       return;
     }
     
     //check mimetype
     String mimeType = filePart.getContentType();
-    System.out.println("mimetype:" + mimeType);
+    ServiceMap.println("photo upload: mimetype:" + mimeType);
     if(mimeType == null) {
       String filename = filePart.getName();
-      System.out.println("name:" + filename);
+      ServiceMap.println("photo upload: name:" + filename);
       if(filename.toLowerCase().endsWith(".jpg") || filename.toLowerCase().endsWith(".jpeg"))
         mimeType = "image/jpeg";
       else if(filename.toLowerCase().endsWith(".png"))
@@ -123,7 +120,7 @@ public class PhotoUploadServlet extends HttpServlet {
     }
     if(!"image/jpeg".equals(mimeType) && !"image/png".equals(mimeType)) {
       response.sendError(400, "supported only image/jpeg and image/png files");
-      System.out.println(mimeType+": no jpeg/png");
+      ServiceMap.println("photo upload: "+mimeType+": no jpeg/png");
       return;
     }
     
@@ -148,7 +145,8 @@ public class PhotoUploadServlet extends HttpServlet {
 
     try (InputStream input = filePart.getInputStream()) {
       Files.copy(input, file.toPath(), StandardCopyOption.REPLACE_EXISTING);
-      System.out.println("saved file to: " + file.getName());
+      input.close();
+      ServiceMap.println("saved file to: " + file.getName());
       
       //rescale image and produce thumbnails
       produceImages(file, uploads);
@@ -178,10 +176,10 @@ public class PhotoUploadServlet extends HttpServlet {
             + serviceName+"\n"
             + baseApiUrl+"v1/?format=html&serviceUri="+serviceUri+"\n\n"
             + "uid: "+uid+"\n\n"
-            + "Validate it on "+baseApiUrl.replace("/api/", "/")+"photo.jsp");
-      ServiceMap.logAccess(ip, null, ua, null, null, serviceUri, "api-service-photo", null, null, null, null, null, uid, reqFrom);
+            + "Validate it on "+baseApiUrl.replace("/api/", "/")+"photo.jsp", null);
+      ServiceMap.logAccess(request, null, null, null, serviceUri, "api-service-photo", null, null, null, null, null, uid, reqFrom);
     } catch (SQLException ex) {
-      ex.printStackTrace();
+      ServiceMap.notifyException(ex);
     }
   }
 
@@ -190,7 +188,7 @@ public class PhotoUploadServlet extends HttpServlet {
     response.addHeader("Access-Control-Allow-Origin", "*");
     String uri=request.getRequestURI();
     String file=uri.substring(uri.lastIndexOf("photo/")+6);
-    System.out.println("GET "+uri+" "+file);
+    ServiceMap.println("GET "+uri+" "+file);
     String uploadPath = Configuration.getInstance().get("photoUploadPath", "/tmp/servicemap");
     File uploads = new File(uploadPath);
     File f = new File(uploads, file);

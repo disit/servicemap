@@ -76,6 +76,11 @@ public class ImageCacheServlet extends HttpServlet {
       }
       boolean force=request.getParameter("force")!=null;
       
+      String ip = ServiceMap.getClientIpAddress(request);
+      if(!ServiceMap.checkIP(ip, "api-imgcache")) {
+        response.sendError(403,"API calls daily limit reached");
+        return;
+      }
       int p = imgUrl.indexOf(".",imgUrl.lastIndexOf("/"));
       String ext = p<0 ? ".jpg" : imgUrl.substring(p);
       if(".mp3".equals(ext) || ".pdf".equals(ext)) {
@@ -89,29 +94,36 @@ public class ImageCacheServlet extends HttpServlet {
       if(force || !f.exists()) {
         try {
           Thumbnails.of(new URL(imgUrl)).size(size, size).toFile(f);
-          System.out.println("SAVE "+imgUrl+" "+f.getAbsolutePath());
+          ServiceMap.println("SAVE "+imgUrl+" "+f.getAbsolutePath());
         } catch(Exception e) {
           //in caso di fallimento per medium prova a dare il thumbnail
+          boolean fail = true;
           if(!ssize.equals("thumb")) {
             size = Integer.parseInt(conf.get("photoThumbSize", "260"));
             cacheImg = size+"-"+sha1(imgUrl)+ext;
             f=new File(cachePath,cacheImg);
+            fail = !f.exists();
+          }
+          if(fail) {
+            ext=".png";
+            f = new File(cachePath,"error.png");
             if(!f.exists())
               throw e;
-          } else {
-            throw e;
-          }
+            ServiceMap.notifyException(e);
+          }        
         }
       }
       else
-        System.out.println("CACHE "+imgUrl+" "+f.getAbsolutePath());
+        ServiceMap.println("CACHE "+imgUrl+" "+f.getAbsolutePath());
       String mimeType="image/jpeg";
       if(ext.equals(".png"))
         mimeType="image/png";
       response.setHeader("Content-Type", mimeType);
       Files.copy(f.toPath(), response.getOutputStream());
-    } catch (NoSuchAlgorithmException ex) {
-      ex.printStackTrace();
+      String ua = request.getHeader("User-Agent");
+      ServiceMap.logAccess(request, null, null, null, null, "api-imgcache", null, null, null, null, null, null, null);
+    } catch (Exception ex) {
+      ServiceMap.notifyException(ex);
     }
   }
 

@@ -10,17 +10,14 @@
 <%@page contentType="text/plain" pageEncoding="UTF-8"%>
 <%
     //is client behind something?
-    String ipAddress = request.getHeader("X-Forwarded-For");  
-    if (ipAddress == null) {  
-      ipAddress = ServiceMap.getClientIpAddress(request);  
-    }
+    String ipAddress = ServiceMap.getClientIpAddress(request);  
 
-    if(!ipAddress.startsWith("192.168.0.") && !ipAddress.equals("127.0.0.1")) {
+    Configuration conf = Configuration.getInstance();
+    if(!ipAddress.startsWith(conf.get("internalNetworkIpPrefix", "192.168.0.")) && !ipAddress.equals("127.0.0.1")) {
       response.sendError(403, "unaccessible from "+ipAddress);
       return;
     }
 
-    Configuration conf = Configuration.getInstance();
     String uploadPath = conf.get("photoUploadPath", "/tmp/servicemap");
     
     File uploads = new File(uploadPath);
@@ -42,7 +39,7 @@
           }
           catch(Exception e) {
             out.println("  EXCEPTION "+e.getMessage());
-            e.printStackTrace();
+            ServiceMap.notifyException(e);
           }
         } else {
           out.println("  NOT EXISTS "+f.getAbsolutePath());
@@ -51,5 +48,5 @@
       st.close();
       connection.close();
     } catch (SQLException ex) {
-      ex.printStackTrace();
+      ServiceMap.notifyException(ex);
     }%>

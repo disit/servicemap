@@ -964,7 +964,7 @@ public class ServiceMapApi {
         } catch (Exception e) {
             out.println(e.getMessage());
         }
-        //System.out.println("comune: " + nomeComune);
+        //ServiceMap.println("comune: " + nomeComune);
         String queryStringMeteo1 = "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>"
                 + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>"
                 + "PREFIX dcterms:<http://purl.org/dc/terms/>"
@@ -1339,7 +1339,7 @@ public class ServiceMapApi {
         try {
             fc = ServiceMap.filterServices(listaCategorie);
         } catch (Exception e) {
-            e.printStackTrace();
+            ServiceMap.notifyException(e);
         }
         int b = 0;
         int numeroBus = 0;
@@ -2038,11 +2038,15 @@ public class ServiceMapApi {
         String valueOfComune = binding.getValue("comune").stringValue();
         String valueOfUriComune = binding.getValue("uriComune").stringValue();
         String valueOfUriCivico = binding.getValue("uriCivico").stringValue();
+        String valueOfProvincia = binding.getValue("provincia").stringValue();
+        String valueOfUriProvincia = binding.getValue("uriProvincia").stringValue();
         obj.put("address", valueOfVia);
         obj.put("number", valueOfNumero);
         obj.put("addressUri", valueOfUriCivico);
         obj.put("municipality", valueOfComune);
         obj.put("municipalityUri", valueOfUriComune);
+        obj.put("province", valueOfProvincia);
+        obj.put("provinceUri", valueOfUriProvincia);
       }
       if(obj == null) {
         query = ServiceMap.latLngToMunicipalityQuery(lat, lng, sparqlType);
@@ -2055,8 +2059,12 @@ public class ServiceMapApi {
           BindingSet binding = results.next();
           String valueOfComune = binding.getValue("comune").stringValue();
           String valueOfUriComune = binding.getValue("uriComune").stringValue();
+          String valueOfProvincia = binding.getValue("provincia").stringValue();
+          String valueOfUriProvincia = binding.getValue("uriProvincia").stringValue();
           obj.put("municipality", valueOfComune);
           obj.put("municipalityUri", valueOfUriComune);
+          obj.put("province", valueOfProvincia);
+          obj.put("provinceUri", valueOfUriProvincia);
         }        
       }
       if(obj!=null && findGeometry!=null && (findGeometry.equals("true") || findGeometry.equals("geometry"))) {
@@ -2089,7 +2097,7 @@ public class ServiceMapApi {
             "}\n" +
             "}order by ?agency ?name";
         tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
-        System.out.println(query);
+        //ServiceMap.println(query);
         results = tupleQuery.evaluate();
         ServiceMap.logQuery(query,"get-area",sparqlType,lat+";"+lng,0);
 
@@ -2098,7 +2106,7 @@ public class ServiceMapApi {
         Geometry position=wktReader.read("POINT("+lng+" "+lat+")");
         Geometry buffer=position.buffer(wktDist);
         position.setSRID(4326);
-        System.out.println("location check: "+lat+","+lng);
+        ServiceMap.println("location check: "+lat+","+lng);
         while (results.hasNext()) {
           JSONObject area = new JSONObject();
           BindingSet binding = results.next();
@@ -2113,7 +2121,7 @@ public class ServiceMapApi {
           try {
             Geometry g=wktReader.read(geo);
             g.setSRID(4326);
-            //System.out.println("dist: "+ g.distance(position));
+            //ServiceMap.println("dist: "+ g.distance(position));
             if(g.intersects(buffer)) {
               area.put("uri", s);
               area.put("class", _class);
@@ -2134,13 +2142,13 @@ public class ServiceMapApi {
                 area.put("geometry", geo);
               area.put("distance", g.distance(position));
               areas.add(area);
-              //System.out.println("INCLUDED "+name+" "+ _class+" dist:"+g.distance(position));
+              //ServiceMap.println("INCLUDED "+name+" "+ _class+" dist:"+g.distance(position));
             }
             else {
-              //System.out.println("excluded "+name+" "+ _class+" dist:"+g.distance(position));
+              //ServiceMap.println("excluded "+name+" "+ _class+" dist:"+g.distance(position));
             }
           }catch(Exception e) {
-            e.printStackTrace();
+            ServiceMap.notifyException(e,"name: "+name+" uri:"+s);
           }
         }
         obj.put("intersect", areas);
@@ -2148,12 +2156,13 @@ public class ServiceMapApi {
       return obj;
     }
     
-    public void queryLocation(JspWriter out, RepositoryConnection con, String lat, String lng, String findArea, double wktDist) throws Exception {
+    public int queryLocation(JspWriter out, RepositoryConnection con, String lat, String lng, String findArea, double wktDist) throws Exception {
       JSONObject obj = queryLocation(con, lat, lng, findArea, wktDist);
       if(obj!=null)
         out.print(obj.toString());
       else
         out.println("{}");
+      return 1;
     }
     
     static private Map<String,String> serviceTypeMap = null;
@@ -2385,5 +2394,4 @@ public class ServiceMapApi {
       }
       return r;
     }
-
 }

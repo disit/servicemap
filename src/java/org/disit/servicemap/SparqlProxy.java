@@ -60,7 +60,7 @@ public class SparqlProxy extends HttpServlet {
     try {
       redirectGet(theReq, theResp);
     } catch (Exception e) {
-      e.printStackTrace();
+      ServiceMap.notifyException(e);
     }
   }
 
@@ -75,12 +75,17 @@ public class SparqlProxy extends HttpServlet {
     try {
       redirectPost(theReq, theResp);
     } catch (Exception e) {
-      e.printStackTrace();
+      ServiceMap.notifyException(e);
     }
   }
   
   private void redirectGet(HttpServletRequest theReq, HttpServletResponse theResp) throws Exception {
-
+    String ip = ServiceMap.getClientIpAddress(theReq);
+    if(!ServiceMap.checkIP(ip, "sparql")) {
+      theResp.sendError(403, "API calls daily limit reached");
+      return;
+    }
+    
     HttpClient httpclient = HttpClients.createDefault();
     HttpGet httpget = null;
     HttpResponse response = null;
@@ -106,13 +111,13 @@ public class SparqlProxy extends HttpServlet {
     try {
       httpget = new HttpGet(theReqUrl);
 
-      //System.out.println("request header:");
+      //ServiceMap.println("request header:");
       Enumeration<String> aHeadersEnum = theReq.getHeaderNames();
       while (aHeadersEnum.hasMoreElements()) {
         String aHeaderName = aHeadersEnum.nextElement();
         String aHeaderVal = theReq.getHeader(aHeaderName);
         httpget.setHeader(aHeaderName, aHeaderVal);
-        //System.out.println("  " + aHeaderName + ": " + aHeaderVal);
+        //ServiceMap.println("  " + aHeaderName + ": " + aHeaderVal);
       }
 
       if (log.isDebugEnabled()) {
@@ -122,13 +127,13 @@ public class SparqlProxy extends HttpServlet {
       // Create a response handler
       response = httpclient.execute(httpget);
 
-      System.out.println("response header:");
+      //ServiceMap.println("response header:");
       // set the same Headers
       for (Header aHeader : response.getAllHeaders()) {
         if (!aHeader.getName().equals("Transfer-Encoding") || !aHeader.getValue().equals("chunked")) {
           theResp.setHeader(aHeader.getName(), aHeader.getValue());
         }
-        System.out.println("  " + aHeader.getName() + ": " + aHeader.getValue());
+        //ServiceMap.println("  " + aHeader.getName() + ": " + aHeader.getValue());
       }
       theResp.setHeader("Access-Control-Allow-Origin", "*");
 
@@ -168,7 +173,7 @@ public class SparqlProxy extends HttpServlet {
          }
          */
       } catch (IOException ioe) {
-        ioe.printStackTrace();
+        ServiceMap.notifyException(ioe);
       } finally {
         if (aInStream != null) {
           aInStream.close();
@@ -181,13 +186,17 @@ public class SparqlProxy extends HttpServlet {
       httpclient.getConnectionManager().closeExpiredConnections();
       httpclient.getConnectionManager().shutdown();
     }
-    String ip = ServiceMap.getClientIpAddress(theReq);
     String ua = theReq.getHeader("User-Agent");
     ServiceMap.logQuery(query, "SPARQL", ip, ua, System.nanoTime()-startTime);
-    ServiceMap.logAccess(ip, null, ua, null, null, null, "api-sparql", null, null, null, null, null, null, null);
+    ServiceMap.logAccess(theReq, null, null, null, null, "api-sparql", null, null, null, null, null, null, null);
   }
   
   private void redirectPost(HttpServletRequest theReq, HttpServletResponse theResp) throws Exception {
+    String ip = ServiceMap.getClientIpAddress(theReq);
+    if(!ServiceMap.checkIP(ip, "sparql")) {
+      theResp.sendError(403, "API calls daily limit reached");
+      return;
+    }
 
     HttpClient httpclient = HttpClients.createDefault();
     HttpPost httppost = null;
@@ -203,18 +212,18 @@ public class SparqlProxy extends HttpServlet {
     String query = theReq.getParameter("query");
     String format = theReq.getParameter("format");
 
-    //System.out.println("POST to "+theReqUrl+" query="+query);
+    //ServiceMap.println("POST to "+theReqUrl+" query="+query);
     try {
       httppost = new HttpPost(theReqUrl);
 
-      //System.out.println("request header:");
+      //ServiceMap.println("request header:");
       Enumeration<String> aHeadersEnum = theReq.getHeaderNames();
       while (aHeadersEnum.hasMoreElements()) {
         String aHeaderName = aHeadersEnum.nextElement();
         String aHeaderVal = theReq.getHeader(aHeaderName);
         if(!aHeaderName.equalsIgnoreCase("content-length")) {
           httppost.setHeader(aHeaderName, aHeaderVal);
-          //System.out.println("  " + aHeaderName + ": " + aHeaderVal);
+          //ServiceMap.println("  " + aHeaderName + ": " + aHeaderVal);
         }
       }
       List<NameValuePair> urlParameters = new ArrayList<NameValuePair>();
@@ -232,13 +241,13 @@ public class SparqlProxy extends HttpServlet {
       // Create a response handler
       response = httpclient.execute(httppost);
 
-      //System.out.println("response header:");
+      //ServiceMap.println("response header:");
       // set the same Headers
       for (Header aHeader : response.getAllHeaders()) {
         if (!aHeader.getName().equals("Transfer-Encoding") || !aHeader.getValue().equals("chunked")) {
           theResp.setHeader(aHeader.getName(), aHeader.getValue());
         }
-        //System.out.println("  " + aHeader.getName() + ": " + aHeader.getValue());
+        //ServiceMap.println("  " + aHeader.getName() + ": " + aHeader.getValue());
       }
       theResp.setHeader("Access-Control-Allow-Origin", "*");
 
@@ -278,7 +287,7 @@ public class SparqlProxy extends HttpServlet {
          }
          */
       } catch (IOException ioe) {
-        ioe.printStackTrace();
+        ServiceMap.notifyException(ioe);
       } finally {
         if (aInStream != null) {
           aInStream.close();
@@ -288,12 +297,14 @@ public class SparqlProxy extends HttpServlet {
         }
       }
     } catch(Exception e) {
-      e.printStackTrace();
+      ServiceMap.notifyException(e);
     } finally {
       httpclient.getConnectionManager().closeExpiredConnections();
       httpclient.getConnectionManager().shutdown();
     }
-    ServiceMap.logQuery(query, "SPARQL", theReq.getRemoteAddr(), theReq.getHeader("User-Agent"), System.nanoTime()-startTime);
+    String ua = theReq.getHeader("User-Agent");
+    ServiceMap.logQuery(query, "SPARQL", ip, ua, System.nanoTime()-startTime);
+    ServiceMap.logAccess(theReq, null, null, null, null, "api-sparql", null, null, null, null, null, null, null);
   }
 
 }

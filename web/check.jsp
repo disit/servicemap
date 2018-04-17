@@ -40,7 +40,7 @@
       int delayMin;
       String msg = "";
       
-      System.out.println("start check realtime @ "+d);
+      ServiceMap.println("start check realtime @ "+d);
       int avm_delay = avm_max_delay;
       if(d.getHours()>=1 && d.getHours()<=5)
         avm_delay = 300;
@@ -119,11 +119,11 @@
             Transport.send(message);
             emailSent = true;
         } catch (MessagingException mex) {
-            mex.printStackTrace();
+            ServiceMap.notifyException(mex);
             emailSent = false;
         }        
       }
-      System.out.println("end check realtime");
+      ServiceMap.println("end check realtime");
       %>
   </body>
 </html>

@@ -79,16 +79,20 @@ html{
     padding:10px;
 }
 
-#menu-alto .content{
+#menu-alto .content {
     padding:0;
     min-width: 420px;
 }
 
 #menu-alto{
     position:absolute;
-
     top:5px;
     left:40px;
+    max-width: 520px;
+}
+
+#menu-alto .content select {
+  max-width: 480px;
 }
 
 #menu-alto-hidden{
@@ -188,8 +192,7 @@ html{
     position:absolute;
     top:5px;
     right:5px;
-    /*width:230px; */
-
+    max-width:330px;
 }
 
 #help{
@@ -1098,6 +1101,8 @@ body.firefox	#query_description_container #left_bracket p{
 .description{
     max-width:450px;
     white-space:normal;
+    max-height: 200px;
+    overflow: auto;
 }
 
 .message{
@@ -1270,4 +1275,20 @@ body.firefox	#query_description_container #left_bracket p{
   opacity: 0.5;
   background-color: red;
   border-radius: 5px;
+}
+
+.ui-accordion .ui-accordion-header {
+  margin-bottom: 0px;
+}
+
+.ui-accordion .ui-accordion-content > ol {
+  margin: 0px;
+}
+
+.ui-accordion {
+  font-family: sans-serif;  
+}
+
+#path_date, #path_time {
+  width: 80px;
 }
