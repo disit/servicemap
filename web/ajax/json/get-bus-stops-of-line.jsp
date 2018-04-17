@@ -41,7 +41,11 @@
     String codRoute = request.getParameter("codRoute");
     
     ServiceMapApiV1 api = new ServiceMapApiV1();
-    api.queryBusStopsOfLine(out, con, nomeLinea, codRoute, false);
+    try {
+      api.queryBusStopsOfLine(out, con, nomeLinea, codRoute, false);
+    } finally {
+      con.close();
+    }
 /*    
    if("vuoto".equals(codRoute)){
     
@@ -138,7 +142,7 @@
        
       TupleQuery tupleQueryAllBusStops = con.prepareTupleQuery(QueryLanguage.SPARQL, queryAllBusStops);
       TupleQueryResult resultAllBusStop = tupleQueryAllBusStops.evaluate();
-      //System.out.println(queryAllBusStops);
+      //ServiceMap.println(queryAllBusStops);
       out.println("{ "
                + "\"type\": \"FeatureCollection\", "
                + "\"features\": [ ");

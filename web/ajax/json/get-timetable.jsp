@@ -41,26 +41,20 @@
  ServiceMapApiV1 api = new ServiceMapApiV1();
  RepositoryConnection conn = ServiceMap.getSparqlConnection();
  
- String timetable = api.queryTplTimeTable(conn, TPLStopUri);
-
- 
+ try {
+  String timetable = api.queryTplTimeTable(conn, TPLStopUri, "", "");
  //JSONObject obj = new JSONObject(JSON.parse("{"+timetable+"}"));
  //JSONObject obj = new JSONObject(); 
  //JSONParser parser = new JSONParser();
- 
- 
  //Reader r =  new StringReader("{"+timetable+"}");
  //Object obj = parser.parse(r);
  //JSONObject jsonObject = (JSONObject) obj;
- 
  //String name = (String) jsonObject.get("timetable");
- 
  //out.println(name);
 
- out.println("{"+timetable+"}");
- 
- 
-//out.println("test");
-
-
+  out.println("{"+timetable+"}");
+ }
+ finally {
+  conn.close();
+ }
 %>

@@ -37,7 +37,7 @@
         String lat=c[0];
         String lng=c[1];
         serviceMapApi.queryLocation(out, con, lat, lng, "false", 0.0004);
-        logAccess(ip, null, ua, position, null, null, "api-location", null, null, null, null, "json", uid, reqFrom);
+        ServiceMap.logAccess(request, null, position, null, null, "api-location", null, null, null, null, "json", uid, reqFrom);
       }
       else
         response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'position' parameter (missing lat;long)");

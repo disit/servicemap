@@ -1,4 +1,4 @@
-﻿/* ServiceMap.
+/* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
    This program is free software: you can redistribute it and/or modify
@@ -16,34 +16,50 @@
 
 package org.disit.servicemap;
 
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.io.WKTReader;
 import java.io.BufferedWriter;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.sql.*;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.Scanner;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.TimeZone;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.mail.Message;
 import javax.mail.MessagingException;
+import javax.mail.PasswordAuthentication;
 import javax.mail.Session;
 import javax.mail.Transport;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.openrdf.query.Binding;
 import org.openrdf.query.BindingSet;
 import org.openrdf.query.QueryLanguage;
 import org.openrdf.query.TupleQuery;
@@ -67,6 +83,16 @@ public class ServiceMap {
   
   static private Map<String,String> icons = null; 
 
+  static public DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+  
+  static public DateFormat dateFormatterTZ = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+  
+  static public DateFormat dateFormatterGMT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
+
+  static private Map<String,String> tplAgencies = null;
+  
+  static public ExecutorService executor = Executors.newFixedThreadPool(10);
+
   static public void initLogging() {
   }
   
@@ -74,7 +100,7 @@ public class ServiceMap {
     Repository repo;
     Configuration conf = Configuration.getInstance();
     String virtuosoEndpoint = conf.get("virtuosoEndpoint", null);
-    if(virtuosoEndpoint!=null) {
+    if(virtuosoEndpoint!=null && !virtuosoEndpoint.trim().isEmpty()) {
       VirtuosoRepository vrepo = new VirtuosoRepository(virtuosoEndpoint, conf.get("virtuosoUser", "dba"), conf.get("virtuosoPwd", "dba"));
       vrepo.setQueryTimeout(Integer.parseInt(conf.get("virtuosoTimeout", "600"))); //10min
       repo = vrepo;
@@ -90,116 +116,138 @@ public class ServiceMap {
   static public void logQuery(String query, String id, String type, String args, long time) {
     try {
       String queryLog = Configuration.getInstance().get("queryLogFile", "query-log.txt");
-      File file =new File(queryLog);
+      if(!queryLog.isEmpty()) {
+        File file =new File(queryLog);
+        if(!file.exists()){
+          file.createNewFile();
+        }
 
-      if(!file.exists()){
-        file.createNewFile();
+        //ServiceMap.println("file: "+file.getAbsolutePath());
+        //true = append file
+        Date now = new Date();
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        String formattedDate = formatter.format(now);
+        FileWriter fileWritter = new FileWriter(file.getAbsolutePath(),true);
+        BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
+        bufferWritter.write(("#QUERYID|"+id+"|"+type+"|"+args+"|"+(time/1000000)+"|"+formattedDate+"|"+query+"\n#####################\n").replace("\n", "\r\n"));
+        bufferWritter.close();
+        ServiceMap.println("#QUERYID:"+id+":"+type+":"+args+":"+(time/1000000));
+        //ServiceMap.println(query);
       }
-
-      //System.out.println("file: "+file.getAbsolutePath());
-      //true = append file
-      Date now = new Date();
-      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      String formattedDate = formatter.format(now);
-      FileWriter fileWritter = new FileWriter(file.getAbsolutePath(),true);
-      BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
-      bufferWritter.write(("#QUERYID|"+id+"|"+type+"|"+args+"|"+(time/1000000)+"|"+formattedDate+"|"+query+"\n#####################\n").replace("\n", "\r\n"));
-      bufferWritter.close();
-      System.out.println("#QUERYID:"+id+":"+type+":"+args+":"+(time/1000000));
-      //System.out.println(query);
     }
     catch(Exception e) {
-      e.printStackTrace();
+      ServiceMap.notifyException(e);
     }
   }
   
-  static public void logAccess(String ip, String email, String UA, String sel, String categorie, String serviceUri, String mode, String numeroRisultati, String raggio, String queryId, String text, String format, String uid, String reqFrom) throws IOException, SQLException {
-    Configuration conf = Configuration.getInstance();
+  static public void logAccess(HttpServletRequest request, final String email, final String sel, final String categorie, final String serviceUri, final String mode, final String numeroRisultati, final String raggio, final String queryId, final String text, final String format, final String uid, final String reqFrom) throws IOException, SQLException {
+    String ip = getClientIpAddress(request);
+    String ua = request.getHeader("User-Agent");
+    String referer = request.getHeader("Referer");
+    String site = request.getServerName();
+    logAccess(ip,email,ua,sel,categorie,serviceUri,mode,numeroRisultati,raggio,queryId,text,format,uid,reqFrom,referer,site);
+  }
+  
+  static public void logAccess(final String ip, final String email, final String UA, final String sel, final String categorie, final String serviceUri, final String mode, final String numeroRisultati, final String raggio, final String queryId, final String text, final String format, final String uid, final String reqFrom, final String referer, final String site) throws IOException, SQLException {
+    final Configuration conf = Configuration.getInstance();
     File f = null;
-    String filePath = conf.get("accessLogFile",null);
-    try {
-        Date now = new Date();
-        if(filePath!=null) {
-          synchronized(ServiceMap.class) {
-            if(accessLog==null) {
-              FileWriter fstream = new FileWriter(filePath, true); //true tells to append data.
-              accessLog = new BufferedWriter(fstream);
-            }
+    final Date now = new Date();
+    String filePath = conf.get("accessLogFile", null);
+    if (filePath != null && !filePath.trim().isEmpty()) {
+      try {
+        synchronized (ServiceMap.class) {
+          if (accessLog == null) {
+            FileWriter fstream = new FileWriter(filePath, true); //true tells to append data.
+            accessLog = new BufferedWriter(fstream);
           }
-          accessLog.write( now + "|" + mode + "|" + ip + "|" + UA + "|" + serviceUri + "|" + email + "|" + sel + "|" + categorie + "|" + numeroRisultati +"|" + raggio + "|" + queryId + "|" + text + "|" + format + "|"+uid+"|"+reqFrom+"\n");
-          accessLog.flush();
-        }  
+        }
+        accessLog.write(now + "|" + mode + "|" + ip + "|" + UA + "|" + serviceUri + "|" + email + "|" + sel + "|" + categorie + "|" + numeroRisultati + "|" + raggio + "|" + queryId + "|" + text + "|" + format + "|" + uid + "|" + reqFrom + "|" +referer+ "|" +site+"\n");
+        accessLog.flush();
+      } catch (Exception e) {
+        ServiceMap.notifyException(e);
+      }
+    }
 
-        //Class.forName("com.mysql.jdbc.Driver");
-        if(conf.get("mysqlAccessLog", "true").equals("true")) {
-          long tss=System.currentTimeMillis();
-          Connection conMySQL = ConnectionPool.getConnection();
-          if(conMySQL== null) {
-            System.out.println("ERROR logAccess: connection==null");
-            ((ConnectionPool)ConnectionPool.getConnection()).printStatus();
-            return;
+    //Class.forName("com.mysql.jdbc.Driver");
+    if (conf.get("mysqlAccessLog", "true").equals("true")) {
+      try {
+        long tss = System.currentTimeMillis();
+        Connection conMySQL = ConnectionPool.getConnection();
+        if (conMySQL == null) {
+          ServiceMap.println("ERROR logAccess: connection==null");
+          ((ConnectionPool) ConnectionPool.getConnection()).printStatus();
+          return;
+        }
+        // DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);;
+        String query = "INSERT IGNORE INTO AccessLog(mode,ip,userAgent,serviceUri,email,selection,categories,maxResults,maxDistance,queryId,text,format,uid,reqfrom,referer,site) VALUES "
+                + "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+        //ServiceMap.println(query);
+        PreparedStatement st = conMySQL.prepareStatement(query);
+        st.setString(1, mode);
+        st.setString(2, ip);
+        st.setString(3, UA);
+        st.setString(4, serviceUri);
+        st.setString(5, email);
+        st.setString(6, sel);
+        st.setString(7, categorie);
+        st.setString(8, numeroRisultati);
+        st.setString(9, raggio);
+        st.setString(10, queryId);
+        st.setString(11, text);
+        st.setString(12, format);
+        st.setString(13, uid);
+        st.setString(14, reqFrom);
+        st.setString(15, referer);
+        st.setString(16, site);
+
+        st.executeUpdate();
+        st.close();
+        conMySQL.close();
+        ServiceMap.println("mysql log time: " + (System.currentTimeMillis() - tss));
+      } catch (Exception e) {
+        ServiceMap.notifyException(e);
+      }
+    }
+    if (conf.get("phoenixAccessLog", "true").equals("true")) {
+      executor.submit(new Runnable() {
+        @Override
+        public void run() {
+          try {
+            long ts = System.currentTimeMillis();
+            Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
+            Connection con = DriverManager.getConnection(conf.get("phoenixJDBC", "jdbc:phoenix:192.168.0.118"));
+            String query2 = "UPSERT INTO AccessLog(id,timestamp,mode,ip,userAgent,serviceUri,email,selection,categories,maxResults,maxDistance,queryId,text,format,uid,reqfrom,referer,site) VALUES "
+                    + "( NEXT VALUE FOR accesslog_sequence,NOW(),?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+            PreparedStatement stmt = con.prepareStatement(query2);
+            stmt.setString(1, mode);
+            stmt.setString(2, ip);
+            stmt.setString(3, UA);
+            stmt.setString(4, serviceUri);
+            stmt.setString(5, email);
+            stmt.setString(6, sel);
+            stmt.setString(7, categorie);
+            stmt.setString(8, numeroRisultati);
+            stmt.setString(9, raggio);
+            stmt.setString(10, queryId);
+            stmt.setString(11, text);
+            stmt.setString(12, format);
+            stmt.setString(13, uid);
+            stmt.setString(14, reqFrom);
+            stmt.setString(15, referer);
+            stmt.setString(16, site);
+
+            stmt.setQueryTimeout(Integer.parseInt(conf.get("phoenixQueryTimeoutSeconds", "10")));
+
+            stmt.executeUpdate();
+            stmt.close();
+            con.commit();
+            con.close();
+            ServiceMap.println("phoenix log time: " + (System.currentTimeMillis() - ts));
+          } catch (Exception e) {
+            ServiceMap.notifyException(e);
           }
-          // DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);;
-          String query = "INSERT INTO AccessLog(mode,ip,userAgent,serviceUri,email,selection,categories,maxResults,maxDistance,queryId,text,format,uid,reqfrom) VALUES "+
-                  "(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-          //System.out.println(query);
-          PreparedStatement st = conMySQL.prepareStatement(query);
-          st.setString(1, mode);
-          st.setString(2, ip);
-          st.setString(3, UA);
-          st.setString(4, serviceUri);
-          st.setString(5, email);
-          st.setString(6, sel);
-          st.setString(7, categorie);
-          st.setString(8, numeroRisultati);
-          st.setString(9, raggio);
-          st.setString(10, queryId);
-          st.setString(11, text);
-          st.setString(12, format);
-          st.setString(13, uid);
-          st.setString(14, reqFrom);
-          st.executeUpdate();
-          st.close();
-          conMySQL.close();
-          System.out.println("mysql log time: "+(System.currentTimeMillis()-tss));
         }
-        if(conf.get("phoenixAccessLog", "true").equals("true")) {
-          long ts = System.currentTimeMillis();
-          Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
-          Connection con = DriverManager.getConnection(conf.get("phoenixJDBC", "jdbc:phoenix:localhost"));
-          String query2 = "UPSERT INTO AccessLog(id,timestamp,mode,ip,userAgent,serviceUri,email,selection,categories,maxResults,maxDistance,queryId,text,format,uid,reqfrom) VALUES "+
-                "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-          PreparedStatement stmt = con.prepareStatement(query2);
-          stmt.setLong(1, now.getTime());
-          //Timestamp tstamp = new Timestamp(now.getTime());
-          Timestamp tstamp = new Timestamp(now.getYear(),now.getMonth(),now.getDate(),now.getHours(),now.getMinutes(),now.getSeconds(),0);
-          System.out.println(tstamp);
-          stmt.setTimestamp(2, tstamp);
-          stmt.setString(3, mode);
-          stmt.setString(4, ip);
-          stmt.setString(5, UA);
-          stmt.setString(6, serviceUri);
-          stmt.setString(7, email);
-          stmt.setString(8, sel);
-          stmt.setString(9, categorie);
-          stmt.setString(10, numeroRisultati);
-          stmt.setString(11, raggio);
-          stmt.setString(12, queryId);
-          stmt.setString(13, text);
-          stmt.setString(14, format);
-          stmt.setString(15, uid);
-          stmt.setString(16, reqFrom);
-          stmt.executeUpdate();
-          stmt.close();
-          con.commit();
-          con.close();
-          System.out.println("phoenix log time: "+(System.currentTimeMillis()-ts));
-        }
-    } catch (IOException e) {
-        System.err.println("Error: " + e.getMessage());
-    } catch (ClassNotFoundException ex) {
-        System.err.println("Error: " + ex.getMessage());
-        ex.printStackTrace();
+      });
     }
   }
   
@@ -220,7 +268,7 @@ public class ServiceMap {
       noRouteLog.close();
     }
     catch(Exception e) {
-      e.printStackTrace();
+      ServiceMap.notifyException(e);
     }
   }
 
@@ -290,7 +338,7 @@ public class ServiceMap {
   
   static public String latLngToAddressQuery(String lat, String lng, String sparqlType) {
     return prefixes
-            + "SELECT DISTINCT ?via ?numero ?comune	(?nc as ?uriCivico) ?uriComune WHERE {\n"
+            + "SELECT DISTINCT ?via ?numero ?comune	(?nc as ?uriCivico) ?uriComune ?provincia ?uriProvincia WHERE {\n"
             + " ?entry rdf:type km4c:Entry.\n"
             + " ?nc km4c:hasExternalAccess ?entry.\n"
             + " ?nc km4c:extendNumber ?numero.\n"
@@ -300,11 +348,13 @@ public class ServiceMap {
             + " ?entry geo:long ?elong.\n"
             + " ?road km4c:inMunicipalityOf ?uriComune.\n"
             + " ?uriComune foaf:name ?comune.\n"
+            + " ?uriComune km4c:isPartOfProvince ?uriProvincia.\n"
+            + " ?uriProvincia foaf:name ?provincia.\n"
             + (sparqlType.equals("virtuoso") ? 
                //" ?ser geo:geometry ?geo.  filter(bif:st_distance(?geo, bif:st_point ("+longitudine+","+latitudine+"))<= "+raggioBus+")" :
-                 " ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), 0.1))\n" 
+                 " ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), 0.3))\n" 
                + " BIND( bif:st_distance(?geo, bif:st_point(" + lng + ", " + lat + ")) AS ?dist)\n":
-                 " ?entry omgeo:nearby(" + lat + " " + lng + " \"0.1km\").\n"
+                 " ?entry omgeo:nearby(" + lat + " " + lng + " \"0.3km\").\n"
                + " BIND( omgeo:distance(?elat, ?elong, " + lat + ", " + lng + ") AS ?dist)\n")
             + "} ORDER BY ?dist "
             + "LIMIT 1";
@@ -312,7 +362,7 @@ public class ServiceMap {
   
   static public String latLngToMunicipalityQuery(String lat, String lng, String sparqlType) {
     return prefixes
-            + "SELECT DISTINCT ?comune ?uriComune WHERE {\n"
+            + "SELECT DISTINCT ?comune ?uriComune ?provincia ?uriProvincia ?dist WHERE {\n"
             + " ?entry rdf:type km4c:Entry.\n"
             + " ?nc km4c:hasExternalAccess ?entry.\n"
             + " ?nc km4c:belongToRoad ?road.\n"
@@ -320,6 +370,8 @@ public class ServiceMap {
             + " ?entry geo:long ?elong.\n"
             + " ?road km4c:inMunicipalityOf ?uriComune.\n"
             + " ?uriComune foaf:name ?comune.\n"
+            + " ?uriComune km4c:isPartOfProvince ?uriProvincia.\n"
+            + " ?uriProvincia foaf:name ?provincia.\n"
             + (sparqlType.equals("virtuoso") ? 
                //" ?ser geo:geometry ?geo.  filter(bif:st_distance(?geo, bif:st_point ("+longitudine+","+latitudine+"))<= "+raggioBus+")" :
                  " ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), 5))\n" 
@@ -364,7 +416,7 @@ public class ServiceMap {
         types.add(type);
       }
     } catch (Exception e) {
-      e.printStackTrace();
+      ServiceMap.notifyException(e);
     }
     return types;
   }
@@ -393,7 +445,7 @@ public class ServiceMap {
       //  listaCategorie.add("teathre"); //FIX DA RIMUOVERE
       String microCat="";
       String mCats[] = {"Accommodation", "Advertising", "AgricultureAndLivestock", "CivilAndEdilEngineering", "CulturalActivity", "EducationAndResearch", "Emergency", "Environment", "Entertainment", "FinancialService",
-        "GovernmentOffice", "HealthCare", "IndustryAndManufacturing", "MiningAndQuarrying", "ShoppingAndService", "TourismService", "TransferServiceAndRenting", "UtilitiesAndSupply", "Wholesale", "WineAndFood"};
+        "GovernmentOffice", "HealthCare", "IndustryAndManufacturing", "MiningAndQuarrying", "ShoppingAndService", "TourismService", "TransferServiceAndRenting", "UtilitiesAndSupply", "Wholesale", "WineAndFood","IoTDevice"};
       List<String> macroCats=Arrays.asList(mCats); //TODO prendere da query e fare caching
       int n=0;
       for(String c:listaCategorie) {
@@ -475,7 +527,7 @@ public class ServiceMap {
         String[] s = textToSearch.split(" +");
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < s.length; i++) {
-          String word = s[i].trim();
+          String word = s[i].trim().replaceAll("[^a-zA-Z0-9]", "");
           if(!removeStopWords || !stopWords.contains(word)) {
             if(n>0)
               sb.append(" and ");
@@ -487,6 +539,7 @@ public class ServiceMap {
         if("".equals(textToSearch))
           return "";
     }
+    ServiceMap.println("search "+textToSearch);
     return " "+subj+" "+pred+" ?txt.\n"
        + (sparqlType.equals("owlim")
           ? " ?txt luc:myIndex \"" + textToSearch + "\".\n"
@@ -506,12 +559,12 @@ public class ServiceMap {
       while (scanner.hasNext()) {
         // find next line
         token1 = scanner.next();
-        //System.out.println("-"+token1+"-");
+        //ServiceMap.println("-"+token1+"-");
         stopWords.add(token1);
       }
       scanner.close();    
     } catch (FileNotFoundException ex) {
-      System.out.println("Exception: File not found "+ex.toString());
+      ServiceMap.notifyException(ex);
     }
   }
   
@@ -557,12 +610,16 @@ public class ServiceMap {
               + " BIND( 1.0 AS ?dist)\n";
     }
 
+    for(int i=0;i<coords.length; i++)
+      Double.parseDouble(coords[i]);
+    
     String lat = coords[0];
     String lng = coords[1];
     
     if(coords.length==2) {
       if(sparqlType.equals("virtuoso")) {
-        if(conf.get("forcePointCheck","false").equals("true")) //in alcuni casi fallisce st_distance
+        if(conf.get("geometrySearchType", "distance").equalsIgnoreCase("distance")) {
+          if(conf.get("forcePointCheck","false").equals("true")) //in alcuni casi fallisce st_distance
           return //IF(bif:GeometryType(?geo)=\"POINT\",...,100)
                " " + subj + " geo:geometry ?geo.  filter(IF(bif:GeometryType(?geo)=\"POINT\",bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")),100)<= " + dist + ")\n"
               //"  " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+dist+"))\n"
@@ -571,6 +628,10 @@ public class ServiceMap {
           return " " + subj + " geo:geometry ?geo.  filter(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + "))<= " + dist + ")\n"
               //"  " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+dist+"))\n"
               + " BIND(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")) AS ?dist)\n";
+        } else {          
+          return "  " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+dist+"))\n"
+              + " BIND(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")) AS ?dist)\n";
+        }
       }
       else
         return " " + subj + " omgeo:nearby(" + lat + " " + lng + " \"" + dist + "km\") .\n"; //ATTENZIONE per OWLIM non viene aggiunto il BIND
@@ -584,6 +645,15 @@ public class ServiceMap {
             : " " + subj + " omgeo:nearby(" + lat + " " + lng + " \"" + dist + "km\") .\n"); //ATTENZIONE per OWLIM non viene aggiunto il BIND    
   }
   
+  static public String valueTypeSearchQueryFragment(String subj, String value_type) {
+    if(value_type==null || value_type.trim().isEmpty())
+      return "";
+    value_type = value_type.trim();
+    if(!value_type.startsWith("http:"))
+      value_type = "http://www.disit.org/km4city/resource/value_type/"+value_type;
+    return subj+" sosa:observes <"+value_type+">.\n";
+  }
+  
   static public String toFloat(String a, String b) {
     //return " (bif:sprintf(\"%.10f\","+a+") AS "+b+")";
     return " ("+a+" AS "+b+")";
@@ -594,7 +664,7 @@ public class ServiceMap {
     TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
     long ts = System.currentTimeMillis();
     TupleQueryResult result = tupleQuery.evaluate();
-    System.out.println("SPARQL count time:"+(System.currentTimeMillis()-ts));
+    ServiceMap.println("SPARQL count time:"+(System.currentTimeMillis()-ts));
     if(result.hasNext()) {
       BindingSet binding = result.next();
       String count = binding.getValue("count").stringValue();
@@ -603,14 +673,37 @@ public class ServiceMap {
     return 0;
   }
   
-  static public boolean sendEmail(String dest, String subject, String msg) {
+  static public boolean sendEmail(String dest, String subject, String msg, String mimeType) {
     boolean emailSent;
     String to[] = dest.split(";");
     Properties properties = System.getProperties();
     Configuration conf=Configuration.getInstance();
     properties.put("mail.smtp.host", conf.get("smtp", "musicnetwork.dsi.unifi.it"));
     properties.put("mail.smtp.port", conf.get("portSmtp","25"));
+    String auth = conf.get("authSmtp","false");
+    if(auth.equals("true")) {
+      properties.put("mail.smtp.auth", auth);
+      String authType = conf.get("authTypeSmtp","TLS");
+      if(authType.equals("TLS"))
+        properties.put("mail.smtp.starttls.enable", "true");
+      else if(authType.equals("SSL")) {
+        properties.put("mail.smtp.socketFactory.port", conf.get("portSmtp","465"));
+        properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+      }
+    }
+    final String user = conf.get("userSmtp", null);
+    final String passwd = conf.get("passwdSmtp", "");
     Session mailSession = Session.getDefaultInstance(properties);
+    if(user!=null && !user.trim().isEmpty()) {
+      properties.setProperty("mail.user", user);
+      properties.setProperty("mail.password", passwd);
+      mailSession = Session.getInstance(properties,
+        new javax.mail.Authenticator() {
+        protected PasswordAuthentication getPasswordAuthentication() {
+          return new PasswordAuthentication(user, passwd);
+        }
+        });
+    }
     try {
       MimeMessage message = new MimeMessage(mailSession);
       message.setFrom(new InternetAddress(conf.get("mailFrom","info@disit.org")));
@@ -618,11 +711,11 @@ public class ServiceMap {
         message.addRecipient(Message.RecipientType.TO,
               new InternetAddress(t));
       message.setSubject(subject);
-      message.setContent(msg, "text/plain; charset=utf-8");
+      message.setContent(msg, mimeType==null ? "text/plain; charset=utf-8" : mimeType);
       Transport.send(message);
       emailSent = true;
     } catch (MessagingException mex) {
-      mex.printStackTrace();
+      ServiceMap.notifyException(mex);
       emailSent = false;
     }        
     return emailSent;
@@ -739,6 +832,107 @@ public class ServiceMap {
     return info;
   }
   
+  static public JSONObject getStopFromOsmNodeId(RepositoryConnection con, String node_id, String agency_id) throws Exception {
+    String stopUri = "";
+    String stopName = "";
+    String agencyUri = "";
+    String agencyName = "";
+    String serviceType = "";
+    String query="SELECT DISTINCT ?stop ?name ?class ?mclass ?agency ?agencyName WHERE {"
+            + " ?stop foaf:based_near <http://www.disit.org/km4city/resource/OS"+
+            String.format("%11s", node_id).replace(' ', '0')+"NO>. "
+            + " ?stop gtfs:agency ?agency."
+            + " ?agency foaf:name ?agencyName."
+            + " ?stop foaf:name ?name. "
+            + " ?stop a ?class."
+            + " ?class rdfs:subClassOf ?mclass."
+            + " ?mclass rdfs:subClassOf km4c:Service. }";
+    TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+    TupleQueryResult result = tq.evaluate();
+    while(result.hasNext()) {
+      BindingSet binding = result.next();
+      agencyUri = binding.getValue("agency").stringValue();
+      if(agencyUri.endsWith("_"+agency_id)) {
+        stopUri = binding.getValue("stop").stringValue();
+        stopName = binding.getValue("name").stringValue();
+        agencyName = binding.getValue("agencyName").stringValue();
+        String _class = binding.getValue("class").stringValue().replace("http://www.disit.org/km4city/schema#", "");
+        String macroClass = binding.getValue("mclass").stringValue().replace("http://www.disit.org/km4city/schema#", "");
+        serviceType = macroClass+"_"+_class;
+        break;
+      }
+    }
+    JSONObject stop = new JSONObject();
+    stop.put("uri", stopUri);
+    stop.put("name", stopName);
+    stop.put("agencyName", agencyName);
+    stop.put("agencyUri", agencyUri);
+    stop.put("serviceType", serviceType);
+    return stop;
+  }
+
+  static public JSONObject getStopFromId(RepositoryConnection con, String stop_id, String agency_id) throws Exception {
+    String stopUri = "";
+    String stopName = "";
+    String agencyUri = "";
+    String agencyName = "";
+    String serviceType = "";
+    
+    if(tplAgencies==null) {
+      tplAgencies = new HashMap<>();
+      TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, "SELECT * { ?a a gtfs:Agency. }");
+      TupleQueryResult result = tq.evaluate();
+   
+      while(result.hasNext()) {
+        BindingSet binding = result.next();
+        String[] a = binding.getValue("a").stringValue().split("_Agency_");
+        tplAgencies.put(a[1],a[0]);
+      }
+      ServiceMap.println(tplAgencies);
+    }
+    
+    String prefix = tplAgencies.get(agency_id);
+    String query="SELECT DISTINCT ?stop ?name ?class ?mclass ?agency ?agencyName WHERE {\n" +
+      " BIND(<"+prefix+"_Stop_"+stop_id+"> as ?stop)\n" +
+      " BIND(<"+prefix+"_Agency_"+agency_id+"> as ?agency)\n" +
+      //" ?stop a gtfs:Stop.\n" +
+      //" filter(strends(str(?stop),\"_"+stop_id+"\"))\n" +
+      //" ?stop gtfs:agency ?agency.\n" +
+      //" filter(strends(str(?agency),\"_"+agency_id+"\"))\n" +
+      " ?agency foaf:name ?agencyName.\n" +
+      " ?stop foaf:name ?name.\n" +
+      " ?stop a ?class.\n" +
+      " ?class rdfs:subClassOf ?mclass.\n" +
+      " ?mclass rdfs:subClassOf km4c:Service. \n" +
+      "}";
+    TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+    //ServiceMap.println(query);
+    long start = System.nanoTime();
+    TupleQueryResult result = tq.evaluate();
+    ServiceMap.logQuery(query, "API-shortest-path-find-stop", "virtuoso", "", System.nanoTime()-start);
+    
+    while(result.hasNext()) {
+      BindingSet binding = result.next();
+      agencyUri = binding.getValue("agency").stringValue();
+      if(agencyUri.endsWith("_"+agency_id)) {
+        stopUri = binding.getValue("stop").stringValue();
+        stopName = binding.getValue("name").stringValue();
+        agencyName = binding.getValue("agencyName").stringValue();
+        String _class = binding.getValue("class").stringValue().replace("http://www.disit.org/km4city/schema#", "");
+        String macroClass = binding.getValue("mclass").stringValue().replace("http://www.disit.org/km4city/schema#", "");
+        serviceType = macroClass+"_"+_class;
+        break;
+      }
+    }
+    JSONObject stop = new JSONObject();
+    stop.put("stop_uri", stopUri);
+    stop.put("stop_name", stopName);
+    stop.put("agencyName", agencyName);
+    stop.put("agencyUri", agencyUri);
+    stop.put("serviceType", serviceType);
+    return stop;
+  }
+
   static public String makeServiceType(String category, String type) {
     return category.replace("http://www.disit.org/km4city/schema#", "")+"_"+type.replace("http://www.disit.org/km4city/schema#", "");
   }
@@ -768,7 +962,7 @@ public class ServiceMap {
       }
     }
     if(photosAvailable!= null && !photosAvailable.containsKey(uri)) {
-      //System.out.println("no photo for "+uri);
+      //ServiceMap.println("no photo for "+uri);
       return "[]";
     }
     String json = "[";
@@ -790,7 +984,7 @@ public class ServiceMap {
       st.close();
       connection.close();
     } catch (SQLException ex) {
-      ex.printStackTrace();
+      ServiceMap.notifyException(ex);
     }
     return json;
   }
@@ -811,7 +1005,7 @@ public class ServiceMap {
       st.close();
       connection.close();
     } catch (SQLException ex) {
-      ex.printStackTrace();
+      ServiceMap.notifyException(ex);
     }
     return r;
   }
@@ -830,7 +1024,7 @@ public class ServiceMap {
       st.close();
       connection.close();
     } catch (SQLException ex) {
-      ex.printStackTrace();
+      ServiceMap.notifyException(ex);
     }
     return stars;
   }
@@ -852,7 +1046,7 @@ public class ServiceMap {
       st.close();
       connection.close();
     } catch (SQLException ex) {
-      ex.printStackTrace();
+      ServiceMap.notifyException(ex);
     }
     return json;
   }
@@ -887,7 +1081,8 @@ public class ServiceMap {
     return categorie;
   }
   
-  private static final String[] HEADERS_TO_TRY = { 
+  private static String[] HEADERS_TO_TRY = null;
+  /*{ 
       "X-Forwarded-For",
       "Proxy-Client-IP",
       "WL-Proxy-Client-IP",
@@ -898,16 +1093,25 @@ public class ServiceMap {
       "HTTP_FORWARDED_FOR",
       "HTTP_FORWARDED",
       "HTTP_VIA",
-      "REMOTE_ADDR" };
+      "REMOTE_ADDR" };*/
 
   public static String getClientIpAddress(HttpServletRequest request) {
+    Configuration conf = Configuration.getInstance();
+    String proxyHeaders = conf.get("ipaddrProxyHeaders", null);
+    if(proxyHeaders!=null) {
+      if(HEADERS_TO_TRY==null) {
+        HEADERS_TO_TRY = proxyHeaders.split(";");
+      }
       for (String header : HEADERS_TO_TRY) {
           String ip = request.getHeader(header);
           if (ip != null && ip.length() != 0 && !"unknown".equalsIgnoreCase(ip) && !"127.0.0.1".equals(ip)) {
-              return ip;
+            //ServiceMap.println("IPAddr from "+header+" "+ip);
+            return ip;
           }
       }
-      return request.getRemoteAddr();
+    }
+    //ServiceMap.println("IPAddr from request "+request.getRemoteAddr());
+    return request.getRemoteAddr();
   }
   
   public static String[] parsePosition(String position) throws Exception {
@@ -935,10 +1139,10 @@ public class ServiceMap {
     Pattern r = Pattern.compile("[^0-9]([0-9]?[0-9])[\\.:,]([0-5][0-9])\\s*-\\s*([0-9]?[0-9])[\\.:,]([0-5][0-9])[^0-9]");
     Matcher m = r.matcher(" "+s+" ");
     int pos=0;
-    System.out.println("-- "+s);
+    //ServiceMap.println("-- "+s);
     int i=0;
     if(m.find(pos)) {
-      System.out.println(">> Found: " + m.group(1)+":"+m.group(2)+"-"+m.group(3)+":"+m.group(4));
+      //ServiceMap.println(">> Found: " + m.group(1)+":"+m.group(2)+"-"+m.group(3)+":"+m.group(4));
       String c = m.group(1);
       if(c.length()<2)
         c="0"+c;
@@ -959,7 +1163,7 @@ public class ServiceMap {
       r = Pattern.compile("[^0-9]([0-9]?[0-9])[\\.:,]([0-5][0-9])[^0-9]");
       m = r.matcher(" "+s+" ");
       if(m.find()) {
-        System.out.println(">> Found: " + m.group(1)+":"+m.group(2));
+        //ServiceMap.println(">> Found: " + m.group(1)+":"+m.group(2));
         String c = m.group(1);
         if(c.length()<2)
           c="0"+c;
@@ -996,6 +1200,458 @@ public class ServiceMap {
     Configuration conf = Configuration.getInstance();
     Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
     //Class.forName("org.apache.phoenix.queryserver.client.Driver");
-    return DriverManager.getConnection(conf.get("phoenixJDBC", "jdbc:phoenix:localhost"));
-  }  
+    return DriverManager.getConnection(conf.get("phoenixJDBC", "jdbc:phoenix:192.168.0.118,192.168.0.124,192.168.0.129:2181:/hbase")); //jdbc:phoenix:thin:url=http://192.168.0.228:8765
+  }
+  
+  public static Connection getRTConnection2() throws Exception {
+    Configuration conf = Configuration.getInstance();
+    Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
+    //Class.forName("org.apache.phoenix.queryserver.client.Driver");
+    return DriverManager.getConnection(conf.get("phoenixJDBC2", "jdbc:phoenix:192.168.0.228,192.168.0.232,192.168.0.233:2281:/hbase-unsecure")); //jdbc:phoenix:thin:url=http://192.168.0.228:8765
+  }
+  
+  public static boolean checkIP(String IPAddr, String requestType) throws Exception {
+    Connection connection = ConnectionPool.getConnection();
+    Configuration conf = Configuration.getInstance();
+    boolean ret=false;
+    String maxReqs = conf.get("maxReqsPerDayPerIP."+requestType+"."+IPAddr, null);
+    if(maxReqs==null) {
+      if(IPAddr.equals("127.0.0.1") || IPAddr.startsWith("192.168."))
+        maxReqs = "-1";
+      else
+        maxReqs = conf.get("maxReqsPerDayPerIP."+requestType, "-1");
+    }
+    String maxRslts = conf.get("maxResultsPerDayPerIP."+requestType+"."+IPAddr, null);
+    if(maxRslts==null) {
+      if(IPAddr.equals("127.0.0.1") || IPAddr.startsWith("192.168."))
+        maxRslts = "-1";
+      else
+        maxRslts = conf.get("maxResultsPerDayPerIP."+requestType, "-1");
+    }
+    int maxRequests = Integer.parseInt(maxReqs);
+    int maxResults = Integer.parseInt(maxRslts);
+    try {
+      PreparedStatement st = connection.prepareStatement("SELECT doneCount,resultsCount FROM ServiceLimit WHERE ipaddr=? AND date=current_date() AND requestType=?");
+      st.setString(1, IPAddr);
+      st.setString(2, requestType);
+      ResultSet rs = st.executeQuery();
+      if(rs.next()) {
+        int count = rs.getInt("doneCount");
+        int results = rs.getInt("resultsCount");
+        Statement update=connection.createStatement();
+        if((maxRequests>=0 && count>=maxRequests) || (maxResults>=0 && results>=maxResults)) {
+          update.executeUpdate("UPDATE ServiceLimit SET limitedCount=limitedCount+1 WHERE ipaddr='"+IPAddr+"' AND date=current_date() AND requestType='"+requestType+"'");
+          ret=false;
+        } else {
+          update.executeUpdate("UPDATE ServiceLimit SET doneCount=doneCount+1 WHERE ipaddr='"+IPAddr+"' AND date=current_date() AND requestType='"+requestType+"'");
+          ret=true;          
+        }
+        update.close();
+      } else {
+        try {
+          Statement insert=connection.createStatement();
+          insert.executeUpdate("INSERT INTO ServiceLimit(ipaddr,requestType,date,doneCount) VALUES('"+IPAddr+"','"+requestType+"',current_date(),1)");
+          insert.close();
+          ret=true;
+        } catch(SQLException ex) {
+          // se fallisce inserimento per chiave duplicata fa update
+          Statement update=connection.createStatement();          
+          update.executeUpdate("UPDATE ServiceLimit SET doneCount=doneCount+1 WHERE ipaddr='"+IPAddr+"' AND date=current_date() AND requestType='"+requestType+"'");
+          if(update.getUpdateCount()==0)
+            ServiceMap.notifyException(ex,"update failed");
+          update.close();
+          ret=true;
+        }
+      }
+      st.close();
+      connection.close();
+    } catch (SQLException ex) {
+      connection.close();
+      ServiceMap.notifyException(ex);
+      ret=true;
+    }
+    return ret;
+  }
+
+  public static void updateResultsPerIP(String IPAddr, String requestType, int results) throws Exception {
+    Connection connection = ConnectionPool.getConnection();
+    try {
+      Statement update=connection.createStatement();
+      update.executeUpdate("UPDATE ServiceLimit SET resultsCount=resultsCount+"+results+" WHERE ipaddr='"+IPAddr+"' AND date=current_date() AND requestType='"+requestType+"'");
+      if(update.getUpdateCount()==0) { //se check fatto prima di mezzanotte e inserimento fatto dopo, la riga del giorno nuovo non c'e'
+        Statement insert=connection.createStatement();
+        insert.executeUpdate("INSERT INTO ServiceLimit(ipaddr,requestType,date,doneCount,resultsCount) VALUES('"+IPAddr+"','"+requestType+"',current_date(),1,"+results+")");
+        insert.close();
+      }
+      update.close();
+      connection.close();
+    } catch (SQLException ex) {
+      connection.close();
+      ServiceMap.notifyException(ex);
+    }
+  }
+
+  public static void notifyException(Throwable exc) {
+    notifyException(exc, null);
+  }
+  
+  public static void notifyException(Throwable exc, String details) {
+    Configuration conf = Configuration.getInstance();
+
+    String url = conf.get("notificatorRestInterfaceUrl", null);
+    if(url==null || url.trim().isEmpty()) {
+      String notifyExceptionTo = conf.get("notifyExceptionTo", null);
+      if(notifyExceptionTo==null || notifyExceptionTo.trim().isEmpty()) {
+        System.out.println(new Date()+" notifyException disabled");
+        if(exc!=null)
+          exc.printStackTrace();
+        return;
+      } else {
+        System.out.println(new Date()+" notifyExceptionTo "+notifyExceptionTo);
+        String subj = conf.get("notityExceptionSubj", "[SMTEST]");
+        if(exc!=null)
+          exc.printStackTrace();
+        if(details!=null)
+          System.out.println(details);
+        sendEmail(notifyExceptionTo, subj+(exc!=null ? " Exception "+exc.getClass().getSimpleName() : " ERROR"), exceptionMessage(exc, details), "text/plain");
+        return;
+      }
+    }
+    if(exc!=null)
+      exc.printStackTrace();
+    if(details!=null)
+      System.out.println(details);
+    String charset = java.nio.charset.StandardCharsets.UTF_8.name();
+    String apiUsr = conf.get("notificatorRestInterfaceUsr", "usr");
+    String apiPwd = conf.get("notificatorRestInterfacePwd", "pwd");
+    String appName = conf.get("notificatorRestInterfaceAppName", "ServiceMapTest");
+    String operation = "notifyEvent";
+    String generatorOriginalName = "Error";
+    String generatorOriginalType = "Exception";
+    String containerName = "Exceptions";
+    String eventType = "Exception";
+    String furtherDetails = exceptionMessage(exc, details);
+
+    Calendar date = new GregorianCalendar();
+    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    String eventTime = sdf.format(date.getTime());
+    String params = null;
+
+    URL obj = null;
+    HttpURLConnection con = null;
+    try {
+      obj = new URL(url);
+      con = (HttpURLConnection) obj.openConnection();
+
+      con.setRequestMethod("POST");
+      con.setRequestProperty("Accept-Charset", charset);
+      con.setRequestProperty("Content-Type", "application/x-www-form-urlencoded;charset=" + charset);
+
+      params = String.format("apiUsr=%s&apiPwd=%s&appName=%s&operation=%s&generatorOriginalName=%s&generatorOriginalType=%s&containerName=%s&eventType=%s&eventTime=%s&furtherDetails=%s",
+         URLEncoder.encode(apiUsr, charset),
+         URLEncoder.encode(apiPwd, charset),
+         URLEncoder.encode(appName, charset),
+         URLEncoder.encode(operation, charset),
+         URLEncoder.encode(generatorOriginalName, charset),
+         URLEncoder.encode(generatorOriginalType, charset),
+         URLEncoder.encode(containerName, charset),
+         URLEncoder.encode(eventType, charset),
+         URLEncoder.encode(eventTime, charset),
+         URLEncoder.encode(furtherDetails, charset));
+
+      // Questo rende la chiamata una POST
+      con.setDoOutput(true);
+      DataOutputStream wr = null;
+
+      wr = new DataOutputStream(con.getOutputStream());
+      wr.writeBytes(params);
+      wr.flush();
+      wr.close();
+
+      int responseCode = con.getResponseCode();
+      String responseMessage = con.getResponseMessage();
+      if(responseCode!=200) {
+        System.out.println(new Date()+" notifyEvent "+responseCode+" "+responseMessage);
+        if(exc!=null)
+          exc.printStackTrace();
+      }
+    } catch (IOException ex) {
+      ex.printStackTrace();
+      System.out.println("failed exception notification");
+      if(exc!=null)
+        exc.printStackTrace();
+    }
+  }
+  
+  public static String exceptionMessage(Throwable exp, String details) {
+    DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    Date data_attuale = new Date();
+    String data_fixed = df.format(data_attuale);
+    String msgBody = "ERROR ";
+    if(exp!=null) {
+      msgBody = "Exception: " + exp.getClass().getSimpleName();
+    }
+    msgBody += " exception thrown at " + data_fixed;
+    msgBody += "\nError Details:\n";
+    if(details!=null)
+      msgBody += details+"\n";
+/*    msgBody += "\nException: " + msg;
+    if (exp.getCause() != null) {
+      msg = exp.getCause().getMessage();
+      if (msg != null) {
+        msg = msg.replace("\n", " ");
+      }
+      msgBody += "\nCause: " + msg;
+    }
+    msgBody += "\nJava Class: " + className;
+    msgBody += "\nDate: " + data_fixed;*/
+    if(exp!=null) {
+      StringWriter sw = new StringWriter();
+      PrintWriter pw = new PrintWriter(sw);
+      exp.printStackTrace(pw);
+      String sStackTrace = sw.toString(); // stack trace as a string
+      msgBody += sStackTrace;
+    }
+    return msgBody;
+  }
+  
+  public static void println(Object msg) {
+    Configuration conf = Configuration.getInstance();
+    if(conf.get("debug", "true").equalsIgnoreCase("true")){
+      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+      System.out.println("DEBUG "+new Date()+" ["+Thread.currentThread().getName()+":"+
+              stackTraceElements[2].getClassName()+"."+
+              stackTraceElements[2].getMethodName()+"()] "+msg);
+    }
+  }
+  
+  public static Map<String,String> getTplRealPassageTimes(String agencyName, String busStopId) throws Exception {
+    Configuration conf = Configuration.getInstance();
+    String agencies = conf.get("tplRTEnabled", "Siena Mobilità");
+    if(agencies!=null) {
+      if(agencyName!=null && !agencyName.isEmpty() && agencies.contains(agencyName)) {
+        String areaId = conf.get("tplRT.areaId."+agencyName.replace(" ", ""), "SIENA");
+        Connection conn = null;
+        try {
+          conn = getRTConnection2();
+          Statement st = conn.createStatement();
+          String now = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+          ResultSet rs = st.executeQuery("SELECT \"busStopId\",\"lastUpdate\",\"lineLabel\",\"theoreticalPassageTime\", \"realPassageTime\" FROM \"tiemmeBusStopForecasts\" WHERE \"areaId\"='"+areaId+"' AND \"busStopId\"='"+busStopId+"' AND \"realPassageTime\">='"+now+"'ORDER BY \"lastUpdate\" DESC LIMIT 100");
+          Map<String,String> r = new HashMap<>();
+          while(rs.next()) {
+            String lineLabel = rs.getString("lineLabel").toUpperCase();
+            String theoreticalTime = rs.getString("theoreticalPassageTime");
+            String realTime = rs.getString("realPassageTime").split(" ")[1]; //get only the time
+            if(!r.containsKey(lineLabel+"/"+theoreticalTime))
+              r.put(lineLabel+"/"+theoreticalTime, realTime);
+          }
+          ServiceMap.println(busStopId+ " --> "+r.toString());
+          rs.close();
+          st.close();
+          conn.close();
+          return r;
+        } catch(Exception e) {
+          notifyException(e,"busStopId: "+busStopId+" agency: "+agencyName+" areaId: "+areaId);
+          if(conn!=null)
+            conn.close();
+        }
+      }
+    }
+    return null;
+  }
+  
+  public static JSONObject getStopsFromTo(RepositoryConnection con, String srcStopUri, String dstStopUri, String tripId, String time, String date) throws Exception {
+    boolean addChecks = Configuration.getInstance().get("shortestPathsTplChecks","true").equals("true");
+    JSONArray stops = new JSONArray();
+    String wkt = "";
+    String query="select distinct ?s ?name ?lat ?lon ?class ?mclass ?agency ?agencyName ?time ?ss ?trip ?x {\n" +
+      "?st1 a gtfs:StopTime.\n" +
+      "?st1 gtfs:stop <"+srcStopUri+">.\n" +
+      (addChecks ? "?st1 gtfs:arrivalTime \""+time+"\".\n" : "") +
+      "?st1 gtfs:stopSequence ?ss1.\n" +
+      "?st1 gtfs:trip ?trip.\n" +
+      "?st2 a gtfs:StopTime.\n" +
+      "?st2 gtfs:stop <"+dstStopUri+">.\n" +
+      "?st2 gtfs:trip ?trip.\n" +
+      "FILTER(STRENDS(STR(?trip),\"_"+tripId+"\"))" +
+      "?st2 gtfs:stopSequence ?ss2.\n" +
+      (addChecks ? "?trip gtfs:service/dcterms:date \""+date+"\".\n" : "") +
+      "?st gtfs:stop ?s.\n" +
+      "?st gtfs:trip ?trip.\n" +
+      "?st gtfs:arrivalTime ?time.\n" +
+      "?st gtfs:stopSequence ?ss. \n" +
+      "FILTER(xsd:int(?ss)>=xsd:int(?ss1))\n" +
+      "FILTER(xsd:int(?ss)<=xsd:int(?ss2))\n" +
+      "?s foaf:name ?name.\n" +
+      "?s geo:lat ?lat.\n" +
+      "?s geo:long ?lon.\n" +
+      "?s a ?class.\n" +
+      "?class rdfs:subClassOf ?mclass.\n" +
+      "?mclass rdfs:subClassOf km4c:Service.\n" +
+      "?s gtfs:agency ?agency.\n" +
+      "?agency foaf:name ?agencyName.\n" +
+      "\n" +
+      "} order by ?ss";
+    //ServiceMap.println(query);
+    long start = System.nanoTime();
+    TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+    TupleQueryResult result = tq.evaluate();
+    ServiceMap.logQuery(query, "API-shortest-path-find-trip", "virtuoso", "", System.nanoTime()-start);
+    String trip = null;
+    int id=1;
+    while(result.hasNext()) {
+      BindingSet binding = result.next();
+      
+      JSONObject stop = new JSONObject();
+      stop.put("serviceUri", binding.getValue("s").stringValue());
+      stop.put("name", binding.getValue("name").stringValue());
+      stop.put("arrivalTime", binding.getValue("time").stringValue());
+      stop.put("agency", binding.getValue("agencyName").stringValue());
+      stop.put("agencyUri", binding.getValue("agency").stringValue());
+      String _class = binding.getValue("class").stringValue().replace("http://www.disit.org/km4city/schema#", "");
+      String macroClass = binding.getValue("mclass").stringValue().replace("http://www.disit.org/km4city/schema#", "");
+      stop.put("serviceType", macroClass+"_"+_class);
+      
+      JSONObject geometry = new JSONObject();
+      geometry.put("type","Point");
+      JSONArray coords = new JSONArray();
+      coords.add(Double.parseDouble(binding.getValue("lon").stringValue()));
+      coords.add(Double.parseDouble(binding.getValue("lat").stringValue()));
+      geometry.put("coordinates",coords);
+
+      JSONObject feature = new JSONObject();
+      feature.put("type", "Feature");
+      feature.put("geometry", geometry);
+      feature.put("properties", stop);
+      feature.put("id", id++);
+      trip = binding.getValue("trip").stringValue();
+      stops.add(feature);
+    }
+    result.close();
+    if(trip!=null) {
+      start=System.nanoTime();
+      JSONObject firstGeo = (JSONObject)((JSONObject) stops.get(0)).get("geometry");
+      JSONObject lastGeo = (JSONObject)((JSONObject) stops.get(stops.size()-1)).get("geometry");
+      String queryTrip = "SELECT ?wkt { <"+trip+"> <http://www.opengis.net/ont/geosparql#hasGeometry>/geo:geometry ?wkt }";
+      String tripWKT = null;
+      TupleQuery tqq = con.prepareTupleQuery(QueryLanguage.SPARQL, queryTrip);
+      TupleQueryResult r = tqq.evaluate();
+      if(r.hasNext()) {
+        BindingSet binding = r.next();
+        tripWKT = binding.getValue("wkt").stringValue();
+      }
+      r.close();
+      if(tripWKT!=null) {
+        WKTReader wktReader=new WKTReader();
+        Geometry g=wktReader.read(tripWKT);
+        Coordinate[] coords = g.getCoordinates();
+        JSONArray firstCoord = (JSONArray) firstGeo.get("coordinates");
+        JSONArray lastCoord = (JSONArray) lastGeo.get("coordinates");
+        Coordinate first = new Coordinate((double)firstCoord.get(0),(double)firstCoord.get(1));
+        Coordinate last = new Coordinate((double)lastCoord.get(0),(double)lastCoord.get(1));
+        int foundFirst = -1;
+        int foundLast = -1;
+        //ServiceMap.println(first);
+        //ServiceMap.println(last);
+        double firstMinDist = 1000.0;
+        double lastMinDist = 1000.0;
+        for(int i=0 ; i<coords.length; i++) {
+          double dFirst = coords[i].distance(first);
+          double dLast = coords[i].distance(last);
+          //ServiceMap.println(i+":"+coords[i]+":"+coords[i].distance(first)+":"+coords[i].distance(last));
+          if(dFirst<firstMinDist) {
+            foundFirst = i;
+            firstMinDist = dFirst;
+          }
+          if(dLast<lastMinDist) {
+            foundLast = i;
+            lastMinDist = dLast;
+          }
+        }
+        //ServiceMap.println("first: "+foundFirst+" last:"+foundLast);
+        if(foundFirst>=0 && foundLast>=0) {
+          wkt += first.x + " " + first.y +",";
+          for(int i=foundFirst+1; i<foundLast; i++) {
+            wkt += coords[i].x+" "+coords[i].y+",";
+          }
+          wkt += last.x+" "+last.y;
+        } else {
+          throw new Exception("cannot extract WKT "+srcStopUri+" "+dstStopUri+" "+trip);
+        }
+        ServiceMap.println("wkt time:"+(System.nanoTime()-start)/1000000.0);
+      }
+    } else {
+      ServiceMap.notifyException(null, "Trip not found: "+srcStopUri+","+dstStopUri+","+tripId+","+time+","+date);
+    }
+
+    JSONObject sstops = new JSONObject();
+    sstops.put("type", "FeatureCollection");
+    sstops.put("features", stops);
+    sstops.put("wkt", wkt);
+    return sstops;
+  }
+  
+  static public String getOsmNodeId(String lat, String lon) throws Exception{
+    Configuration conf = Configuration.getInstance();
+    Repository repo;
+    RepositoryConnection con;
+    
+    String sparqlEndpoint = conf.get("sparqlOsmEndpoint", "jdbc:virtuoso://192.168.0.208:1111");
+    if(sparqlEndpoint.startsWith("http:"))
+      repo = new SPARQLRepository(sparqlEndpoint);
+    else if(sparqlEndpoint.startsWith("jdbc:virtuoso:")){
+      repo = new VirtuosoRepository(sparqlEndpoint, conf.get("sparqlOsmUser", "dba"), conf.get("sparqlOsmPasswd","dba"));
+    } else
+      throw new Exception("invalid sparqlOsmEndpoint "+sparqlEndpoint);
+    
+    repo.initialize();
+    con = repo.getConnection();
+    String query = "select ?n {\n" +
+        "?n a km4c:Node.\n" +
+        "?n geo:geometry ?g.\n" +
+        "filter(bif:st_intersects(?g, bif:st_point("+lon+","+lat+"),0.5))\n" +
+        "bind(bif:st_distance(?g,bif:st_point("+lon+","+lat+")) as ?d)\n" +
+        "} order by ?d limit 1";
+    TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+    long start = System.nanoTime();
+    TupleQueryResult result = tq.evaluate();
+    ServiceMap.logQuery(query, "API-shortest-path-find-osmnode", "virtuoso", "", System.nanoTime()-start);
+    String nodeid = null;
+    if(result.hasNext()) {
+      BindingSet binding = result.next();
+      String n=binding.getValue("n").stringValue();
+      nodeid=n.substring(40,51).replaceFirst("^0+(?!$)", "");
+      ServiceMap.println("nid:"+nodeid+" "+n);
+    }
+    con.close();
+    return nodeid;
+  }
+  
+  public static String getMapDefaultLatLng(ServletRequest request, String def) {
+    Configuration conf = Configuration.getInstance();
+    ServiceMap.println("servername: "+request.getServerName());
+    String m = conf.get(request.getServerName()+".mapDefLatLng", null);
+    if(m==null)
+      m=conf.get("mapDefLatLng", def);
+    return m;
+  }
+
+  public static String getMapDefaultZoom(ServletRequest request, String def) {
+    Configuration conf = Configuration.getInstance();
+    String m = conf.get(request.getServerName()+".mapDefZoom", null);
+    if(m==null)
+      m=conf.get("mapDefZoom", def);
+    return m;
+  }
+
+  public static String getCurrentTimezoneOffset() {
+    TimeZone tz = TimeZone.getDefault();  
+    Calendar cal = GregorianCalendar.getInstance(tz);
+    int offsetInMillis = tz.getOffset(cal.getTimeInMillis());
+
+    String offset = String.format("%02d:%02d", Math.abs(offsetInMillis / 3600000), Math.abs((offsetInMillis / 60000) % 60));
+    offset = (offsetInMillis >= 0 ? "+" : "-") + offset;
+
+    return offset;
+}   
 }

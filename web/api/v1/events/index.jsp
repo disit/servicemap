@@ -44,21 +44,41 @@
 
       String coords[] = null;
       if(selection!=null) {
-        coords = selection.split(";");
-        if(coords.length<2) {
-          response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'selection' parameter (missing lat;long)");
-          return;
+        if(!selection.startsWith("wkt:") && ! selection.startsWith("geo:")) {
+          coords = selection.split(";");
+          if(coords.length!=2 && coords.length!=4) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'selection' parameter (lat;long[;lat;long] | wkt:... | geo: ...)");
+            return;
+          }
+          if(maxDists==null)
+            maxDists = "1";
+          try {
+            for(int i=0;i<coords.length;i++)
+              Float.parseFloat(coords[i]);
+          } catch(NumberFormatException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'selection' parameter (lat or long not float numbers)");
+            return;
+          }
+          try {
+            if(coords.length==2)
+              Float.parseFloat(maxDists);
+          } catch(NumberFormatException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'maxDists' parameter (not float number)");
+            return;
+          }
         }
-        try {
-          Float.parseFloat(coords[0]);
-          Float.parseFloat(coords[1]);
-        } catch(NumberFormatException e) {
-          response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'selection' parameter (lat or long not float numbers)");
-          return;
+        else {
+          coords = new String[]{selection};
+          maxDists = "";
         }
       }
-      serviceMapApi.queryEventList(out, con, range, coords, maxDists, maxResults, text, reqFrom!=null);
-      logAccess(ip, null, ua, selection, null, null, "api-events-"+range, maxResults, maxDists, null, null, "json", uid, reqFrom);
+      if(! ServiceMap.checkIP(ip, "api")) {
+        response.sendError(403,"API calls daily limit reached");
+        return;
+      }      
+      int results = serviceMapApi.queryEventList(out, con, range, coords, maxDists, maxResults, text, reqFrom!=null);
+      ServiceMap.updateResultsPerIP(ip, "api", results);
+      ServiceMap.logAccess(request, null, selection, null, null, "api-events-"+range, maxResults, maxDists, null, null, "json", uid, reqFrom);
     } finally {
       con.close();
     }

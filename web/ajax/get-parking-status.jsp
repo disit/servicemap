@@ -58,12 +58,10 @@
             + "} "
             + "ORDER BY DESC (?instantDateTime) "
             + "LIMIT 1";
-    //out.println(queryString);
-    //System.out.println(queryString);
+    //ServiceMap.println(queryString);
     TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
     TupleQueryResult result = tupleQuery.evaluate();
     logQuery(filterQuery(queryString),"get-parking-status","any",nomeParcheggio);
-    System.out.println(filterQuery(queryString));
     
     if (result.hasNext()) {
         BindingSet bindingSet = result.next();

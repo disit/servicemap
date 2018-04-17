@@ -24,6 +24,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
+import javax.servlet.jsp.JspWriter;
+import static org.disit.servicemap.ServiceMap.logQuery;
+import org.openrdf.query.BindingSet;
+import org.openrdf.query.QueryLanguage;
+import org.openrdf.query.TupleQuery;
+import org.openrdf.query.TupleQueryResult;
+import org.openrdf.repository.RepositoryConnection;
 
 /**
  *
@@ -45,17 +52,69 @@ public class ServiceMapping {
   }
   
   public class MappingData {
+    public String section;
     public String detailsQuery;
+    public String attributesQuery;
     public String realTimeSparqlQuery;
     public String realTimeSqlQuery;
+    public String realTimeSolrQuery;
     public String predictionSqlQuery;
     public String trendSqlQuery;
-    public MappingData(String d, String rt, String sqlrt, String p, String pt) {
+    
+    public MappingData(String s,String d, String a, String rt, String sqlrt, String solrrt, String p, String pt) {
+      section = s;
       detailsQuery = d;
+      attributesQuery = a;
       realTimeSparqlQuery = rt;
       realTimeSqlQuery = sqlrt;
+      realTimeSolrQuery = solrrt;
       predictionSqlQuery = p;
       trendSqlQuery = pt;
+    }
+    
+    public void printServiceAttributes(JspWriter out, RepositoryConnection con, String serviceUri) throws Exception {
+      //adds all attributes info
+      String attrQuery = this.attributesQuery;
+      if (attrQuery == null) {
+        return;
+      }
+      Configuration conf = Configuration.getInstance();
+      String sparqlType = conf.get("sparqlType", "virtuoso");
+
+      attrQuery = attrQuery.replace("%SERVICE_URI", serviceUri);
+      TupleQuery tupleQueryAttrs = con.prepareTupleQuery(QueryLanguage.SPARQL, attrQuery);
+      ServiceMap.println("attrQuery:" + attrQuery);
+      long ts = System.nanoTime();
+      TupleQueryResult resultAttrs = tupleQueryAttrs.evaluate();
+      logQuery(attrQuery, "API-service-attrs", sparqlType, serviceUri, System.nanoTime() - ts);
+      List<String> bnames = resultAttrs.getBindingNames();
+
+      out.println("    \"realtimeAttributes\":{");
+      int pp = 0;
+      while (resultAttrs.hasNext()) {
+        BindingSet bs = resultAttrs.next();
+
+        if (pp != 0) {
+          out.println(",");
+        } 
+
+        int ppp = 0;
+        out.print("      \""+bs.getBinding(bnames.get(0)).getValue().stringValue()+"\":{");
+        for (int i=1; i<bnames.size(); i++) {
+          String n = bnames.get(i);
+          if(bs.getBinding(n) != null) {
+            String v = bs.getBinding(n).getValue().stringValue();
+            if (ppp != 0) {
+              out.print(",");
+            }
+            out.print("\"" + n + "\":\"" + v + "\"");
+            ppp++;
+          }
+        }
+        out.print("}");
+        pp++;
+      }
+      out.println("},");
     }
   }
   
@@ -81,13 +140,23 @@ public class ServiceMapping {
     rs = st.executeQuery(query);
     while (rs.next()) {
         String serviceType = rs.getString("serviceType");
+        String section = rs.getString("section");
         String detailsQuery = rs.getString("serviceDetailsSparqlQuery");
+        String attributesQuery = rs.getString("serviceAttributesSparqlQuery");
         String realTimeQuery = rs.getString("serviceRealTimeSparqlQuery");
         String realTimeSqlQuery = rs.getString("serviceRealTimeSqlQuery");
+        String realTimeSolrQuery = rs.getString("serviceRealTimeSolrQuery");
         String predictionSqlQuery = rs.getString("servicePredictionSqlQuery");
         String trendSqlQuery = rs.getString("serviceTrendSqlQuery");
         int version = rs.getInt("apiVersion");
-        maps.get(version-1).put(serviceType, new MappingData(detailsQuery, realTimeQuery, realTimeSqlQuery, predictionSqlQuery, trendSqlQuery));
+        maps.get(version-1).put(serviceType, new MappingData(section,
+                detailsQuery, 
+                attributesQuery, 
+                realTimeQuery, 
+                realTimeSqlQuery, 
+                realTimeSolrQuery, 
+                predictionSqlQuery, 
+                trendSqlQuery));
     }
     rs.close();
     st.close();
@@ -102,5 +171,24 @@ public class ServiceMapping {
         return e.getValue();
     }
     return getMappingForServiceType(version-1, types);    
+  }
+
+  public String asHtml() {
+    String html = "";
+    html+="<table>";
+    html += "<tr><td>Class</td><td>attributes</td><td>details</td><td>RT SOLR</td><td>RT SPARQL</td><td>RT SQL</td></tr>";
+    for(String key:maps.get(0).keySet()) {
+      MappingData md=maps.get(0).get(key);
+      html += "<tr><td>"+key+
+              "</td><td>"+md.attributesQuery+
+              "</td><td>"+md.detailsQuery+
+              "</td><td>"+md.realTimeSolrQuery+
+              "</td><td>"+md.realTimeSparqlQuery+
+              "</td><td>"+md.realTimeSqlQuery+
+              "</td></tr>"
+              ;
+    }
+    html+="</table>";
+    return html;
   }
 }

@@ -47,13 +47,17 @@
     String raggio = request.getParameter("raggio");
     String centro = request.getParameter("centro");
     String numLinee = request.getParameter("numLinee");
+    if(centro==null)
+      return;
     String[] coord = centro.split(";");
 
-    logAccess(ip, null, ua, null, null, null, "ui-tpl-search", null, null, null, null, null, null, null);
+    ServiceMap.logAccess(request, null, null, null, null, "ui-tpl-search", null, null, null, null, null, null, null);
 
     try {
         serviceMapApi.queryTplLatLng(out, con, coord, raggio, null, numLinee, true);
     } catch (Exception e) {
-        out.println(e.getMessage());
-    }finally{con.close() ;}
+        ServiceMap.notifyException(e);
+    }finally{
+      con.close() ;
+    }
 %>

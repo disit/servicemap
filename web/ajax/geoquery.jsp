@@ -52,7 +52,7 @@
       i++;
     }
   } catch (Exception e) {
-    e.printStackTrace();
+    ServiceMap.notifyException(e);
   }
   out.println("]");
   con.close();

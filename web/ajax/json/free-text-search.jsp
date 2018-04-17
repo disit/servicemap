@@ -50,11 +50,13 @@
     textToSearch = unescapeUri(textToSearch);
     
    
-    logAccess(ip, null, ua, null, null, null, "ui-text-search", limit, null, null, textToSearch, null, null, null);
+    ServiceMap.logAccess(request, null, null, null, null, "ui-text-search", limit, null, null, textToSearch, null, null, null);
 
     try {
         serviceMapApi.queryFulltext(out, con, textToSearch, null, null, limit, "it", false);
     } catch (Exception e) {
         out.println(e.getMessage());
-    }finally{con.close() ;}
+    }finally{
+      con.close() ;
+    }
 %>

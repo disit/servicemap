@@ -27,13 +27,13 @@
         <script src='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.js'></script>
         <link href='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.css' rel='stylesheet' />
         <!--<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>-->
-        <script src="http://code.jquery.com/jquery-1.11.2.min.js"></script>
-        <script src="http://code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
+        <script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
+        <script src="https://code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
         <!--<script src="http://code.jquery.com/ui/1.10.4/jquery-ui.js"></script>-->
-        <script src="http://code.jquery.com/ui/1.11.2/jquery-ui.js"></script>
-        <script src="http://code.highcharts.com/highcharts.js"></script>
+        <script src="https://code.jquery.com/ui/1.11.2/jquery-ui.js"></script>
+        <script src="https://code.highcharts.com/highcharts.js"></script>
         <script src="https://code.highcharts.com/highcharts-3d.js"></script>
-        <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css" />	
+        <link rel="stylesheet" href="https://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css" />	
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/leaflet.awesome-markers.css">
         <script src="${pageContext.request.contextPath}/js/leaflet.awesome-markers.min.js"></script>
         <script src="${pageContext.request.contextPath}/js/jquery.dialogextend.js"></script>
@@ -46,6 +46,7 @@
 <!--        <script src="${pageContext.request.contextPath}/js/dataTables.bootstrap.min.js"></script>-->
         <script src="${pageContext.request.contextPath}/js/moment.min.js"></script>
         <script src="${pageContext.request.contextPath}/js/datetime-moment.js"></script>
+        <script src="${pageContext.request.contextPath}/js/jquery.timepicker.min.js"></script>
         <script src="${pageContext.request.contextPath}/js/zoomHandler.js"></script>
         <!-- code per gallery -->
         <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/lib/jquery.mousewheel-3.0.6.pack.js"></script>
@@ -67,10 +68,51 @@
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/MarkerCluster.Default.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/jquery.dataTables.min.css" type="text/css" />
+        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/jquery.timepicker.min.css" type="text/css" />
         
         <!-- aggiunto michela -->
         <!-- Michela: mettere qui fancy tree -->
+      
+        <!-- 
+        <script src="${pageContext.request.contextPath}/js/jquery.fancytree-all.min.js"></script> 
+        -->
+        <!-- Initialize the tree when page is loaded -->
         
+        <!--
+        <script>
+        $("#tree2").fancytree({
+            checkbox: true,
+            selectMode: 2,
+            source: "${pageContext.request.contextPath}/ajax/json/taxonomy.jsp",
+            select: function(event, data) {
+                    // Display list of selected nodes
+                    var selNodes = data.tree.getSelectedNodes();
+                    // convert to title/key array
+                    var selKeys = $.map(selNodes, function(node){
+                               return "[" + node.key + "]: '" + node.title + "'";
+                            });
+                    $("#echoSelection2").text(selKeys.join(", "));
+            },
+            click: function(event, data) {
+                    // We should not toggle, if target was "checkbox", because this
+                    // would result in double-toggle (i.e. no toggle)
+                    if( $.ui.fancytree.getEventTargetType(event) === "title" ){
+                            data.node.toggleSelected();
+                    }
+            },
+            keydown: function(event, data) {
+                    if( event.which === 32 ) {
+                            data.node.toggleSelected();
+                            return false;
+                    }
+            },
+            // The following options are only required, if we have more than one tree on one page:
+            cookieId: "fancytree-Cb2",
+            idPrefix: "fancytree-Cb2-"
+		});
+        </script>
+            -->
+            
     </head>
     <body class="Chrome" onload="">
         <% if (!gaCode.isEmpty()) {%>
@@ -88,12 +130,6 @@
             })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
             ga('create', '<%=gaCode%>', 'auto');
             ga('send', 'pageview');
-            /*$(document).ready(function () {
-             $("input[name='radio-language']").click(function () {
-             changeLanguage($(this).val());
-             });
-             });*/
-
         </script>
         <% } %>
         <script>
@@ -225,7 +261,7 @@
                         </div>
                     </div> --%>
                     <div id="tabs-search">
-                        <div class="use-case-search"><span name="lbl" caption="Select_Text_sx">Search by Text</span>:
+                        <div class="use-case-search"><span name="lbl" caption="Select_Text_sx">Search serviceTextFilterby Text</span>:
                             <input type="text" name="search" id="freeSearch" onkeypress="event.keyCode == 13 ? searchText() : false">
                             <br><br><span name="lbl" caption="Num_Results_sx">Max number of results</span>:
                             <select id="numberResults" name="numberResults">
@@ -301,7 +337,10 @@
                           <option value="foot_shortest">foot_shortest</option>
                           <option value="foot_quiet">foot_quiet</option>
                           <option value="car">car</option>
+                          <option value="public_transport">public_transport</option>
                         </select><br>
+                        Start date&amp;time: <input type="text" id="path_date" placeholder="today" maxlength="10"/>
+                        <input type="text" id="path_time" placeholder="now" max length="10"/><br>
                         <button style="margin:10px 0px;" onclick="doSearchPath()">Search Path</button>
                         <hr>
                         <div id="pathresult" style="max-height:250px;overflow:auto;"></div>
@@ -328,13 +367,10 @@
                         <li><a href="#tabs-4"><span name="lbl" caption="Search_Regular_Services">Regular Services</span></a></li>
                         <li><a href="#tabs-5"><span name="lbl" caption="Search_Transversal_Services">Transversal Services</span></a></li>
                         <!-- <li><a href="#tree"><span name="lbl" caption="Search_Services">Test Tree Services</span></a></li> -->
+                        
                     </ul>    
                     <div id="tabs-4">
-                        <span name="lbl" caption="Filter_Results_dx_R">Filter</span>:
-                        <input type="text" name="serviceTextFilter" id="serviceTextFilter" placeholder="search text into categories" onkeypress="event.keyCode == 13 ? ricercaCategorie() : false"/><br />
-                            
                         <div class="use-case-4">
-                            <!-- <input type="text" name="serviceTextFilter" id="serviceTextFilter" placeholder="search text into service" onkeypress="event.keyCode == 13 ? ricercaServizi('categorie', null, null) : false"/><br /> -->
                             <span name="lbl" caption="Services_Categories_R">Services Categories</span> 
                             <br /> 
                             <input type="checkbox" name="macro-select-all" id="macro-select-all" value="Select All" /> <span name="lbl" caption="Select_All_R">De/Select All</span>
@@ -388,14 +424,32 @@
                                     st.close();
                                     conMySQL.close();
                                 %>
-                                
-                                
-                                
                                 <br />
-
                             </div>
                             <span name="lbl" caption="Filter_Results_dx_R">Filter</span>:
-                            <input type="text" name="serviceTextFilter" id="serviceTextFilter" placeholder="search text into service" onkeypress="event.keyCode == 13 ? ricercaServizi('categorie', null, null) : false"/><br />
+                            <input type="text" name="serviceTextFilter" id="serviceTextFilter" placeholder="search text into service" onkeypress="event.keyCode == 13 ? ricercaServizi('categorie', null, null) : false"/><br />    
+                            <% if(conf.get("searchByValueType", "false").equals("true") || request.getParameter("debug")!=null ) {
+                              out.println("Service providing value type:<select id=\"valueTypeFilter\" name=\"valueTypeFilter\">");
+                              out.println("<option value=\"\">select value type</option>");
+                              RepositoryConnection rcon = ServiceMap.getSparqlConnection();
+                              try {
+                                String sparql = "SELECT DISTINCT ?vt WHERE{\n"
+                                   + " ?vt a sosa:ObservableProperty.\n"
+                                   //+ " ?vt km4c:value_unit ?u.\n"
+                                   + "} ORDER BY asc(STR(?vt))";
+                                TupleQuery q = rcon.prepareTupleQuery(QueryLanguage.SPARQL, sparql);
+                                TupleQueryResult tqr = q.evaluate();
+                                while(tqr.hasNext()) {
+                                  BindingSet bs = tqr.next();
+                                  String value_type = bs.getBinding("vt").getValue().stringValue();
+                                  value_type = value_type.substring(value_type.lastIndexOf("/")+1);                                  
+                                  out.println("<option>"+value_type+"</option>");
+                                }
+                              } finally {
+                                rcon.close();
+                              }
+                              out.println("</select><br>");
+                            } %>
                             <span name="lbl" caption="Num_Results_dx_R">N. results</span>:
                             <select id="nResultsServizi" name="nResultsServizi">
                                 <option value="10">10</option>
@@ -527,7 +581,7 @@
                                                 }
                                             }
                                             //String macro_cat = rs3.getString("SubClasse");
-                                            //System.out.println("res3_macrocat:" + macro_cat);
+                                            //ServiceMap.println("res3_macrocat:" + macro_cat);
                                             //String subclasse_ico = (macro_cat.substring(0, 1).toLowerCase()).concat(macro_cat.substring(1, classe.length()))+ "_" + sub_en_name;
                                             //String sub_numero = rs2.getString("NUMERO");
                                             //out.println("<input type='checkbox' name='" + sub_en_name + "' value='" + sub_en_name + "' class='sub_" + classe + " subcategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + subclasse_ico + ".png' height='19' width='16' align='top'>");
@@ -561,6 +615,16 @@
                                 <br/>
                                 <input type="checkbox" name="near-ferry-stops" value="Ferry_stop" class="macrocategory" id="Ferry" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Ferry_stop.png' height='23' width='20' align='top'/> <span class="public-transport-line macrocategory-label">Ferry_stop</span>
                                 <br/>
+                                <input type="checkbox" name="near-car-park" value="Car_park" class="macrocategory" id="TransferServiceAndRenting" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Car_park.png' height='23' width='20' align='top'/> <span class="TransferServiceAndRenting macrocategory-label">Car_park</span>
+                                <br/>
+                                <input type="checkbox" name="near-rtz" value="Bike_sharing_rack" class="macrocategory" id="TransferServiceAndRenting" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Bike_sharing_rack.png' height='23' width='20' align='top'/> <span class="TransferServiceAndRenting macrocategory-label">Bike_sharing_rack</span>
+                                <br/>
+                                <input type="checkbox" name="near-rtz" value="RTZgate" class="macrocategory" id="DigitaLocation" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_RTZgate.png' height='23' width='20' align='top'/> <span class="TransferServiceAndRenting macrocategory-label">RTZgate</span>
+                                <br/>
+                                <input type="checkbox" name="near-rtz" value="Fuel_station" class="macrocategory" id="DigitaLocation" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Fuel_station.png' height='23' width='20' align='top'/> <span class="TransferServiceAndRenting macrocategory-label">Fuel_station</span>
+                                <br/>
+                                <input type="checkbox" name="near-rtz" value="Charging_stations" class="macrocategory" id="TransferServiceAndRenting" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Charging_stations.png' height='23' width='20' align='top'/> <span class="TransferServiceAndRenting macrocategory-label">Charging_stations</span>
+                                <br/>
                                 <input type="checkbox" name="near-air-quality-stations" value="Air_quality_monitoring_station" class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_Air_quality_monitoring_station.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">Air_quality_monitoring_station</span>
                                 <br/>
                                 <input type="checkbox" name="near-pollen-monitoring-stations" value="Pollen_monitoring_station"  class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_Pollen_monitoring_station.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">Pollen_monitoring_station</span>
@@ -569,11 +633,12 @@
                                 <br/>
                                 <input type="checkbox" name="near-smart-irrigator" value="Smart_irrigator"  class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_Smart_irrigator.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">Smart_irrigator</span>
                                 <br/>
+                                <input type="checkbox" name="near-weather-sensor" value="Weather_sensor"  class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_Weather_sensor.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">Weather_sensor</span>
+                                <br/>
                                 <input type="checkbox" name="near-smart-bench" value="Smart_bench"  class="macrocategory" id="Entertainment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Entertainment_Smart_bench.png' height='23' width='20' align='top'/> <span class="Entertainment macrocategory-label">Smart_bench</span>
                                 <br/>
                                 <input type="checkbox" name="near-first-aid" value="First_aid"  class="macrocategory" id="Emergency" /> <img src='${pageContext.request.contextPath}/img/mapicons/Emergency_First_aid.png' height='23' width='20' align='top'/> <span class="Emergency macrocategory-label">First_aid</span>
-                            </div>
-                            
+                            </div>                            
                             <br />
                             <span name="lbl" caption="Filter_Results_dx_T">Filter</span>:
                             <br>
@@ -1054,10 +1119,18 @@
                                               pathStart = parameters["source"];
                                               pathEnd = parameters["destination"];
                                               routeType = parameters["routeType"];
+                                              startDatetime = parameters["startDatetime"];
                                               $("#path_start").html("From: "+pathStart);
                                               $("#path_end").html("To: "+pathEnd);
                                               if(routeType)
                                                 $("#path_type").val(routeType);
+                                              if(startDatetime) {
+                                                var d=startDatetime.split("T");
+                                                if(d.length==2) {
+                                                  $("#path_date").val(d[0]);
+                                                  $("#path_time").val(d[1]);
+                                                }
+                                              }
                                               $("#path").show();
                                               doSearchPath(false,true); //fit
                                             }
@@ -1511,8 +1584,8 @@
                                             satellite = L.tileLayer(mbUrl, {id: 'mapbox.streets-satellite', attribution: mbAttr}),
                                             grayscale = L.tileLayer(mbUrl, {id: 'pbellini.f33fdbb7', attribution: mbAttr});
                                     var map = L.map('map', {
-                                        center: [43.3555664, 11.0290384],
-                                        zoom: 8,
+                                        center: [<%= ServiceMap.getMapDefaultLatLng(request, "43.3555664, 11.0290384") %>],
+                                        zoom: <%= ServiceMap.getMapDefaultZoom(request, "8") %>,
                                         layers: [streets]
                                     });
                                     var baseMaps = {
@@ -1681,10 +1754,37 @@
                                         // CREO LE TABS JQUERY UI NEL MENU IN ALTO
                                         $("#tabs").tabs();
                                         $("#tabs-servizi").tabs();
+                                        $("#path_date").datepicker({dateFormat: "yy-mm-dd"});
+                                        $("#path_time").timepicker({timeFormat:"H:i", step: 10});
                                         //$("#fancytree").fancytree();
-                                        //fancy tree INIZIO
                                         
+                                        /* //fancy tree INIZIO
+                                        $.ajax({
+                                                url: "${pageContext.request.contextPath}/ajax/json/taxonomy.jsp",
+                                                type: "GET",
+                                                async: true,
+                                                dataType: 'json',
+                                                data: {
+                                                    lang: "ENG",
+                                                },
+                                                success: function (response) {
+                                                  taxonomy_ENG = response;
+                                                }
+                                            });
+                                        $.ajax({
+                                                url: "${pageContext.request.contextPath}/ajax/json/taxonomy.jsp",
+                                                type: "GET",
+                                                async: true,
+                                                dataType: 'json',
+                                                data: {
+                                                    lang: "ITA",
+                                                },
+                                                success: function (response) {
+                                                  taxonomy_ITA = response;
+                                                }
+                                            });
                                         //fancy tree fine
+                                        */
                                         $.widget( "ui.autocomplete", $.ui.autocomplete, {
                                           _renderItem: function( ul, item ) {
                                             var icon = item.properties.serviceType.replace(" ","_");
@@ -2200,6 +2300,7 @@
                                                 var raggioSensori = raggioServizi;
                                                 var raggioBus = raggioServizi;
                                                 var textFilter = $("#serviceTextFilter").val();
+                                                var value_type = $("#valueTypeFilter").val();
                                             }
                                             else {
                                                 var numeroRisultatiServizi = $('#nResultsServizi_t').val();
@@ -2507,7 +2608,8 @@
                                                     numeroRisultatiServizi: numeroRisultatiServizi,
                                                     numeroRisultatiSensori: numeroRisultatiSensori,
                                                     cat_servizi: tipo_categoria,
-                                                    numeroRisultatiBus: numeroRisultatiBus
+                                                    numeroRisultatiBus: numeroRisultatiBus,
+                                                    value_type: value_type
                                                 },
                                                 success: function (msg_response) {
                                                     if (mode == "JSON") {

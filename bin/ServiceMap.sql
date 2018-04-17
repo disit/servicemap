@@ -43,7 +43,19 @@ CREATE TABLE IF NOT EXISTS `AccessLog` (
 ) ENGINE=InnoDB  DEFAULT CHARSET=latin1 ;
 
 -- --------------------------------------------------------
+--
+-- Struttura della tabella `ServiceLimit`
+--
 
+CREATE TABLE IF NOT EXISTS `ServiceLimit` (
+  `date` date NOT NULL,
+  `ipaddr` varchar(45) NOT NULL,
+  `requestType` varchar(45) NOT NULL,
+  `doneCount` int(11) DEFAULT '0',
+  `limitedCount` int(11) DEFAULT '0',
+  `resultsCount` int(11) DEFAULT '0',
+  PRIMARY KEY (`date`,`ipaddr`,`requestType`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 -- --------------------------------------------------------
 
@@ -99,6 +111,7 @@ CREATE TABLE IF NOT EXISTS `ServiceCategory_menu_NEW` (
   `ItaAdditional` varchar(200) DEFAULT NULL,
   `TypeOfService` varchar(45) DEFAULT 'Service',
   `Visible` int(11) DEFAULT '1',
+  `icon` varchar(45) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=latin1;
 

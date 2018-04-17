@@ -219,37 +219,30 @@
                     + "Select (count(*) as ?c) ?sCategory ?sType where{\n"
                     + "SELECT distinct ?ser ?serAddress ?elat ?elong ?sType ?sTypeIta ?sCategory ?sName ?x WHERE {\n"
                     + " ?ser rdf:type km4c:Service"+(sparqlType.equals("virtuoso")? " OPTION (inference \"urn:ontology\")":"")+".\n"
+                    + ServiceMap.textSearchQueryFragment("?ser", "?p", textFilter)
+                    + " ?ser geo:lat ?elat.\n"
+                    + " ?ser geo:long ?elong.\n"
+                    + ServiceMap.geoSearchQueryFragment("?ser", coord, raggioServizi)
                     + " OPTIONAL {?ser schema:name ?sName}\n"
                     + " OPTIONAL {?ser schema:streetAddress ?serAddress.}\n"
-                    + ServiceMap.textSearchQueryFragment("?ser", "?p", textFilter)
-                    + " {\n"
-                    + "  ?ser km4c:hasAccess ?entry.\n"
-                    + "  ?entry geo:lat ?elat.\n"
-                    + "  ?entry geo:long ?elong.\n"
-                    + ServiceMap.geoSearchQueryFragment("?entry", coord, raggioServizi)
-                    + " } UNION {\n"
-                    + "  ?ser geo:lat ?elat.\n"
-                    + "  ?ser geo:long ?elong.\n"
-                    + ServiceMap.geoSearchQueryFragment("?ser", coord, raggioServizi)
-                    + " }\n"
                     + fc
                     + (!km4cVersion.equals("old") ? 
-                        " graph ?g {?ser a ?sType. FILTER(?sType!=km4c:RegularService && ?sType!=km4c:Service && ?sType!=km4c:DigitalLocation && ?sType!=km4c:TransverseService && ?sType!=km4c:BusStop && ?sType!=km4c:SensorSite)}\n"
-                      + " ?sType rdfs:subClassOf ?sCategory. FILTER(?sCategory!=<http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing> && ?sCategory!=<http://www.pms.ifi.uni-muenchen.de/OTN#Line>)"
+                        " ?ser a ?sType. FILTER(?sType!=km4c:RegularService && ?sType!=km4c:Service && ?sType!=km4c:DigitalLocation && ?sType!=km4c:TransverseService && ?sType!=km4c:BusStop && ?sType!=km4c:SensorSite)\n"
+                      + " ?sType rdfs:subClassOf ?sCategory. FILTER(?sCategory!=<http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing> && ?sCategory!=<http://www.pms.ifi.uni-muenchen.de/OTN#Line>)\n"
                       + " ?sType rdfs:label ?sTypeIta. FILTER(LANG(?sTypeIta)=\"it\")\n" : "")
                     + "} ORDER BY ?dist";
             if (!numeroRisultatiServizi.equals("0")) {
                 limitServizi = ((Integer.parseInt(numeroRisultatiServizi))-(numeroBus + numeroSensori));
                 queryString += " LIMIT " + limitServizi;
             }
-            queryString += "}order by ASC(?sCategory)";
+            queryString += "} order by ASC(?sCategory)";
             
             TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
             if(sparqlType.equals("owlim"))
               tupleQuery.setMaxQueryTime(maxTime);
             TupleQueryResult result = tupleQuery.evaluate();
             logQuery(filterQuery(queryString),"count-services",sparqlType,centroRicerca+";"+raggioServizi+";"+numeroRisultatiServizi+";"+categorie);
-            System.out.println(queryString);
+            //ServiceMap.println(queryString);
             String cat = "";
             String subCat = "";
             int num = 0;
@@ -400,7 +393,7 @@
                         + "}");
           }
         } catch(Exception e) {
-          e.printStackTrace();
+          ServiceMap.notifyException(e);
         }
         out.println("],"
         + " \"total\": \"" + total + "\" }");

@@ -25,8 +25,9 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
   String ipAddress = ServiceMap.getClientIpAddress(request);  
-
-  if(!ipAddress.startsWith("192.168.0.") && !ipAddress.equals("127.0.0.1")) {
+  
+  Configuration conf = Configuration.getInstance();
+  if(!ipAddress.startsWith(conf.get("internalNetworkIpPrefix", "192.168.0.")) && !ipAddress.equals("127.0.0.1")) {
     response.sendError(403, "unaccessible from "+ipAddress);
     return;
   }
@@ -41,10 +42,11 @@
       st.setString(2, id);
       int n = st.executeUpdate();
       out.println(n);
-      st.close();
-      connection.close();
+      st.close();      
     } catch (SQLException ex) {
-      ex.printStackTrace();
+      ServiceMap.notifyException(ex);
+    } finally {
+      connection.close();
     }
   }
 %>

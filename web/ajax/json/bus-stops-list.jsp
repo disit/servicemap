@@ -41,7 +41,9 @@
  RepositoryConnection conn = ServiceMap.getSparqlConnection();
 
  String route = request.getParameter("route");
- 
- api.queryBusStopsOfLine(out, conn, null, route, false);
-
+ try {
+  api.queryBusStopsOfLine(out, conn, null, route, false);
+ } finally {
+  conn.close();
+ }
 %>

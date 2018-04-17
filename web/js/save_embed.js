@@ -34,7 +34,7 @@ function save_handler(typeService, id, nameService, embed, textSearch) {
       else if(typeService == "event"){//michela, sarebbe da rivedere anche questa funzione...
            t = type = "event";
       }   
-      else    
+      else  //QUI  
         t = type = "query";
     }
   }
@@ -275,9 +275,16 @@ function saveQuery(email, update, typeService, id, nameService, format, type) {
                     raggioServizi = raggioSensori = raggioBus  = query.raggio[0];
             }
             //numero risultati
-            numeroRisultatiServizi = query.numeroRisultati[0];
-            numeroRisultatiSensori = query.numeroRisultati[0];
-            numeroRisultatiBus = query.numeroRisultati[0]; 
+            if(selezione.includes("COMUNE")){
+                numeroRisultatiServizi = query.limit;
+                numeroRisultatiSensori = query.limit;
+                numeroRisultatiBus = query.limit; 
+            }
+            else{
+                numeroRisultatiServizi = query.numeroRisultati[0];
+                numeroRisultatiSensori = query.numeroRisultati[0];
+                numeroRisultatiBus = query.numeroRisultati[0]; 
+            }
         }
         
         //previsioni
@@ -293,7 +300,7 @@ function saveQuery(email, update, typeService, id, nameService, format, type) {
           else
             stringaPopupOpen += JSON.stringify(listOfPopUpOpen[i]) + " , ";
         }
-        if(actualSelection.indexOf("Bus Line") >= 0){//caso di selezione TPL da forma in alto a sx
+        if((query.type != 'freeText') && actualSelection.indexOf("Bus Line") >= 0){//caso di selezione TPL da forma in alto a sx
             coordinateSelezione = ""; 
             if(stringaCategorie=='')
                 stringaCategorie = "PublicTransportLine";

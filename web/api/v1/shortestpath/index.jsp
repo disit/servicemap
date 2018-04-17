@@ -17,6 +17,11 @@
    You should have received a copy of the GNU Affero General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
+  Configuration conf = Configuration.getInstance();
+  if(!conf.get("enablePathSearch", "true").equalsIgnoreCase("true")){
+    response.sendError(400, "service not available, try later");
+    return;
+  }
   String source = request.getParameter("source");
   String destination = request.getParameter("destination");
   if(source==null || destination==null) {
@@ -25,8 +30,12 @@
   }
   
   String routeType = request.getParameter("routeType");
-  if(routeType!=null && !"foot_shortest".equals(routeType) && !"foot_quiet".equals(routeType) && !"car".equals(routeType) && !"feet".equals(routeType)) {
-    response.sendError(400, "invalid routeType parameter (foot_shortest, foot_quiet, car) ");    
+  if(routeType!=null && !"foot_shortest".equals(routeType) && 
+          !"foot_quiet".equals(routeType) && 
+          !"car".equals(routeType) && 
+          !"public_transport".equals(routeType) && 
+          !"feet".equals(routeType)) {
+    response.sendError(400, "invalid routeType parameter (foot_shortest, foot_quiet, car, public_transport) ");    
     return;
   }
   String maxFeetKM = request.getParameter("maxFeetKM");
@@ -40,12 +49,16 @@
   String ip = ServiceMap.getClientIpAddress(request);
   String ua = request.getHeader("User-Agent");
   String reqFrom = request.getParameter("requestFrom");
+  if(! ServiceMap.checkIP(ip, "api")) {
+    response.sendError(403,"API calls daily limit reached");
+    return;
+  }      
 
   if ("html".equals(request.getParameter("format"))) {%>
 <jsp:include page="../../../mappa.jsp" > <jsp:param name="mode" value="query"/> <jsp:param name="api" value="shortestpath"/> </jsp:include>
 <%
     response.setContentType("text/html; charset=UTF-8");
-    logAccess(ip, null, ua, null, null, source+";"+destination+";"+startDatetime+";"+routeType+";"+maxFeetKM, "api-shortestpath", null, null, null, null, "html", uid, reqFrom);
+    ServiceMap.logAccess(request, null, null, null, source+";"+destination+";"+startDatetime+";"+routeType+";"+maxFeetKM, "api-shortestpath", null, null, null, null, "html", uid, reqFrom);
   } else { //format json
     request.setCharacterEncoding("UTF-8");
     response.setContentType("application/json; charset=UTF-8");
@@ -66,8 +79,10 @@
     }catch(IllegalArgumentException e) {
       response.sendError(400, e.getMessage());
     }
+    finally {
+      con.close();
+    }
 
-    logAccess(ip, null, ua, null, null, source+";"+destination+";"+startDatetime+";"+routeType+";"+maxFeetKM, "api-shortestpath", null, null, null, null, "json", uid, reqFrom);
-    con.close();
+    ServiceMap.logAccess(request, null, null, null, source+";"+destination+";"+startDatetime+";"+routeType+";"+maxFeetKM, "api-shortestpath", null, null, null, null, "json", uid, reqFrom);
   }  
 %>

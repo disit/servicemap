@@ -38,6 +38,9 @@
 
   RepositoryConnection con = ServiceMap.getSparqlConnection();
   ServiceMapApiV1 apiV1 = new ServiceMapApiV1();
-  apiV1.queryBusesLastPosition(out, con);
-  con.close();
+  try {
+    apiV1.queryBusesLastPosition(out, con);
+  } finally {
+    con.close();
+  }
 %>

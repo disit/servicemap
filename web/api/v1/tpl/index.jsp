@@ -44,19 +44,24 @@
     String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
+    if(! ServiceMap.checkIP(ip, "api")) {
+      response.sendError(403,"API calls daily limit reached");
+      return;
+    }      
 
     if(selection == null) {
       response.sendError(HttpServletResponse.SC_BAD_REQUEST,"missing 'selection' parameter");
     }
     else {
       String c[] = selection.split(";");
-      if(c.length>=2) {
+      if(c.length==2 || c.length==4 || (c.length==1 && (c[0].startsWith("wkt:") || c[0].startsWith("geo:")))) {
         RepositoryConnection con = ServiceMap.getSparqlConnection();
-        serviceMapApi.queryTplLatLng(out, con, c, maxDist, agency, maxResults, "true".equalsIgnoreCase(geometry));
+        int results = serviceMapApi.queryTplLatLng(out, con, c, maxDist, agency, maxResults, "true".equalsIgnoreCase(geometry));
+        ServiceMap.updateResultsPerIP(ip, "api", results);    
         con.close();
-        logAccess(ip, null, ua, selection, null, null, "api-tpl-latlng", null, null, null, null, "json", uid, reqFrom);
+        ServiceMap.logAccess(request, null, selection, null, null, "api-tpl-latlng", null, null, null, null, "json", uid, reqFrom);
       }
       else
-        response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'position' parameter (missing lat;long)");
+        response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'selection' parameter (accepted 'lat;long', 'lat1;long1;lat2;long2', 'wkt:...' or 'geo:...' )");
     }
 %>

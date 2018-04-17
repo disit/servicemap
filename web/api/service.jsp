@@ -41,8 +41,8 @@
   String idService = request.getParameter("serviceUri");
   String ip = ServiceMap.getClientIpAddress(request);
   String ua = request.getHeader("User-Agent");
-  //System.out.println("MIC-----------------  "+idService);
-  logAccess(ip, null, ua, null, null, idService, "ui-service-info", null, null, null, null, null, null, null);
+  //ServiceMap.println("MIC-----------------  "+idService);
+  ServiceMap.logAccess(request, null, null, null, idService, "ui-service-info", null, null, null, null, null, null, null);
 
   String queryString = "";
   String filtroQuery = "";
@@ -51,14 +51,17 @@
 
   List<String> types = ServiceMap.getTypes(con, idService);
   //for(int x=0; x<types.size(); x++)
-  //  System.out.println(idService+" types: "+types.get(x));
+  //  ServiceMap.println(idService+" types: "+types.get(x));
   
   try {
     //se esiste un mapping per un tipo associato al servizio usa le API altrimenti ritorna al vecchio codice
     ServiceMapping.MappingData serviceMapping = ServiceMapping.getInstance().getMappingForServiceType(1, types);
-    if (serviceMapping!=null && (serviceMapping.detailsQuery!=null || serviceMapping.realTimeSparqlQuery!=null)) {
+    if (serviceMapping!=null && (serviceMapping.detailsQuery!=null || 
+            serviceMapping.realTimeSparqlQuery!=null || 
+            serviceMapping.realTimeSqlQuery!=null || 
+            serviceMapping.realTimeSolrQuery!=null)) {
       ServiceMapApiV1 api = new ServiceMapApiV1();
-      api.queryService(out, con, idService, "en", "true", null, types);
+      api.queryService(out, con, idService, "en", "true", null, null, types);
     } else if ((types.contains("BusStop") || types.contains("Tram_stops") || types.contains("Train_station") || types.contains("Ferry_stop")) && !types.contains("DigitalLocation")) {
       String nomeFermata = "";
       String queryStringBusStop = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
@@ -81,7 +84,7 @@
               + "   ?ag foaf:name ?agname."
               + "  FILTER(?sType!=gtfs:Stop)"
               + "}LIMIT 1";
-      //System.out.println("MIC service.jsp -----------------  "+queryStringBusStop);
+      //ServiceMap.println("MIC service.jsp -----------------  "+queryStringBusStop);
 
       TupleQuery tupleQueryBusStop = con.prepareTupleQuery(QueryLanguage.SPARQL, queryStringBusStop);
       TupleQueryResult busStopResult = tupleQueryBusStop.evaluate();
@@ -348,7 +351,7 @@
               // ---- FINE CAMPI AGGIUNTI ---
               + "}LIMIT 1";
       
-      //System.out.println("MICHELA-----------------  "+queryStringService);
+      //ServiceMap.println("MICHELA-----------------  "+queryStringService);
       //PROVA QUERY DBPEDIA
       String queryDBpedia = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
               + "PREFIX cito:<http://purl.org/spar/cito/>\n"
@@ -357,7 +360,7 @@
               + "?road cito:cites ?linkDBpedia.}\n"
               + "}";
       
-      //System.out.println(queryDBpedia);
+      //ServiceMap.println(queryDBpedia);
       out.println("{ "
               + "\"type\": \"FeatureCollection\", "
               + "\"features\": [ ");
@@ -696,7 +699,7 @@
               + "}");
     }
   } catch (Exception e) {
-    e.printStackTrace();
+    ServiceMap.notifyException(e);
   } finally {
     con.close();
   }

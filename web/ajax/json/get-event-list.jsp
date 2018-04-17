@@ -53,11 +53,13 @@
     String textFilter= request.getParameter("textFilter");
     String[] coord = centro.split(";");
 
-    logAccess(ip, null, ua, centro, null, null, "ui-events-"+range, numEv, raggio, null, null, null, null, null);
+    ServiceMap.logAccess(request, null, centro, null, null, "ui-events-"+range, numEv, raggio, null, null, null, null, null);
 
     try {
         serviceMapApi.queryEventList(out, con, range, coord, raggio, numEv, textFilter, true);
     } catch (Exception e) {
-        out.println(e.getMessage());
-    }finally{con.close() ;}
+        ServiceMap.notifyException(e);
+    }finally{
+      con.close() ;
+    }
 %>

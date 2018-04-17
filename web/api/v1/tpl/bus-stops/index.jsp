@@ -33,14 +33,19 @@
     String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
+    if(! ServiceMap.checkIP(ip, "api")) {
+      response.sendError(403,"API calls daily limit reached");
+      return;
+    }      
 
     if(line == null && codRoute == null) {
       response.sendError(HttpServletResponse.SC_BAD_REQUEST,"missing 'line' or 'route' parameters");
     }
     else {
       RepositoryConnection con = ServiceMap.getSparqlConnection();
-      serviceMapApi.queryBusStopsOfLine(out, con, line, codRoute, geometry==null || "true".equalsIgnoreCase(geometry));
+      int results = serviceMapApi.queryBusStopsOfLine(out, con, line, codRoute, geometry==null || "true".equalsIgnoreCase(geometry));
+      ServiceMap.updateResultsPerIP(ip, "api", results);
       con.close();
-      logAccess(ip, null, ua, line+";"+codRoute, null, null, "api-tpl-bus-stops", null, null, null, null, "json", uid, reqFrom);
+      ServiceMap.logAccess(request, null, line+";"+codRoute, null, null, "api-tpl-bus-stops", null, null, null, null, "json", uid, reqFrom);
     }
 %>
