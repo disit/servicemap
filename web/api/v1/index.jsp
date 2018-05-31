@@ -54,12 +54,12 @@ String queryId = request.getParameter("queryId");
 String search = request.getParameter("search");
 String showBusPosition = request.getParameter("showBusPosition");
 String value_type = request.getParameter("value_type");
-
+        
 if(idService==null && selection==null && queryId==null && search==null && showBusPosition==null) {
     response.sendError(400, "please specify 'selection', 'search', 'serviceUri' or 'queryId' parameters");
     return;
 }
-if(queryId!=null && (queryId.length()!=32 || !queryId.matches("[0-9a-fA-F]+"))) {
+if(queryId!=null && (queryId.length()>32 || !queryId.matches("[0-9a-fA-F]+"))) {
     response.sendError(400, "invalid queryId parameter");
     return;
 }
@@ -153,6 +153,10 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     String fullCount = request.getParameter("fullCount");
     if(!"false".equals(fullCount))
       fullCount="true";
+    
+    String checkHealthiness = request.getParameter("healthiness");
+    if(!"true".equals(checkHealthiness))
+      checkHealthiness="false";
     
     String textToSearch = request.getParameter("search");
     String typeSaving = "";
@@ -346,8 +350,8 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       }
       String types = null;
       ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, serviceTypes);
-      if(md!=null) {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, fromTime, uid, serviceTypes);        
+      if(md!=null && !serviceTypes.contains("SensorSite")) {
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, fromTime, checkHealthiness, uid, serviceTypes);        
       } 
       else if (serviceTypes.contains("BusStop")|| serviceTypes.contains("NearBusStops")) {
         serviceMapApi.queryTplStop(out, con, idService, "BusStop", lang, realtime, uid);
@@ -369,18 +373,18 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         serviceMapApi.queryMeteo(out, con, idService, lang);
       }
       else if ((serviceTypes.contains("SensorSite") || serviceTypes.contains("RoadSensor")) && !serviceTypes.contains("Fuel_station")) {
-        serviceMapApi.querySensor(out, con, idService, lang, realtime, uid,fromTime);
+        serviceMapApi.querySensor(out, con, idService, lang, realtime, checkHealthiness, uid, fromTime);
         types = "TransferServiceAndRenting;SensorSite";
       }
       else if (serviceTypes.contains("Service") || serviceTypes.contains("RegularService")) {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, fromTime, uid, serviceTypes);
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, fromTime, checkHealthiness, uid, serviceTypes);
       }
       else if (serviceTypes.contains("Event")) {
         serviceMapApi.queryEvent(out, con, idService, lang, uid);
         types = "Service;Event";
       }
       else {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, fromTime, uid, serviceTypes);
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, fromTime, checkHealthiness, uid, serviceTypes);
       }
       ServiceMap.logAccess(request, null, null, types, idService, "api-service-info", null, null, queryId, null, "json", uid, reqFrom);
       ServiceMap.updateResultsPerIP(ip, requestType, 1);

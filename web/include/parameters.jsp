@@ -1,3 +1,5 @@
+<%@page import="java.net.URLEncoder"%>
+<%@page import="java.net.URLDecoder"%>
 <%@page import="org.json.simple.JSONObject"%>
 <%@page import="org.disit.servicemap.ConnectionPool"%>
 <%@page import="org.disit.servicemap.ServiceMap"%>
@@ -57,14 +59,13 @@
     String userMySql = conf.getSet("userMySql","user");
     String passMySql = conf.getSet("passMySql","password");
     String baseApiUri = conf.getSet("baseApiUrl","http://localhost:8080/ServiceMap/api/");
-
     String logEndPoint = conf.getSet("logEndPoint","http://log.disit.org/service/?sparql=http://localhost:8080/ServiceMap/sparql&uri=");
-    String mailFrom = conf.getSet("mailFrom","servicemap@mail.org");
-    String smtp = conf.getSet("smtp","");
+    String mailFrom = conf.getSet("mailFrom","info@disit.org");
+    String smtp = conf.getSet("smtp","musicnetwork.dsi.unifi.it");
     String portSmtp = conf.getSet("portSmtp","25");
     String accessLogFile = conf.getSet("accessLogFile", "servicemap-access.log");
-    String sparqlEndpoint = conf.get("sparqlEndpoint","http://localhost:8890/sparql");
-    String virtuosoEndpoint = conf.get("virtuosoEndpoint","jdbc:virtuoso://localhost:1111");
+    String sparqlEndpoint = conf.getSet("sparqlEndpoint","http://localhost:8890/sparql");
+    String virtuosoEndpoint = conf.getSet("virtuosoEndpoint","jdbc:virtuoso://localhost:1111");
     static String sparqlType = conf.getSet("sparqlType","virtuoso");
     static int maxTime = 3*60*(sparqlType.equals("virtuoso")?1000:1); //3 min
     static String km4cVersion = conf.getSet("km4cVersion","new");
@@ -72,30 +73,34 @@
     int clusterResults = Integer.parseInt(conf.get("clusterResults","4000"));
     int clusterDistance = Integer.parseInt(conf.get("clusterDistance","40"));
     int noClusterAtZoom = Integer.parseInt(conf.get("noClusterAtZoom","17"));
-    String mapAccessToken = conf.get("mapAccessToken","...map token...");
-    String check_send_to = conf.get("check_send_to","");
+    String mapAccessToken = conf.get("mapAccessToken","...mapbox token...");
+    String check_send_to = conf.get("check_send_to","me@email.org");
     int avm_max_delay = Integer.parseInt(conf.get("avm_max_delay","30"));
     int meteo_max_delay = Integer.parseInt(conf.get("meteo_max_delay","1440"));
     int parking_max_delay = Integer.parseInt(conf.get("parking_max_delay","30"));
     int sensor_max_delay = Integer.parseInt(conf.get("sensor_max_delay","60"));
     String enable_road_ftsearch = conf.get("enable_road_ftsearch","true");
-
+    String notifierUrl = conf.getSet("notificatorRestInterfaceUrl", "http://localhost/notificator/restInterface.php");
+    String notifierUsr = conf.getSet("notificatorRestInterfaceUsr", "alarmManager");
+    String notifierPwd = conf.getSet("notificatorRestInterfacePwd", "...code...");
+    String notifierAppName = conf.getSet("notificatorRestInterfaceAppName", "ServiceMapTest");
+    String accessLogPhnx = conf.getSet("phoenixAccessLog", "false");
 %>
 
 <%!
-    private static String escapeURI(final String query) {
+    private static String escapeURI(final String query) throws UnsupportedEncodingException{
         if(query==null)
           return null;
-        return query.replace("%", "%25").replace(" ", "%20").replace(":", "%3A").replace("\"", "%22").replace("#", "%23").replace("<", "%3C").replace(">", "%3E").replace("'", "%27").replace("^", "%5E").replace("{", "%7B").replace("}", "%7D").replace(";", "%3B").replace(",", "%2C").replace("[", "%5B").replace("]", "%5D");
+        return URLEncoder.encode(query, "UTF-8");
     }
-    private static String unescapeUri(final String query) {
+    private static String unescapeUri(final String query) throws UnsupportedEncodingException {
         if(query==null)
           return null;
-        return query.replace("%20", " ").replace("%3B", ";").replace("%3A", ":").replace("%2C", ",").replace("%5B", "[").replace("%5D", "]").replace("%22", "\"").replace("%23", "#").replace("%3C", "<").replace("%3E", ">").replace("%5E", "^").replace("%7B", "{").replace("%7D", "}").replace("%25", "%").replace("%27", "'");
+        return URLDecoder.decode(query, "UTF-8");
     }
     
     private void logAccess(String ip, String email, String UA, String sel, String categorie, String serviceUri, String mode, String numeroRisultati, String raggio, String queryId, String text, String format, String uid, String reqFrom) throws IOException, SQLException {
-      ServiceMap.logAccess(ip, email, UA, sel, categorie, serviceUri, mode, numeroRisultati, raggio, queryId, text, format, uid, reqFrom);
+      ServiceMap.logAccess(ip, email, UA, sel, categorie, serviceUri, mode, numeroRisultati, raggio, queryId, text, format, uid, reqFrom, null, null);
     }
     
     private String sqlValue(Object x) {

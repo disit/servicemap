@@ -434,7 +434,7 @@
                               RepositoryConnection rcon = ServiceMap.getSparqlConnection();
                               try {
                                 String sparql = "SELECT DISTINCT ?vt WHERE{\n"
-                                   + " ?vt a sosa:ObservableProperty.\n"
+                                   + " ?vt a ssn:Property.\n"
                                    //+ " ?vt km4c:value_unit ?u.\n"
                                    + "} ORDER BY asc(STR(?vt))";
                                 TupleQuery q = rcon.prepareTupleQuery(QueryLanguage.SPARQL, sparql);
@@ -2366,6 +2366,24 @@
                                             } else if(coord.length==4 && mode=="query") {
                                                 clickLayer.addLayer(L.marker([(Number(coord[0])+Number(coord[2]))/2, (Number(coord[1])+Number(coord[3]))/2]));
                                                 clickLayer.addLayer(L.rectangle([[coord[0], coord[1]],[coord[2], coord[3]]])).addTo(map);
+                                            } else if(coord.length==1 && centroRicerca.startsWith("geo:") && mode=="query") {
+                                                var label=centroRicerca.substr(4);
+                                                $.ajax({
+                                                  url: "${pageContext.request.contextPath}/ajax/json/get-geometry.jsp",
+                                                  type: "GET",
+                                                  async: true,
+                                                  dataType: 'json',
+                                                  data: {
+                                                      label: label
+                                                  },
+                                                  success: function (response) {
+                                                    var wkt = new Wkt.Wkt();
+                                                    wkt.read(response.wkt);
+                                                    var obj = wkt.toObject();
+                                                    obj.addTo(clickLayer);
+                                                    clickLayer.addTo(map);
+                                                  }
+                                              });                                          
                                             } else if(raggioServizi=="geo") {
                                             }
                                             

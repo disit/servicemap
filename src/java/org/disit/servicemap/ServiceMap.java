@@ -16,6 +16,9 @@
 
 package org.disit.servicemap;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.io.WKTReader;
@@ -32,6 +35,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.*;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,6 +45,7 @@ import java.util.GregorianCalendar;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Scanner;
 import java.util.TimeZone;
@@ -86,6 +91,7 @@ public class ServiceMap {
   static public DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
   
   static public DateFormat dateFormatterTZ = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+  static public DateFormat dateFormatterTZ2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
   
   static public DateFormat dateFormatterGMT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
 
@@ -638,11 +644,20 @@ public class ServiceMap {
     }
     String lat2 = coords[2];
     String lng2 = coords[3];
-    return (sparqlType.equals("virtuoso")
-            ? " " + subj + " geo:geometry ?geo.  filter(bif:st_x(?geo)>=" + lng + " && bif:st_x(?geo)<=" + lng2 + " && bif:st_y(?geo)>=" + lat + " && bif:st_y(?geo)<=" + lat2 + ")\n"
-            + " BIND(bif:st_distance(?geo, bif:st_point (" + (Float.parseFloat(lng)+Float.parseFloat(lng2))/2. + "," + (Float.parseFloat(lat)+Float.parseFloat(lat2))/2. + ")) AS ?dist)\n"
+    if(sparqlType.equals("virtuoso")) {
+      if(conf.get("geometrySearchType", "distance").equalsIgnoreCase("distance")) {
+        return " " + subj + " geo:geometry ?geo.  filter(bif:st_x(?geo)>=" + lng + " && bif:st_x(?geo)<=" + lng2 + " && bif:st_y(?geo)>=" + lat + " && bif:st_y(?geo)<=" + lat2 + ")\n"
+            + " BIND(bif:st_distance(?geo, bif:st_point (" + (Float.parseFloat(lng)+Float.parseFloat(lng2))/2. + "," + (Float.parseFloat(lat)+Float.parseFloat(lat2))/2. + ")) AS ?dist)\n";
             //"  ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+dist+"))\n" :
-            : " " + subj + " omgeo:nearby(" + lat + " " + lng + " \"" + dist + "km\") .\n"); //ATTENZIONE per OWLIM non viene aggiunto il BIND    
+      }
+      else //use intersects
+        return " " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_geomfromtext(\"POLYGON(("+lng+" "+lat+","+lng+" "+lat2+","+lng2+" "+lat2+","+lng2+" "+lat+","+lng+" "+lat+"))\"), 0))\n"
+            + " BIND(bif:st_distance(?geo, bif:st_point (" + (Float.parseFloat(lng)+Float.parseFloat(lng2))/2. + "," + (Float.parseFloat(lat)+Float.parseFloat(lat2))/2. + ")) AS ?dist)\n";
+    }
+    else {
+      return " " + subj + " omgeo:nearby(" + lat + " " + lng + " \"" + dist + "km\") .\n"; 
+      //ATTENZIONE per OWLIM non viene aggiunto il BIND    
+    }
   }
   
   static public String valueTypeSearchQueryFragment(String subj, String value_type) {
@@ -652,6 +667,58 @@ public class ServiceMap {
     if(!value_type.startsWith("http:"))
       value_type = "http://www.disit.org/km4city/resource/value_type/"+value_type;
     return subj+" sosa:observes <"+value_type+">.\n";
+  }
+  
+  static public JsonObject computeHealthiness(JsonArray rtData, JsonObject rtAttrs) throws Exception {
+    Configuration conf=Configuration.getInstance();
+    JsonObject health = new JsonObject();
+    if(rtData==null || rtAttrs==null)
+      return health;
+    
+    boolean healthy = false;
+    Date now = new Date();
+    Date lastDate = null;
+    String reason = null;
+    JsonObject last = null;
+    if(rtData.size()>0) {
+      last = rtData.get(0).getAsJsonObject();
+      String lastTime = last.get("measuredTime").getAsString();
+      try {
+        lastDate = ServiceMap.dateFormatterTZ.parse(lastTime);
+      } catch(ParseException e) {
+        lastDate = ServiceMap.dateFormatterTZ2.parse(lastTime);
+      }
+      ServiceMap.println("health: "+lastDate+" now: "+now+" diff:"+(lastDate!=null ? (now.getTime()-lastDate.getTime())/1000 : -1)+"s");
+    } else {
+      ServiceMap.println("health: no rt data");
+      reason = "no RT data";
+    }
+    for(Entry<String,JsonElement> e : rtAttrs.entrySet()) {
+      String name=e.getKey();
+      healthy = false;
+      reason = null;
+      int refreshRate = Integer.parseInt(e.getValue().getAsJsonObject().get("value_refresh_rate").getAsString());
+      JsonObject h = new JsonObject();
+      if(lastDate!=null) {
+        long delay = (now.getTime()-lastDate.getTime())/1000;
+        long defaultRefreshRate = Integer.parseInt(conf.get("defaultRefreshRate","-1"));
+        h.addProperty("delay", delay);
+        if(delay<refreshRate || delay<defaultRefreshRate) {
+          if(last.get(name)!=null && !last.get(name).getAsString().isEmpty())
+            healthy=true;
+          else
+            reason = "missing value";
+        }
+        else {
+          reason = "too old data "+delay+">="+refreshRate+" && delay>="+defaultRefreshRate;
+        }
+      }
+      if (reason!=null)
+        h.addProperty("reason",reason);
+      h.addProperty("healthy", healthy);
+      health.add(name, h);
+    }
+    return health;
   }
   
   static public String toFloat(String a, String b) {

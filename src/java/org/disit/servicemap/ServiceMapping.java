@@ -16,6 +16,8 @@
 
 package org.disit.servicemap;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -72,11 +74,11 @@ public class ServiceMapping {
       trendSqlQuery = pt;
     }
     
-    public void printServiceAttributes(JspWriter out, RepositoryConnection con, String serviceUri) throws Exception {
+    public JsonObject printServiceAttributes(JspWriter out, RepositoryConnection con, String serviceUri) throws Exception {
       //adds all attributes info
       String attrQuery = this.attributesQuery;
       if (attrQuery == null) {
-        return;
+        return null;
       }
       Configuration conf = Configuration.getInstance();
       String sparqlType = conf.get("sparqlType", "virtuoso");
@@ -89,6 +91,7 @@ public class ServiceMapping {
       logQuery(attrQuery, "API-service-attrs", sparqlType, serviceUri, System.nanoTime() - ts);
       List<String> bnames = resultAttrs.getBindingNames();
 
+      JsonObject r = new JsonObject();
       out.println("    \"realtimeAttributes\":{");
       int pp = 0;
       while (resultAttrs.hasNext()) {
@@ -99,7 +102,9 @@ public class ServiceMapping {
         } 
 
         int ppp = 0;
-        out.print("      \""+bs.getBinding(bnames.get(0)).getValue().stringValue()+"\":{");
+        String name = bs.getBinding(bnames.get(0)).getValue().stringValue();
+        out.print("      \""+name+"\":{");
+        JsonObject o = new JsonObject();
         for (int i=1; i<bnames.size(); i++) {
           String n = bnames.get(i);
           if(bs.getBinding(n) != null) {
@@ -108,13 +113,16 @@ public class ServiceMapping {
               out.print(",");
             }
             out.print("\"" + n + "\":\"" + v + "\"");
+            o.addProperty(n, v);
             ppp++;
           }
         }
+        r.add(name, o);
         out.print("}");
         pp++;
       }
       out.println("},");
+      return r;
     }
   }
   
@@ -171,6 +179,16 @@ public class ServiceMapping {
         return e.getValue();
     }
     return getMappingForServiceType(version-1, types);    
+  }
+
+  public MappingData getMappingForServiceType(int version, String type) {
+    if(version<1)
+      return null;
+    for(Map.Entry<String,MappingData> e:maps.get(version-1).entrySet()) {
+      if(type.equals(e.getKey()))
+        return e.getValue();
+    }
+    return getMappingForServiceType(version-1, type);    
   }
 
   public String asHtml() {
