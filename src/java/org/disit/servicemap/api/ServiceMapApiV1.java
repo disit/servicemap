@@ -16,6 +16,8 @@
 
 package org.disit.servicemap.api;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.io.WKTReader;
 import java.io.IOException;
@@ -49,6 +51,8 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -1998,16 +2002,21 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     }
   }
 
-  public void querySensor(JspWriter out, RepositoryConnection con, String idService, String lang, String realtime, String uid, String fromTime) throws Exception {
+  public void querySensor(JspWriter out, RepositoryConnection con, String idService, String lang, String realtime, String checkHealtiness, String uid, String fromTime) throws Exception {
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "virtuoso");
     String km4cVersion = conf.get("km4cVersion", "new");
     String type = "";
+    JsonArray rtData = new JsonArray();
+    JsonObject rtAttrs = null;
     if (lang.equals("it")) {
       type = "Sensore";
     } else {
       type = "Sensor";
     }
+    
+    ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, "SensorSite");
+    
     String querySensore = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
             + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>"
             + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#> "
@@ -2029,7 +2038,6 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             + "  km4c:placedOnRoad ?road."
             + " ?road km4c:inMunicipalityOf ?mun."
             + " ?mun foaf:name ?nomeComune."
-            + " optional { graph ?g { <"+idService+"> a ?x } ?g km4c:period ?period }"
             + "}"
             + "LIMIT 1";
     String nomeSensore = "";
@@ -2051,9 +2059,6 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         String valueOfLat = bindingSetSensor.getValue("lat").stringValue();
         String valueOfLong = bindingSetSensor.getValue("long").stringValue();
         String valueOfAddress = bindingSetSensor.getValue("address").stringValue();
-        String period = "na";
-        if(bindingSetSensor.getValue("period")!=null)
-          period = bindingSetSensor.getValue("period").stringValue();
 
         nomeSensore = valueOfId;
         if (s != 0) {
@@ -2075,9 +2080,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 + "    \"serviceType\": \"TransferServiceAndRenting_SensorSite\", "
                 + "    \"serviceUri\": \"" + idService + "\", "
                 + "    \"municipality\": \"" + escapeJSON(nomeComune) + "\", "
-                + "    \"address\": \"" + escapeJSON(valueOfAddress) + "\",\n"
-                + "    \"refreshRate\": \"" + escapeJSON(period) + "\",\n"
-                + "    \"photos\": " + ServiceMap.getServicePhotos(idService) + ",\n"
+                + "    \"address\": \"" + escapeJSON(valueOfAddress) + "\",");
+                if(md!=null)
+                  rtAttrs = md.printServiceAttributes(out, con, idService);
+                out.println("    \"photos\": " + ServiceMap.getServicePhotos(idService) + ",\n"
                 + "    \"photoThumbs\": " + ServiceMap.getServicePhotos(idService,"thumbs") + ",\n"
                 + "    \"photoOrigs\": " + ServiceMap.getServicePhotos(idService,"originals") + ",\n"
                 + "    \"avgStars\": " + avgServiceStars[0] + ",\n"
@@ -2155,38 +2161,50 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           out.println("\"bindings\": [");
           while (resultSensorData.hasNext()) {
             BindingSet bindingSetSensorData = resultSensorData.next();
+            JsonObject rt = new JsonObject();
+            
             valueOfInstantDateTime = bindingSetSensorData.getValue("timeInstant").stringValue();
+            rt.addProperty("measuredTime", valueOfInstantDateTime);
+            
             String valueOfAvgDistance = "Not Available";
             if (bindingSetSensorData.getValue("avgDistance") != null) {
               valueOfAvgDistance = bindingSetSensorData.getValue("avgDistance").stringValue();
+              rt.addProperty("avgDistance", valueOfAvgDistance);
             }
             String valueOfAvgTime = "Not Available";
             if (bindingSetSensorData.getValue("avgTime") != null) {
               valueOfAvgTime = bindingSetSensorData.getValue("avgTime").stringValue();
+              rt.addProperty("avgTime", valueOfAvgTime);
             }
             String valueOfOccupancy = "Not Available";
             if (bindingSetSensorData.getValue("occupancy") != null) {
               valueOfOccupancy = bindingSetSensorData.getValue("occupancy").stringValue();
+              rt.addProperty("occupancy", valueOfOccupancy);
             }
             String valueOfConcentration = "Not Available";
             if (bindingSetSensorData.getValue("concentration") != null) {
               valueOfConcentration = bindingSetSensorData.getValue("concentration").stringValue();
+              rt.addProperty("concentration", valueOfConcentration);
             }
             String valueOfVehicleFlow = "Not Available";
             if (bindingSetSensorData.getValue("vehicleFlow") != null) {
               valueOfVehicleFlow = bindingSetSensorData.getValue("vehicleFlow").stringValue();
+              rt.addProperty("vehicleFlow", valueOfVehicleFlow);
             }
             String valueOfAverageSpeed = "Not Available";
             if (bindingSetSensorData.getValue("averageSpeed") != null) {
               valueOfAverageSpeed = bindingSetSensorData.getValue("averageSpeed").stringValue();
+              rt.addProperty("averageSpeed", valueOfAverageSpeed);
             }
             String valueOfThresholdPerc = "Not Available";
             if (bindingSetSensorData.getValue("thresholdPerc") != null) {
               valueOfThresholdPerc = bindingSetSensorData.getValue("thresholdPerc").stringValue();
+              rt.addProperty("thresholdPerc", valueOfThresholdPerc);
             }
             String valueOfSpeedPercentile = "Not Available";
             if (bindingSetSensorData.getValue("speedPercentile") != null) {
               valueOfSpeedPercentile = bindingSetSensorData.getValue("speedPercentile").stringValue();
+              rt.addProperty("speedPercentile", valueOfSpeedPercentile);
             }
 
             if (t != 0) {
@@ -2231,6 +2249,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     + "\"value\": \"" + valueOfInstantDateTime + "\" "
                     + " }");
             out.println("}");
+            rtData.add(rt);
             t++;
           }
           out.println("]}}");
@@ -2238,6 +2257,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         } else {
           out.println("{}");
         }
+        if(checkHealtiness.equals("true") && rtAttrs!=null)
+              out.println(", \"healthiness\": "+ServiceMap.computeHealthiness(rtData, rtAttrs));
+
       } catch (Exception e) {
         out.println(e.getMessage());
       }
@@ -2245,7 +2267,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     out.println("}");
   }
 
-  public String queryService(JspWriter out, RepositoryConnection con, String serviceUri, String lang, String realtime, String fromTime, String uid, List<String> serviceTypes) throws Exception {
+  public String queryService(JspWriter out, RepositoryConnection con, String serviceUri, String lang, String realtime, String fromTime, String checkHealthiness, String uid, List<String> serviceTypes) throws Exception {
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "virtuoso");
     String km4cVersion = conf.get("km4cVersion", "new");
@@ -2254,6 +2276,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     String TOS = "";
     String NOS = "";
     String r = "";
+    JsonObject rtAttributes = null;
     int i = 0;
     ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, serviceTypes);
     if(md==null || (md.detailsQuery==null)) {
@@ -2489,7 +2512,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 + "    \"address\": \"" + escapeJSON(valueOfSerAddress) + "\", \"civic\": \"" + escapeJSON(valueOfSerNumber) + "\",\n"
                 + "    \"wktGeometry\": \"" + escapeJSON(ServiceMap.fixWKT(valueOfCoordList)) + "\",");
         if(md!=null)
-          md.printServiceAttributes(out, con, serviceUri);
+          rtAttributes = md.printServiceAttributes(out, con, serviceUri);
         out.println(
                   "    \"photos\": " + ServiceMap.getServicePhotos(serviceUri) + ",\n"
                 + "    \"photoThumbs\": " + ServiceMap.getServicePhotos(serviceUri,"thumbs") + ",\n"
@@ -2602,7 +2625,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               }
             }
 
-            md.printServiceAttributes(out, con, serviceUri);
+            rtAttributes = md.printServiceAttributes(out, con, serviceUri);
             
             float[] avgServiceStars = ServiceMap.getAvgServiceStars(serviceUri);
             
@@ -2622,7 +2645,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           out.println("]}");
         }
     }
-        
+   
+    JsonArray rtData = new JsonArray();
     String labelPark = "Car park";
     if (lang.equals("it")) {
       labelPark = "Parcheggio auto";
@@ -2673,29 +2697,36 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         while (resultParkingStatus.hasNext()) {
           BindingSet bindingSetParking = resultParkingStatus.next();
 
+          JsonObject rt = new JsonObject(); 
           String valueOfInstantDateTime = "";
           if (bindingSetParking.getValue("timeInstant") != null) {
             valueOfInstantDateTime = bindingSetParking.getValue("timeInstant").stringValue();
+            rt.addProperty("measuredTime", valueOfInstantDateTime);
           }
           String valueOfOccupancy = "";
           if (bindingSetParking.getValue("occupancy") != null) {
             valueOfOccupancy = bindingSetParking.getValue("occupancy").stringValue();
+            rt.addProperty("occupancy", valueOfOccupancy);
           }
           String valueOfFree = "";
           if (bindingSetParking.getValue("free") != null) {
             valueOfFree = bindingSetParking.getValue("free").stringValue();
+            rt.addProperty("occupancy", valueOfOccupancy);
           }
           String valueOfOccupied = null;
           if (bindingSetParking.getValue("occupied") != null) {
             valueOfOccupied = bindingSetParking.getValue("occupied").stringValue();
+            rt.addProperty("occupancy", valueOfOccupancy);
           }
           String valueOfCapacity = "";
           if (bindingSetParking.getValue("capacity") != null) {
             valueOfCapacity = bindingSetParking.getValue("capacity").stringValue();
+            rt.addProperty("occupancy", valueOfOccupancy);
           }
           String valueOfcpStatus = "";
           if (bindingSetParking.getValue("cpStatus") != null) {
             valueOfcpStatus = bindingSetParking.getValue("cpStatus").stringValue();
+            rt.addProperty("occupancy", valueOfOccupancy);
           }
           
           //calcola il valore di occupied in base a capacity e free
@@ -2783,6 +2814,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             }
             out.println("  {");
             int cc = 0;
+            JsonObject rt = new JsonObject();
             for(int c=1; c<=nCols; c++) {
               String v = rs.getMetaData().getColumnLabel(c);
               if(!v.startsWith("_")) {
@@ -2791,17 +2823,19 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                         rs.getMetaData().getColumnType(c)==java.sql.Types.TIMESTAMP ||
                         rs.getMetaData().getColumnType(c)==java.sql.Types.TIME)
                   value=value.replace(" ", "T").replace(".000", "")+ServiceMap.getCurrentTimezoneOffset();
-                  if(value==null)
-                    value = "";
+                if(value==null)
+                  value = "";
                 //ServiceMap.println("v:"+v+" -->"+value);
                 if(cc!=0)
                   out.println(",");
                 out.print("  \""+v+"\":{\"value\":\""+value+"\"}");
+                rt.addProperty(v, value);
                 cc++;
               }
             }
             out.println(" }");
             p++;
+            rtData.add(rt);
           }
         } else {
           //FIX per problema con weather sensor
@@ -2840,6 +2874,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           }
           if(p>0) {
             int cc=0;
+            JsonObject rt = new JsonObject();
             out.println(" {");
             for(int c=1; c<=nCols; c++) {
               String v = rs.getMetaData().getColumnLabel(c);
@@ -2850,10 +2885,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 if(value==null)
                   value="";
                 out.print("  \""+v+"\":{\"value\":\""+value+"\"}");
+                rt.addProperty(v,value);
                 cc++;
               }
             }
             out.println(" }");
+            rtData.add(rt);
           }
         }
         if(p>0)
@@ -2905,6 +2942,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
 
             out.println("  {");
             c=0;
+            JsonObject rt = new JsonObject();
             for(String v : vars) {
               if(!v.startsWith("_")) {
                 String value = "";
@@ -2915,11 +2953,13 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 if(c!=0)
                   out.println(",");
                 out.print("  \""+v+"\":{\"value\":\""+value+"\"}");
+                rt.addProperty(v,value);
                 c++;
               }
             }
             out.println(" }");
             p++;
+            rtData.add(rt);
           }
           out.println("]}}");
         }
@@ -2976,6 +3016,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
 
           int c=0;
           Date cdt = null;
+          JsonObject rt = new JsonObject();
           for(SolrDocument d: sdl) {
             Date dt = (Date)d.getFieldValue("date_time");
             Object mt = d.getFieldValue("value_name");
@@ -2993,21 +3034,30 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
 
             //ServiceMap.println(ServiceMap.dateFormatterTZ.format(dt)+" "+mt+" "+value+" "+u);
             if(cdt==null || cdt.equals(dt)) {
-              if(c==0)
-                out.print("  {\n  \"measuredTime\":{\"value\":\""+ServiceMap.dateFormatterTZ.format(dt)+"\"},");
+              if(c==0) {
+                String measuredTime = ServiceMap.dateFormatterTZ.format(dt);
+                out.print("  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
+                rt.addProperty("measuredTime", measuredTime);
+              }
               else 
                 out.print(",");
               c++;
               cdt=dt;
             } else {
               if(fromTime==null) //stampa solo ultimo valore
-                break;
-              cdt = dt;            
-              out.print(" }, {\n  \"measuredTime\":{\"value\":\""+ServiceMap.dateFormatterTZ.format(dt)+"\"},");
+                break; 
+              cdt = dt;
+              rtData.add(rt);
+              rt = new JsonObject();
+              String measuredTime = ServiceMap.dateFormatterTZ.format(dt);
+              out.print("  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
+              rt.addProperty("measuredTime", measuredTime);
               c=1;
             }
             out.print("  \""+mt+"\":{\"value\":\""+value+"\",\"unit\":\""+u+"\"}");
+            rt.addProperty(mt.toString(),value.toString());
           }
+          rtData.add(rt);
           if(c!=0)
             out.println(" }");
           out.println("]}}");
@@ -3015,7 +3065,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         solr.shutdown();
       }
     }
-    
+    if(checkHealthiness.equals("true"))
+      out.println(", \"healthiness\": "+ServiceMap.computeHealthiness(rtData, rtAttributes));
     Connection rtCon = null;
     if(md!=null && md.predictionSqlQuery!=null) {
       long ts = System.currentTimeMillis();
@@ -4332,7 +4383,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     HttpPost httppost = null;
     HttpResponse response = null;
     
-    String passengerEndpoint = conf.get("passengerEndpoint", "http://192.168.0.22:8080/api/shortest_path");
+    String passengerEndpoint = conf.get("passengerEndpoint", "http://192.168.0.24:8080/api/shortest_path");
 
     //ServiceMap.println("POST to "+theReqUrl+" query="+query);
     try {
@@ -4379,14 +4430,18 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 String agency_id = (String)arc.get("transport_provider");                                
                 JSONObject dst = (JSONObject)arc.get("destination_node");
                                 
-                String[] desc = ((String) arc.get("desc")).split("[:\\[\\],/]+");
-                String routeShortName = desc[0].trim();
-                String headsign = desc[2].trim();
+                Pattern p = Pattern.compile("([^:]+):([^/]+)/([^\\[]+)\\[([^\\]]+)\\]\\[([^\\]]+)\\]\\[([^\\]]+)\\]:([^,]+),(.+)");
+                Matcher m = p.matcher((String) arc.get("desc"));
+                if(!m.matches()) {
+                  throw new Exception("invalid desc \""+arc.get("desc")+"\"");
+                }
+                String routeShortName = m.group(1).trim();
+                String headsign = m.group(3).trim();
                 String time = (String) arc.get("start_datetime");
                 String date = datetime.split("T")[0];
-                String tripId =  desc[3].trim();
-                String srcStopId =  desc[7].trim();
-                String dstStopId =  desc[8].trim();
+                String tripId =  m.group(4).trim();
+                String srcStopId =  m.group(7).trim();
+                String dstStopId =  m.group(8).trim();
                 
                 arc.put("desc",routeShortName+" : "+headsign);
                 arc.put("trip_id", tripId);
@@ -5097,7 +5152,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
 
     String queryVTList = 
             "SELECT ?vt ?u WHERE{\n"
-          + " ?vt a sosa:ObservableProperty.\n"
+          + " ?vt a ssn:Property.\n"
           + " ?vt km4c:value_unit ?u.\n"
           + "} ORDER BY asc(?vt)";
 
@@ -5122,5 +5177,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     } 
     out.println("]");
   }
+ 
+  public String checkSensor(String uri) throws Exception {
+    return "";    
+  }
   
-}
+}  
