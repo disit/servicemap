@@ -668,6 +668,17 @@ public class ServiceMap {
       value_type = "http://www.disit.org/km4city/resource/value_type/"+value_type;
     return subj+" sosa:observes <"+value_type+">.\n";
   }
+
+  static public String graphSearchQueryFragment(String subj, String graphUri) {
+    if (graphUri==null) {
+      return "";
+    }
+
+    Configuration conf = Configuration.getInstance();
+    String sparqlType = conf.get("sparqlType", "virtuoso");
+
+    return "FILTER EXISTS {GRAPH <"+graphUri+"> { "+subj+" a ?anyclass }}\n";
+  }
   
   static public JsonObject computeHealthiness(JsonArray rtData, JsonObject rtAttrs) throws Exception {
     Configuration conf=Configuration.getInstance();
@@ -945,20 +956,8 @@ public class ServiceMap {
     String agencyName = "";
     String serviceType = "";
     
-    if(tplAgencies==null) {
-      tplAgencies = new HashMap<>();
-      TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, "SELECT * { ?a a gtfs:Agency. }");
-      TupleQueryResult result = tq.evaluate();
-   
-      while(result.hasNext()) {
-        BindingSet binding = result.next();
-        String[] a = binding.getValue("a").stringValue().split("_Agency_");
-        tplAgencies.put(a[1],a[0]);
-      }
-      ServiceMap.println(tplAgencies);
-    }
+    String prefix = getTplAgencyPrefix(con, agency_id);
     
-    String prefix = tplAgencies.get(agency_id);
     String query="SELECT DISTINCT ?stop ?name ?class ?mclass ?agency ?agencyName WHERE {\n" +
       " BIND(<"+prefix+"_Stop_"+stop_id+"> as ?stop)\n" +
       " BIND(<"+prefix+"_Agency_"+agency_id+"> as ?agency)\n" +
@@ -998,6 +997,27 @@ public class ServiceMap {
     stop.put("agencyUri", agencyUri);
     stop.put("serviceType", serviceType);
     return stop;
+  }
+
+  static synchronized public String getTplAgencyPrefix(RepositoryConnection con, String agency_id) throws Exception {
+    if(tplAgencies==null) {
+      tplAgencies = new HashMap<>();
+      TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, "SELECT * { ?a a gtfs:Agency. }");
+      TupleQueryResult result = tq.evaluate();
+   
+      while(result.hasNext()) {
+        BindingSet binding = result.next();
+        String[] a = binding.getValue("a").stringValue().split("_Agency_");
+        tplAgencies.put(a[1],a[0]);
+      }
+      ServiceMap.println(tplAgencies);
+    }
+    
+    return tplAgencies.get(agency_id);    
+  }
+  
+  static synchronized public void resetTplAgencies() {
+    tplAgencies=null;
   }
 
   static public String makeServiceType(String category, String type) {
@@ -1244,9 +1264,9 @@ public class ServiceMap {
   }
   
   public static boolean validateUID(String uid) {
-    if(uid==null || (uid.length()!=64 && uid.length()!=47))
+    if(uid==null || uid.length()<4)
       return false;
-    if(uid.equals("null") || uid.matches("[0-9a-fA-F]*"))
+    if(uid.matches("[0-9a-zA-Z]*"))
       return true;
     return false;
   }
@@ -1281,14 +1301,25 @@ public class ServiceMap {
     Connection connection = ConnectionPool.getConnection();
     Configuration conf = Configuration.getInstance();
     boolean ret=false;
-    String maxReqs = conf.get("maxReqsPerDayPerIP."+requestType+"."+IPAddr, null);
+    String ipNetworks = conf.get("ipNetworkPrefixes", null);
+    String ipAddrOrNetw = IPAddr;
+    if(ipNetworks!=null) {
+      String[] prefixes = ipNetworks.split(";");
+      for(String pfx : prefixes) {
+        if(!pfx.trim().isEmpty() && IPAddr.startsWith(pfx.trim())) {
+          ipAddrOrNetw = pfx;
+          break;
+        }
+      }
+    }
+    String maxReqs = conf.get("maxReqsPerDayPerIP."+requestType+"."+ipAddrOrNetw, null);
     if(maxReqs==null) {
       if(IPAddr.equals("127.0.0.1") || IPAddr.startsWith("192.168."))
         maxReqs = "-1";
       else
         maxReqs = conf.get("maxReqsPerDayPerIP."+requestType, "-1");
     }
-    String maxRslts = conf.get("maxResultsPerDayPerIP."+requestType+"."+IPAddr, null);
+    String maxRslts = conf.get("maxResultsPerDayPerIP."+requestType+"."+ipAddrOrNetw, null);
     if(maxRslts==null) {
       if(IPAddr.equals("127.0.0.1") || IPAddr.startsWith("192.168."))
         maxRslts = "-1";

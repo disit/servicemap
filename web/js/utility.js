@@ -665,6 +665,9 @@ function loadServiceInfo(uri, div, id, coord) {
                     if("Service" in data) {
                       var realtime = data.realtime;
                       data = data.Service;
+                    } else if("Sensor" in data) {
+                      var realtime = data.realtime;
+                      data = data.Sensor;
                     }
                     if (data.features.length > 0) {
                         var tipo = data.features[0].properties.tipo;
@@ -2348,7 +2351,7 @@ function mostraRealTimeData(divInfo, realtime) {
   if(realtime.results.bindings.length==1) {
     html += "<tr><td><b>Property</b></td><td><b>Value</b></td></tr>";
     $.each( realtime.results.bindings[0], function( key, v ) {
-      if(key == "measuredTime")
+      if(key == "measuredTime" || key == "instantTime")
         time = v.value;
       else
         html +="<tr><td>"+key+"</td><td>"+v.value+"</td></tr>";
@@ -2356,14 +2359,14 @@ function mostraRealTimeData(divInfo, realtime) {
   } else {
     html += "<tr>";
     for(var v in realtime.head.vars) {
-      if(realtime.head.vars[v]!="measuredTime" && typeof realtime.head.vars[v] == "string")
+      if(realtime.head.vars[v]!="measuredTime" && realtime.head.vars[v]!="instantTime" &&typeof realtime.head.vars[v] == "string")
         html +="<td><b>"+realtime.head.vars[v]+"</b></td>";
     }
     html += "</tr>";
     for(var b in realtime.results.bindings) {
       html += "<tr>";
       $.each( realtime.results.bindings[b], function( key, v ) {
-        if(key == "measuredTime")
+        if(key == "measuredTime" || key == "instantTime")
           time = v.value;
         else
           html +="<td>"+v.value+"</td>";
@@ -2371,11 +2374,11 @@ function mostraRealTimeData(divInfo, realtime) {
       html += "</tr>";
     }
   }
-  html += "</table><div class=\"aggiornamento\"><span name=\"lbl\" caption=\"last_update\" >Latest Update</span>: " + time + "</div></div>";
+  html += "</table></div><div class=\"aggiornamento\"><span name=\"lbl\" caption=\"last_update\" >Latest Update</span>: " + time + "</div>";
   $("#"+divInfo).html(html);
 }
 
-function mapLatLngClick(latLngPunto, zoom) {
+function mapLatLngClick(latLngPunto, zoom, fndGeo) {
   listOfPopUpOpen = [];
   if (ricercaInCorso == false) {
     $('#raggioricerca').prop('disabled', false);
@@ -2393,15 +2396,19 @@ function mapLatLngClick(latLngPunto, zoom) {
     coordinateSelezione = latLngPunto.lat + ";" + latLngPunto.lng;
     var latPunto = new String(latLngPunto.lat);
     var lngPunto = new String(latLngPunto.lng);
+    fndGeo = fndGeo ? "true" : "false";
+    
     selezione = 'Coord: ' + latPunto.substring(0, 7) + "," + lngPunto.substring(0, 7);
     $('#selezione').html(selezione);
+    
     $.ajax({
         url: ctx+"/ajax/get-address.jsp",
         type: "GET",
         async: true,
         data: {
           lat: latPunto,
-          lng: lngPunto
+          lng: lngPunto,
+          findGeometry: fndGeo
         },
         success: function (msg) {
           $('#approximativeAddress').html(msg);

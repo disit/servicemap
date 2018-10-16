@@ -54,6 +54,7 @@ String queryId = request.getParameter("queryId");
 String search = request.getParameter("search");
 String showBusPosition = request.getParameter("showBusPosition");
 String value_type = request.getParameter("value_type");
+String graphUri = request.getParameter("graphUri");
         
 if(idService==null && selection==null && queryId==null && search==null && showBusPosition==null) {
     response.sendError(400, "please specify 'selection', 'search', 'serviceUri' or 'queryId' parameters");
@@ -350,7 +351,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       }
       String types = null;
       ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, serviceTypes);
-      if(md!=null && !serviceTypes.contains("SensorSite")) {
+      if(md!=null && (md.realTimeSqlQuery!=null || md.realTimeSparqlQuery!=null || md.realTimeSolrQuery!=null )) {
         types = serviceMapApi.queryService(out, con, idService, lang, realtime, fromTime, checkHealthiness, uid, serviceTypes);        
       } 
       else if (serviceTypes.contains("BusStop")|| serviceTypes.contains("NearBusStops")) {
@@ -421,9 +422,21 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
             if(resultCoord.hasNext()) {
               BindingSet bindingSetCoord = resultCoord.next();
               selection = bindingSetCoord.getValue("lat").stringValue() + ";" + bindingSetCoord.getValue("long").stringValue();
+            } else {
+              // the uri doesn't have a GPS position
+              String queryForGraph = "SELECT * {"
+                    + "GRAPH <"+selection+"> {?s ?p ?o}"
+                    + "}LIMIT 1";
+              TupleQuery tupleQueryForGraph = con.prepareTupleQuery(QueryLanguage.SPARQL, queryForGraph);
+              TupleQueryResult resultGraph = tupleQueryForGraph.evaluate();
+              if(resultGraph.hasNext()) {
+                selection = "graph:"+selection;
+                graphUri = selection;
+              } else {
+              }
             }
           }
-          if(selection.startsWith("wkt:") || selection.startsWith("geo:")) {
+          if(selection.startsWith("wkt:") || selection.startsWith("geo:") || selection.startsWith("graph:")) {
             String[] coordWkt = { selection };
             coords = coordWkt;              
           } else if(selection.contains(";")) {
@@ -432,8 +445,8 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
               Double.parseDouble(coords[i]);
           }
           // get services by lat/long
-          if(coords!=null && (coords.length==2 || coords.length==4 || (coords.length==1 && (coords[0].startsWith("wkt:") || selection.startsWith("geo:"))))) {
-            int results = serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, true, fullCount, value_type);
+          if(coords!=null && (coords.length==2 || coords.length==4 || (coords.length==1 && (coords[0].startsWith("wkt:") || selection.startsWith("geo:") || selection.startsWith("graph:"))))) {
+            int results = serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, true, fullCount, value_type, graphUri);
             ServiceMap.updateResultsPerIP(ip, requestType, results);
             ServiceMap.logAccess(request, null, selection, categorie, null, "api-services-by-gps", risultati, raggi, queryId, textToSearch, "json", uid, reqFrom);
           }

@@ -333,6 +333,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
           }
         }
       } catch (Exception e) {
+        response.sendError(500);
         ServiceMap.notifyException(e);
         throw e;
       }
