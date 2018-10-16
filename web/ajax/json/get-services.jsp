@@ -101,11 +101,12 @@
     if(!"false".equals(fullCount))
       fullCount = "true";
     String value_type = request.getParameter("value_type");
+    String graphUri = request.getParameter("graphUri");
         
     ServiceMap.logAccess(request, null, centroRicerca, categorie, null, "ui-services-by-gps", numeroRisultatiServizi, raggioServizi, null, textFilter, null, null, null);
 
     try {
-      serviceMapApi.queryLatLngServices(out, con, coord, categorie, textFilter,raggioServizi,raggioServizi,raggioServizi,numeroRisultatiServizi,numeroRisultatiServizi,numeroRisultatiServizi,null, cat_servizi, false, inside, true, fullCount, value_type);
+      serviceMapApi.queryLatLngServices(out, con, coord, categorie, textFilter,raggioServizi,raggioServizi,raggioServizi,numeroRisultatiServizi,numeroRisultatiServizi,numeroRisultatiServizi,null, cat_servizi, false, inside, true, fullCount, value_type, graphUri);
     } catch (Exception e) {
         ServiceMap.notifyException(e, HttpUtils.getRequestURL(request).append("?").append(request.getQueryString()).toString());
     }finally{con.close() ;}

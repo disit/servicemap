@@ -705,7 +705,9 @@ div#serviceMap_info{
     /*cursor: move;*/
 }
 .sensori{
-    margin-bottom: 15px; 
+    margin-bottom: 15px;
+    max-height: 500px;
+    overflow: auto;
 }
 .avm{
     width:100%;

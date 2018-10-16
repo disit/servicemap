@@ -35,6 +35,7 @@
         if(request.getParameter("reset")!=null) {
           conf.load();
           ServiceMapping.reset();
+          ServiceMap.resetTplAgencies();
         }
         out.println(conf.asHtml());
         out.println("<ul>");

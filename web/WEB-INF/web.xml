@@ -21,4 +21,30 @@
         <exception-type>java.lang.Exception</exception-type>
         <location>/exception.jsp</location>
     </error-page>
+    <security-constraint>
+      <web-resource-collection>
+        <web-resource-name>Admin pages</web-resource-name>
+        <url-pattern>/photo.jsp</url-pattern>
+        <url-pattern>/comments.jsp</url-pattern>
+        <url-pattern>/conf.jsp</url-pattern>
+        <url-pattern>/photo-thumbs.jsp</url-pattern>
+        <url-pattern>/solr/*</url-pattern>
+        <url-pattern>/phoenix/*</url-pattern>
+        <http-method>GET</http-method>
+        <http-method>POST</http-method>
+      </web-resource-collection>
+
+      <auth-constraint>
+        <role-name>admin</role-name>
+      </auth-constraint>
+
+      <user-data-constraint>
+        <!-- transport-guarantee can be CONFIDENTIAL, INTEGRAL, or NONE -->
+        <transport-guarantee>NONE</transport-guarantee>
+      </user-data-constraint>
+    </security-constraint>
+
+    <login-config>
+      <auth-method>BASIC</auth-method>
+    </login-config>    
 </web-app>

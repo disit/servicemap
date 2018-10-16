@@ -654,8 +654,8 @@ public class ServiceMapApiV1 extends ServiceMapApi {
             "SELECT ?line ?trip (MAX(?st) as ?mx) (MIN(?st) as ?mn) {\n" +
             stopFilter +
             "?st gtfs:trip ?trip.\n" +
-            "?trip gtfs:service/dcterms:date ?d.\n" +
-            "filter(xsd:date(?d)=xsd:date(now()))\n" +
+            //"?trip gtfs:service/dcterms:date ?d.\n" +
+            //"filter(xsd:date(?d)=xsd:date(now()))\n" +
             lineFilter +
             "OPTIONAL{?trip gtfs:route/gtfs:shortName ?line1.}\n" +
             "?trip gtfs:route/gtfs:longName ?line2.\n" +
@@ -756,7 +756,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     return 0;
   }
 
-  public int queryLatLngServices(JspWriter out, RepositoryConnection con, final String[] coords, String categorie, final String textToSearch, final String raggioBus, String raggioSensori, final String raggioServizi, String risultatiBus, String risultatiSensori, String risultatiServizi, final String language, String cat_servizi, final boolean getGeometry, final boolean inside, boolean photos, final String makeFullCount, final String value_type) throws Exception {
+  public int queryLatLngServices(JspWriter out, RepositoryConnection con, final String[] coords, String categorie, final String textToSearch, final String raggioBus, String raggioSensori, final String raggioServizi, String risultatiBus, String risultatiSensori, String risultatiServizi, final String language, String cat_servizi, final boolean getGeometry, final boolean inside, boolean photos, final String makeFullCount, final String value_type, final String graphUri) throws Exception {
     ServiceMap.println("API-LatLngServices START");
     long tss = System.currentTimeMillis();
     
@@ -812,6 +812,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     final String fc = fcc;
     int i = 0;
     int numeroBus = 0;
+    int numeroSensori = 0;
+    int numeroServizi = 0;
+    
     int resBusStop = 0;
     int resSensori = 0;
     int resServizi = 0;
@@ -821,451 +824,455 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     }
     args += categorie + ";" + textToSearch + ";" + raggioBus;
     out.println("{");
-    if (searchBusStop && !inside) {
-      String type;
-      if (lang.equals("it")) {
-        type = "Fermata";
-      } else {
-        type = "BusStop";
-      }
-      SparqlQuery queryNearBusStop = new SparqlQuery() {
-        @Override
-        public String query(String type) throws Exception {
-          return "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
-                  + "PREFIX schema:<http://schema.org/#>\n"
-                  + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
-                  + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
-                  + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-                  + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
-                  + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>\n"
-                  + "PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>\n"
-                  + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>\n"
-                  + ("count".equals(type) ? "SELECT (COUNT(*) AS ?count) WHERE {\n" : "")
-                  + "SELECT DISTINCT ?bs (STR(?nome) AS ?nomeFermata) ?bslat ?bslong ?ag ?agname ?sameas ?dist ?x WHERE {\n"
-                  + " ?bs geo:lat ?bslat.\n"
-                  + " ?bs geo:long ?bslong.\n"
-                  + ServiceMap.geoSearchQueryFragment("?bs", coords, raggioBus)
-                  + " ?bs rdf:type km4c:BusStop.\n"
-                  + " ?bs foaf:name ?nome.\n"
-                  + ServiceMap.textSearchQueryFragment("?bs", "foaf:name", textToSearch)
-                  + ServiceMap.valueTypeSearchQueryFragment("?bs", value_type)
-                  + (km4cVersion.equals("old") ? " FILTER ( datatype(?bslat ) = xsd:float )\n"
-                          + " FILTER ( datatype(?bslong ) = xsd:float )\n" : "")
-                  //+ " ?st gtfs:stop ?bs.\n"
-                  //+ " ?st gtfs:trip/gtfs:route/gtfs:agency ?ag.\n"
-                  + " ?bs gtfs:agency ?ag.\n"
-                  + " ?ag foaf:name ?agname.\n"
-                  + " OPTIONAL {?bs owl:sameAs ?sameas }"
-                  //+ " FILTER NOT EXISTS {?bs owl:sameAs ?bb }\n" //eliminate duplicate
-                  + "}"
-                  + (type != null ? "}" : " ORDER BY ?dist");
-        }
-      };
-      String queryStringNearBusStop = queryNearBusStop.query(null);
-      //ServiceMap.println(queryNearBusStop);
-      int fullCount = -1;
-      if (!risultatiServizi.equals("0")) {
-        if (cat_servizi.equals("categorie")) {
-          resBusStop = ((Integer.parseInt(risultatiServizi)) * percBus / 10);
-          queryStringNearBusStop += " LIMIT " + resBusStop;
+    try {
+      if (searchBusStop && !inside) {
+        String type;
+        if (lang.equals("it")) {
+          type = "Fermata";
         } else {
-          if (cat_servizi.contains(":")) {
-            String parts[] = cat_servizi.split(":");
-            if (!parts[1].equals("0")) {
-              resBusStop = ((Integer.parseInt(parts[1])) * percBus / 10);
-              queryStringNearBusStop += " LIMIT " + resBusStop;
-            }
-          } else {
-            resBusStop = Integer.parseInt(risultatiServizi);
-            queryStringNearBusStop += " LIMIT " + risultatiServizi;
-          }
+          type = "BusStop";
         }
-      } else {
-        resBusStop = ( MAX_RESULTS * percBus) / 10;
-      }
-      if("true".equals(makeFullCount))
-        fullCount = ServiceMap.countQuery(con, queryNearBusStop.query("count"));
+        SparqlQuery queryNearBusStop = new SparqlQuery() {
+          @Override
+          public String query(String type) throws Exception {
+            return "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
+                    + "PREFIX schema:<http://schema.org/#>\n"
+                    + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
+                    + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
+                    + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+                    + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
+                    + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>\n"
+                    + "PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>\n"
+                    + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>\n"
+                    + ("count".equals(type) ? "SELECT (COUNT(*) AS ?count) WHERE {\n" : "")
+                    + "SELECT DISTINCT ?bs (STR(?nome) AS ?nomeFermata) ?bslat ?bslong ?ag ?agname ?sameas ?dist ?x WHERE {\n"
+                    + " ?bs geo:lat ?bslat.\n"
+                    + " ?bs geo:long ?bslong.\n"
+                    + ServiceMap.graphSearchQueryFragment("?bs", graphUri)
+                    + ServiceMap.geoSearchQueryFragment("?bs", coords, raggioBus)
+                    + " ?bs rdf:type km4c:BusStop.\n"
+                    + " ?bs foaf:name ?nome.\n"
+                    + ServiceMap.textSearchQueryFragment("?bs", "foaf:name", textToSearch)
+                    + ServiceMap.valueTypeSearchQueryFragment("?bs", value_type)
+                    + (km4cVersion.equals("old") ? " FILTER ( datatype(?bslat ) = xsd:float )\n"
+                            + " FILTER ( datatype(?bslong ) = xsd:float )\n" : "")
+                    //+ " ?st gtfs:stop ?bs.\n"
+                    //+ " ?st gtfs:trip/gtfs:route/gtfs:agency ?ag.\n"
+                    + " ?bs gtfs:agency ?ag.\n"
+                    + " ?ag foaf:name ?agname.\n"
+                    + " OPTIONAL {?bs owl:sameAs ?sameas }"
+                    //+ " FILTER NOT EXISTS {?bs owl:sameAs ?bb }\n" //eliminate duplicate
+                    + "}"
+                    + (type != null ? "}" : " ORDER BY ?dist");
+          }
+        };
+        String queryStringNearBusStop = queryNearBusStop.query(null);
+        //ServiceMap.println(queryNearBusStop);
+        int fullCount = -1;
+        if (!risultatiServizi.equals("0")) {
+          if (cat_servizi.equals("categorie")) {
+            resBusStop = ((Integer.parseInt(risultatiServizi)) * percBus / 10);
+            queryStringNearBusStop += " LIMIT " + resBusStop;
+          } else {
+            if (cat_servizi.contains(":")) {
+              String parts[] = cat_servizi.split(":");
+              if (!parts[1].equals("0")) {
+                resBusStop = ((Integer.parseInt(parts[1])) * percBus / 10);
+                queryStringNearBusStop += " LIMIT " + resBusStop;
+              }
+            } else {
+              resBusStop = Integer.parseInt(risultatiServizi);
+              queryStringNearBusStop += " LIMIT " + risultatiServizi;
+            }
+          }
+        } else {
+          resBusStop = ( MAX_RESULTS * percBus) / 10;
+        }
+        if("true".equals(makeFullCount))
+          fullCount = ServiceMap.countQuery(con, queryNearBusStop.query("count"));
 
-      TupleQuery tupleQueryNearBusStop = con.prepareTupleQuery(QueryLanguage.SPARQL, queryStringNearBusStop);
-      long ts = System.nanoTime();
-      TupleQueryResult resultNearBS = tupleQueryNearBusStop.evaluate();
-      logQuery(queryStringNearBusStop, "API-nearbusstop", sparqlType, args, System.nanoTime() - ts);
-        out.println("\"BusStops\": {");
+        TupleQuery tupleQueryNearBusStop = con.prepareTupleQuery(QueryLanguage.SPARQL, queryStringNearBusStop);
+        long ts = System.nanoTime();
+        TupleQueryResult resultNearBS = tupleQueryNearBusStop.evaluate();
+        logQuery(queryStringNearBusStop, "API-nearbusstop", sparqlType, args, System.nanoTime() - ts);
+          out.println("\"BusStops\": {");
+          if (fullCount >= 0) {
+            out.println("\"fullCount\": " + fullCount + ",");
+          }
+          out.println("\"type\": \"FeatureCollection\",\n"
+                + "\"features\":[");
+        int s = 0;
+        while (resultNearBS.hasNext() && s < resBusStop) {
+          BindingSet bindingSetNearBS = resultNearBS.next();
+          String valueOfBS = bindingSetNearBS.getValue("bs").stringValue();
+          String valueOfNomeFermata = JSONObject.escape(bindingSetNearBS.getValue("nomeFermata").stringValue());
+          String valueOfBSLat = bindingSetNearBS.getValue("bslat").stringValue();
+          String valueOfBSLong = bindingSetNearBS.getValue("bslong").stringValue();
+          String valueOfDist = bindingSetNearBS.getValue("dist").stringValue();      
+          String valueOfAgUri = bindingSetNearBS.getValue("ag").stringValue();
+          String valueOfAgName = bindingSetNearBS.getValue("agname").stringValue();
+          String uriSameAs = null;
+          if(bindingSetNearBS.getValue("sameas")!=null)
+            uriSameAs = bindingSetNearBS.getValue("sameas").stringValue();
+
+          String valueOfLinee = "";
+          if(fullCount<100 || !risultatiServizi.equals("0")) {
+            TupleQueryResult resultLinee = queryBusLines(valueOfBS, con);
+            if (resultLinee != null) {
+              while (resultLinee.hasNext()) {
+                BindingSet bindingSetLinee = resultLinee.next();
+                if(bindingSetLinee.getValue("id")!=null) {
+                  String idLinee = bindingSetLinee.getValue("id").stringValue();
+                  valueOfLinee = valueOfLinee + " - " + idLinee;
+                }
+              }
+            }
+          }
+
+          if (!valueOfLinee.equals("")) {
+            valueOfLinee = JSONObject.escape(valueOfLinee.substring(3));
+          }
+
+          if (s != 0) {
+            out.println(", ");
+          }
+
+          out.print("{\n"
+                  + "\"geometry\":{\"type\": \"Point\",\"coordinates\":[" + valueOfBSLong + ", " + valueOfBSLat + "]},\n"
+                  + "\"type\": \"Feature\",\n"
+                  + "\"properties\": {\n"
+                  + "\"name\": \"" + valueOfNomeFermata + "\",\n"
+                  + "\"typeLabel\": \"" + type + "\",\n"
+                  + "\"tipo\": \"fermata\",\n"
+                  + "\"serviceType\": \"TransferServiceAndRenting_BusStop\",\n"
+                  + "\"busLines\": \"" + valueOfLinee + "\",\n"
+                  + "\"serviceUri\": \"" + valueOfBS + "\",\n"
+                  + "\"distance\": \"" + valueOfDist + "\",\n"
+                  + "\"agency\": \"" + valueOfAgName + "\",\n"
+                  + "\"agencyUri\": \"" + valueOfAgUri + "\",\n"
+                  + "\"photoThumbs\": " + ServiceMap.getServicePhotos(valueOfBS,"thumbs") + "\n"
+                  + "},\n"
+                  + "\"id\": " + Integer.toString(s + 1) + "\n"
+                  + "}");
+          s++;
+          numeroBus++;
+        }
+        out.println("]}");
+      }
+
+      if (searchSensorSite && !inside) {
+        String type;
+        if (lang.equals("it")) {
+          type = "Sensore";
+        } else {
+          type = "Sensor";
+        }
+
+        SparqlQuery queryNearSensors = new SparqlQuery() {
+          @Override
+          public String query(String type) throws Exception {
+            return "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
+                    + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
+                    + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+                    + "PREFIX schema:<http://schema.org/>\n"
+                    + "PREFIX dcterms:<http://purl.org/dc/terms/>\n"
+                    + ("count".equals(type) ? "SELECT (COUNT(*) AS ?count) WHERE {\n" : "")
+                    + "SELECT DISTINCT ?sensor ?idSensore  ?lat ?long ?address ?dist ?x WHERE {\n"
+                    + " ?sensor rdf:type km4c:SensorSite.\n"
+                    + " ?sensor geo:lat ?lat.\n"
+                    + " ?sensor geo:long ?long.\n"
+                    + " ?sensor dcterms:identifier ?idSensore.\n"
+                    + ServiceMap.textSearchQueryFragment("?sensor", "?p", textToSearch)
+                    + ServiceMap.geoSearchQueryFragment("?sensor", coords, raggioBus)
+                    + ServiceMap.valueTypeSearchQueryFragment("?sensor", value_type)
+                    + ServiceMap.graphSearchQueryFragment("?sensor", graphUri)
+                    + " ?sensor schema:streetAddress ?address.\n"
+                    + "} "
+                    + (type != null ? "}" : "ORDER BY ?dist");
+          }
+        };
+
+        String queryStringNearSensori = queryNearSensors.query(null);
+        int fullCount = -1;
+        if (!risultatiServizi.equals("0")) {
+          if (cat_servizi.equals("categorie")) {
+            resSensori = ((Integer.parseInt(risultatiServizi)) * percSensor / 10);
+            queryStringNearSensori += " LIMIT " + resSensori;
+          } else {
+            if (cat_servizi.contains(":")) {
+              String parts[] = cat_servizi.split(":");
+              if (!parts[1].equals("0")) {
+                resSensori = ((Integer.parseInt(parts[1])) * percSensor / 10);
+                queryStringNearSensori += " LIMIT " + resSensori;
+              }
+            } else {
+              resSensori = Integer.parseInt(risultatiServizi);
+              queryStringNearSensori += " LIMIT " + risultatiServizi;
+            }
+          }
+        } else {
+          resSensori = (MAX_RESULTS * percSensor / 10);
+        }
+
+        if("true".equals(makeFullCount))
+          fullCount = ServiceMap.countQuery(con, queryNearSensors.query("count"));
+
+        TupleQuery tupleQuerySensori = con.prepareTupleQuery(QueryLanguage.SPARQL, queryStringNearSensori);
+        long ts = System.nanoTime();
+        TupleQueryResult resultNearSensori = tupleQuerySensori.evaluate();
+        logQuery(queryStringNearSensori, "API-nearsensori", sparqlType, args, System.nanoTime() - ts);
+
+        if (!searchBusStop) {
+          out.println("\"SensorSites\": {");
+        } else {
+          out.println(",\"SensorSites\": {");
+        }
         if (fullCount >= 0) {
           out.println("\"fullCount\": " + fullCount + ",");
         }
         out.println("\"type\": \"FeatureCollection\",\n"
-              + "\"features\":[");
-      int s = 0;
-      while (resultNearBS.hasNext() && s < resBusStop) {
-        BindingSet bindingSetNearBS = resultNearBS.next();
-        String valueOfBS = bindingSetNearBS.getValue("bs").stringValue();
-        String valueOfNomeFermata = JSONObject.escape(bindingSetNearBS.getValue("nomeFermata").stringValue());
-        String valueOfBSLat = bindingSetNearBS.getValue("bslat").stringValue();
-        String valueOfBSLong = bindingSetNearBS.getValue("bslong").stringValue();
-        String valueOfDist = bindingSetNearBS.getValue("dist").stringValue();      
-        String valueOfAgUri = bindingSetNearBS.getValue("ag").stringValue();
-        String valueOfAgName = bindingSetNearBS.getValue("agname").stringValue();
-        String uriSameAs = null;
-        if(bindingSetNearBS.getValue("sameas")!=null)
-          uriSameAs = bindingSetNearBS.getValue("sameas").stringValue();
-
-        String valueOfLinee = "";
-        if(fullCount<100 || !risultatiServizi.equals("0")) {
-          TupleQueryResult resultLinee = queryBusLines(valueOfBS, con);
-          if (resultLinee != null) {
-            while (resultLinee.hasNext()) {
-              BindingSet bindingSetLinee = resultLinee.next();
-              if(bindingSetLinee.getValue("id")!=null) {
-                String idLinee = bindingSetLinee.getValue("id").stringValue();
-                valueOfLinee = valueOfLinee + " - " + idLinee;
-              }
-            }
-          }
-        }
-
-        if (!valueOfLinee.equals("")) {
-          valueOfLinee = JSONObject.escape(valueOfLinee.substring(3));
-        }
-
-        if (s != 0) {
-          out.println(", ");
-        }
-
-        out.print("{\n"
-                + "\"geometry\":{\"type\": \"Point\",\"coordinates\":[" + valueOfBSLong + ", " + valueOfBSLat + "]},\n"
-                + "\"type\": \"Feature\",\n"
-                + "\"properties\": {\n"
-                + "\"name\": \"" + valueOfNomeFermata + "\",\n"
-                + "\"typeLabel\": \"" + type + "\",\n"
-                + "\"tipo\": \"fermata\",\n"
-                + "\"serviceType\": \"TransferServiceAndRenting_BusStop\",\n"
-                + "\"busLines\": \"" + valueOfLinee + "\",\n"
-                + "\"serviceUri\": \"" + valueOfBS + "\",\n"
-                + "\"distance\": \"" + valueOfDist + "\",\n"
-                + "\"agency\": \"" + valueOfAgName + "\",\n"
-                + "\"agencyUri\": \"" + valueOfAgUri + "\",\n"
-                + "\"photoThumbs\": " + ServiceMap.getServicePhotos(valueOfBS,"thumbs") + "\n"
-                + "},\n"
-                + "\"id\": " + Integer.toString(s + 1) + "\n"
-                + "}");
-        s++;
-        numeroBus++;
-      }
-      out.println("]}");
-    }
-
-    int numeroSensori = 0;
-    if (searchSensorSite && !inside) {
-      String type;
-      if (lang.equals("it")) {
-        type = "Sensore";
-      } else {
-        type = "Sensor";
-      }
-
-      SparqlQuery queryNearSensors = new SparqlQuery() {
-        @Override
-        public String query(String type) throws Exception {
-          return "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
-                  + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
-                  + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-                  + "PREFIX schema:<http://schema.org/>\n"
-                  + "PREFIX dcterms:<http://purl.org/dc/terms/>\n"
-                  + ("count".equals(type) ? "SELECT (COUNT(*) AS ?count) WHERE {\n" : "")
-                  + "SELECT DISTINCT ?sensor ?idSensore  ?lat ?long ?address ?dist ?x WHERE {\n"
-                  + " ?sensor rdf:type km4c:SensorSite.\n"
-                  + " ?sensor geo:lat ?lat.\n"
-                  + " ?sensor geo:long ?long.\n"
-                  + " ?sensor dcterms:identifier ?idSensore.\n"
-                  + ServiceMap.textSearchQueryFragment("?sensor", "?p", textToSearch)
-                  + ServiceMap.geoSearchQueryFragment("?sensor", coords, raggioBus)
-                  + ServiceMap.valueTypeSearchQueryFragment("?sensor", value_type)
-                  + " ?sensor schema:streetAddress ?address.\n"
-                  + "} "
-                  + (type != null ? "}" : "ORDER BY ?dist");
-        }
-      };
-
-      String queryStringNearSensori = queryNearSensors.query(null);
-      int fullCount = -1;
-      if (!risultatiServizi.equals("0")) {
-        if (cat_servizi.equals("categorie")) {
-          resSensori = ((Integer.parseInt(risultatiServizi)) * percSensor / 10);
-          queryStringNearSensori += " LIMIT " + resSensori;
-        } else {
-          if (cat_servizi.contains(":")) {
-            String parts[] = cat_servizi.split(":");
-            if (!parts[1].equals("0")) {
-              resSensori = ((Integer.parseInt(parts[1])) * percSensor / 10);
-              queryStringNearSensori += " LIMIT " + resSensori;
-            }
-          } else {
-            resSensori = Integer.parseInt(risultatiServizi);
-            queryStringNearSensori += " LIMIT " + risultatiServizi;
-          }
-        }
-      } else {
-        resSensori = (MAX_RESULTS * percSensor / 10);
-      }
-      
-      if("true".equals(makeFullCount))
-        fullCount = ServiceMap.countQuery(con, queryNearSensors.query("count"));
-
-      TupleQuery tupleQuerySensori = con.prepareTupleQuery(QueryLanguage.SPARQL, queryStringNearSensori);
-      long ts = System.nanoTime();
-      TupleQueryResult resultNearSensori = tupleQuerySensori.evaluate();
-      logQuery(queryStringNearSensori, "API-nearsensori", sparqlType, args, System.nanoTime() - ts);
-
-      if (!searchBusStop) {
-        out.println("\"SensorSites\": {");
-      } else {
-        out.println(",\"SensorSites\": {");
-      }
-      if (fullCount >= 0) {
-        out.println("\"fullCount\": " + fullCount + ",");
-      }
-      out.println("\"type\": \"FeatureCollection\",\n"
-            + "\"features\": [");
-
-      while (resultNearSensori.hasNext() && numeroSensori < resSensori) {
-        BindingSet bindingSetNearSensori = resultNearSensori.next();
-        String valueOfId = bindingSetNearSensori.getValue("idSensore").stringValue();
-        String valueOfIdService = bindingSetNearSensori.getValue("sensor").stringValue();
-        String valueOfLat = bindingSetNearSensori.getValue("lat").stringValue();
-        String valueOfLong = bindingSetNearSensori.getValue("long").stringValue();
-        String valueOfDist = bindingSetNearSensori.getValue("dist").stringValue();      
-
-        if (i != 0) {
-          out.println(",");
-        }
-        out.print("{\n"
-                + "\"geometry\":{\"type\": \"Point\",\"coordinates\":[" + valueOfLong + "," + valueOfLat + "]},\n"
-                + "\"type\": \"Feature\",\n"
-                + "\"properties\": {\n"
-                + "\"name\": \"" + valueOfId + "\",\n"
-                + "\"tipo\": \"sensore\",\n"
-                + "\"typeLabel\": \"" + type + "\",\n"
-                + "\"serviceType\": \"TransferServiceAndRenting_SensorSite\",\n"
-                + "\"serviceUri\": \"" + valueOfIdService + "\",\n"
-                + "\"distance\": \"" + valueOfDist + "\",\n"
-                + "\"photoThumbs\": " + ServiceMap.getServicePhotos(valueOfIdService,"thumbs") + "\n"
-                + "},\n"
-                + "\"id\": " + Integer.toString(i + 1) + "\n"
-                + "}");
-
-        i++;
-        numeroSensori++;
-      }
-      out.println("]}");
-    }
-
-    int numeroServizi = 0;
-    //if (!categorie.equals("BusStop") && !categorie.equals("SensorSite") && !categorie.equals("SensorSite;BusStop") && !categorie.equals("BusStop;SensorSite")) {
-    if (searchServices) {
-
-      /*String filtroDL_tmp = "";
-      if (cat_servizi.equals("categorie_t")) {
-        if (categorie.contains("Fresh_place")) {
-          filtroDL_tmp = " OPTIONAL {?ser a ?sTypeDL. FILTER(?sTypeDL=km4c:DigitalLocation)}";
-        } else {
-          filtroDL_tmp = " ?ser a ?sTypeDL. FILTER(?sTypeDL=km4c:DigitalLocation)";
-        }
-      }*/
-      final String filtroDL = ""; //filtroDL_tmp; //ELIMINATO virtuoso genera un errore "VECSL Error VECSL: Geo chekc ro id is to be a vec ssl.  For support." non si capisce a cosa serva
-      final boolean excludeSameAs = conf.get("excludeSameAs", "true").equalsIgnoreCase("true");
-
-      SparqlQuery queryNearServices = new SparqlQuery() {
-        @Override
-        public String query(String type) throws Exception {
-          return "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
-                  + "PREFIX schema:<http://schema.org/>\n"
-                  + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
-                  + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
-                  + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-                  + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
-                  + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>\n"
-                  + "PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>\n"
-                  + "PREFIX dc:<http://purl.org/dc/elements/1.1/>\n"
-                  + "PREFIX opengis:<http://www.opengis.net/ont/geosparql#>\n"
-                  + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>\n"
-                  + ("count".equals(type) ? "SELECT (COUNT(*) AS ?count) WHERE {\n" : "")
-                  + "SELECT DISTINCT * {"
-                  + "SELECT DISTINCT ?ser (STR(?lat) AS ?elat) (STR(?long) AS ?elong) ?sType ?sCategory ?sTypeLang (IF(?sName1,?sName1,?sName2) as ?sName) ?multimedia ?hasGeometry (STR(?geo) AS ?sgeo) ?ag ?agname (xsd:int(?dist*10000)/10000.0 AS ?dst) WHERE {\n"
-                  + " ?ser rdf:type km4c:Service" + (sparqlType.equals("virtuoso") ? " OPTION (inference \"urn:ontology\")" : "") + ".\n"
-                  + ( excludeSameAs ?" FILTER NOT EXISTS {?ser owl:sameAs ?xxx}\n" : "")
-                  + ServiceMap.textSearchQueryFragment("?ser", "?p", textToSearch)
-                  + (inside ? 
-                    "?ser opengis:hasGeometry [geo:geometry ?geo].\n"
-                    + "  ?ser geo:lat ?lat.\n"
-                    + "  ?ser geo:long ?long.\n"
-                    + "filter(bif:st_contains(?geo,bif:st_point("+coords[1]+","+coords[0]+"),0.0000001))"
-                  : /*" {\n"
-                    + "  ?ser km4c:hasAccess ?entry.\n"
-                    + "  ?entry geo:lat ?elat.\n"
-                    + "  ?entry geo:long ?elong.\n"
-                    + ServiceMap.geoSearchQueryFragment("?entry", coords, raggioServizi)
-                    + " } UNION {\n"
-                    + */ "  ?ser geo:lat ?lat.\n"
-                    + "  ?ser geo:long ?long.\n"
-                    + ServiceMap.geoSearchQueryFragment("?ser", coords, raggioServizi)
-                    + ServiceMap.valueTypeSearchQueryFragment("?ser", value_type)
-                    /*+ " }\n"*/)
-                  + fc
-                  + " OPTIONAL {?ser <http://schema.org/name> ?sName1}\n"
-                  + " OPTIONAL {?ser foaf:name ?sName2}\n"
-                  + (!km4cVersion.equals("old")
-                          ? " ?ser a ?sType. FILTER(?sType!=km4c:RegularService && ?sType!=km4c:Service && ?sType!=km4c:DigitalLocation && ?sType!=km4c:TransverseService && ?sType!=km4c:BusStop && ?sType!=km4c:SensorSite)\n"
-                          + filtroDL
-                          + " ?sType rdfs:subClassOf ?sCategory. FILTER(?sCategory != <http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing>)\n"
-                          + " ?sCategory rdfs:subClassOf km4c:Service.\n"
-                          + " ?sType rdfs:label ?sTypeLang. FILTER(LANG(?sTypeLang)=\"" + lang + "\")\n" : "")
-                  + (getGeometry || inside ? " OPTIONAL {?ser opengis:hasGeometry [opengis:asWKT ?wktGeometry]. BIND(!STRSTARTS(?wktGeometry,\"POINT\") as ?hasGeometry)}\n" : "")
-                  + "   OPTIONAL {?ser km4c:multimediaResource ?multimedia}.\n"
-                  //+ "   OPTIONAL {?st gtfs:stop ?ser.\n"
-                  //+ "     ?st gtfs:trip/gtfs:route/gtfs:agency ?ag.\n"
-                  //+ "     ?ag foaf:name ?agname.}\n"
-                  + "   OPTIONAL {?ser gtfs:agency ?ag.\n"
-                  + "     ?ag foaf:name ?agname.}\n"
-                  + "}\n"
-                  + "}"
-                  + (type != null ? "}" : " ORDER BY ?dst");
-        }
-      };
-
-      String queryStringServiceNear = queryNearServices.query(null);
-      ServiceMap.println(queryStringServiceNear);
-      int fullCount = -1;
-      if (!risultatiServizi.equals("0")) {
-        if (!cat_servizi.equals("categorie_t")) {
-          resServizi = ((Integer.parseInt(risultatiServizi)) - (numeroBus + numeroSensori));
-          queryStringServiceNear += " LIMIT " + resServizi;
-        } else {
-          resServizi = Integer.parseInt(risultatiServizi);
-          queryStringServiceNear += " LIMIT " + risultatiServizi;
-        }
-      } else {
-        resServizi = MAX_RESULTS - numeroBus - numeroSensori;
-      }
-      if("true".equals(makeFullCount))
-        fullCount = ServiceMap.countQuery(con, queryNearServices.query("count"));
-
-      TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, queryStringServiceNear);
-      long ts = System.nanoTime();
-      TupleQueryResult result = tupleQuery.evaluate();
-      logQuery(queryStringServiceNear, "API-nearservices", sparqlType, args, System.nanoTime() - ts);
-      if (!searchBusStop && !searchSensorSite || inside) {
-        out.println("\"Services\":{");
-      } else {
-        out.println(", \"Services\":{");
-      }
-      if (fullCount >= 0) {
-        out.println("\"fullCount\": " + fullCount + ",");
-      }
-      out.println("\"type\": \"FeatureCollection\",\n"
               + "\"features\": [");
-      int w = 0;
-      while (result.hasNext() && numeroServizi < resServizi ) {
-        BindingSet bindingSet = result.next();
-        String valueOfSer = bindingSet.getValue("ser").stringValue();
 
-        String valueOfSType = "";
-        if (bindingSet.getValue("sType") != null) {
-          valueOfSType = bindingSet.getValue("sType").stringValue();
-        }
-        String valueOfSTypeLang = "";
-        if (bindingSet.getValue("sTypeLang") != null) {
-          valueOfSTypeLang = bindingSet.getValue("sTypeLang").stringValue();
-        }
+        while (resultNearSensori.hasNext() && numeroSensori < resSensori) {
+          BindingSet bindingSetNearSensori = resultNearSensori.next();
+          String valueOfId = bindingSetNearSensori.getValue("idSensore").stringValue();
+          String valueOfIdService = bindingSetNearSensori.getValue("sensor").stringValue();
+          String valueOfLat = bindingSetNearSensori.getValue("lat").stringValue();
+          String valueOfLong = bindingSetNearSensori.getValue("long").stringValue();
+          String valueOfDist = bindingSetNearSensori.getValue("dist").stringValue();      
 
-        String valueOfTipo = "";
-        valueOfTipo = valueOfSTypeLang;
-        valueOfTipo = valueOfTipo.replace(" ", "_");
-        valueOfTipo = valueOfTipo.replaceAll("[^\\P{Punct}_]+", "");
-
-        // DICHIARAZIONE VARIABILI serviceType e serviceCategory per ICONA
-        String subCategory = "";
-        if (bindingSet.getValue("sType") != null) {
-          subCategory = bindingSet.getValue("sType").stringValue();
-          subCategory = subCategory.replace("http://www.disit.org/km4city/schema#", "");
-        }
-
-        String category = "";
-        if (bindingSet.getValue("sCategory") != null) {
-          category = bindingSet.getValue("sCategory").stringValue();
-          category = category.replace("http://www.disit.org/km4city/schema#", "");
-        }
-
-        String serviceType = category + "_" + subCategory;
-
-        String valueOfSName = "";
-        if (bindingSet.getValue("sName") != null) {
-          valueOfSName = bindingSet.getValue("sName").stringValue();
-        } else {
-          valueOfSName = subCategory.replace("_", " ").toUpperCase();
-        }
-        String valueOfELat = bindingSet.getValue("elat").stringValue();
-        String valueOfELong = bindingSet.getValue("elong").stringValue();      
-        String valueOfDist = "";
-        if(bindingSet.getValue("dst")!=null)
-          valueOfDist = bindingSet.getValue("dst").stringValue();      
-        String valueOfHasGeometry = "false";
-        if(bindingSet.getValue("hasGeometry")!=null)
-          valueOfHasGeometry = "1".equals(bindingSet.getValue("hasGeometry").stringValue()) ? "true" : "false";
-        String valueOfMultimedia = "";
-        if(bindingSet.getValue("multimedia")!=null)
-          valueOfMultimedia = bindingSet.getValue("multimedia").stringValue();
-        String valueOfAgUri = null, valueOfAgName = null;
-        if(bindingSet.getValue("ag")!=null)
-          valueOfAgUri = bindingSet.getValue("ag").stringValue();
-        if(bindingSet.getValue("agname")!=null)
-          valueOfAgName = bindingSet.getValue("agname").stringValue();
-
-        if(inside && bindingSet.getValue("sgeo")!=null) {
-          //per bug di virtuoso controlla se geometria effettivamente contiene il punto richiesto
-          WKTReader wktReader=new WKTReader();
-          Geometry position=wktReader.read("POINT("+coords[1]+" "+coords[0]+")").buffer(0.0001);
-          try {
-            Geometry g=wktReader.read(bindingSet.getValue("sgeo").stringValue());
-            if(!g.intersects(position)) {
-              ServiceMap.println("SKIP! "+valueOfSName);
-              continue;
-            } else {
-              ServiceMap.println("OK "+valueOfSName);
-            }
-          }catch(Exception e) {
-            ServiceMap.notifyException(e);
+          if (i != 0) {
+            out.println(",");
           }
-        }
-        
-        if (w != 0) {
-          out.println(",");
-        }
+          out.print("{\n"
+                  + "\"geometry\":{\"type\": \"Point\",\"coordinates\":[" + valueOfLong + "," + valueOfLat + "]},\n"
+                  + "\"type\": \"Feature\",\n"
+                  + "\"properties\": {\n"
+                  + "\"name\": \"" + valueOfId + "\",\n"
+                  + "\"tipo\": \"sensore\",\n"
+                  + "\"typeLabel\": \"" + type + "\",\n"
+                  + "\"serviceType\": \"TransferServiceAndRenting_SensorSite\",\n"
+                  + "\"serviceUri\": \"" + valueOfIdService + "\",\n"
+                  + "\"distance\": \"" + valueOfDist + "\",\n"
+                  + "\"photoThumbs\": " + ServiceMap.getServicePhotos(valueOfIdService,"thumbs") + "\n"
+                  + "},\n"
+                  + "\"id\": " + Integer.toString(i + 1) + "\n"
+                  + "}");
 
-        out.print("{\n"
-                + "\"geometry\": {\"type\": \"Point\",\"coordinates\":[" + valueOfELong + "," + valueOfELat + "]},\n"
-                + "\"type\": \"Feature\",\n"
-                + "\"properties\": {\n"
-                + "\"name\": \"" + escapeJSON(valueOfSName) + "\",\n"
-                + "\"tipo\": \"" + escapeJSON(valueOfTipo) + "\",\n"
-                + "\"typeLabel\": \"" + escapeJSON(valueOfSTypeLang) + "\",\n"
-                + "\"serviceType\": \"" + escapeJSON(serviceType) + "\",\n"
-                + (getGeometry ? "\"hasGeometry\": " + escapeJSON(valueOfHasGeometry) + ",\n" : "")
-                + "\"distance\": \"" + escapeJSON(valueOfDist) + "\",\n"
-                + "\"serviceUri\": \"" + valueOfSer + "\",\n"
-                + (photos ? "   \"photoThumbs\": " + ServiceMap.getServicePhotos(valueOfSer,"thumbs") + ",\n" : "")
-                + (valueOfAgName!=null ? "   \"agency\": \"" + valueOfAgName + "\",\n" : "")
-                + (valueOfAgUri!=null ? "   \"agencyUri\": \"" + valueOfAgUri + "\",\n" : "")
-                + "\"multimedia\": \"" + valueOfMultimedia + "\"\n"
-                + "},\n"
-                + "\"id\": " + Integer.toString(w + 1) + "\n"
-                + "}");
-        w++;
-        numeroServizi++;
+          i++;
+          numeroSensori++;
+        }
+        out.println("]}");
       }
-      out.println("]}");
-    }
+
+      //if (!categorie.equals("BusStop") && !categorie.equals("SensorSite") && !categorie.equals("SensorSite;BusStop") && !categorie.equals("BusStop;SensorSite")) {
+      if (searchServices) {
+
+        /*String filtroDL_tmp = "";
+        if (cat_servizi.equals("categorie_t")) {
+          if (categorie.contains("Fresh_place")) {
+            filtroDL_tmp = " OPTIONAL {?ser a ?sTypeDL. FILTER(?sTypeDL=km4c:DigitalLocation)}";
+          } else {
+            filtroDL_tmp = " ?ser a ?sTypeDL. FILTER(?sTypeDL=km4c:DigitalLocation)";
+          }
+        }*/
+        final String filtroDL = ""; //filtroDL_tmp; //ELIMINATO virtuoso genera un errore "VECSL Error VECSL: Geo chekc ro id is to be a vec ssl.  For support." non si capisce a cosa serva
+        final boolean excludeSameAs = conf.get("excludeSameAs", "true").equalsIgnoreCase("true");
+
+        SparqlQuery queryNearServices = new SparqlQuery() {
+          @Override
+          public String query(String type) throws Exception {
+            return "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
+                    + "PREFIX schema:<http://schema.org/>\n"
+                    + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
+                    + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
+                    + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+                    + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
+                    + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>\n"
+                    + "PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>\n"
+                    + "PREFIX dc:<http://purl.org/dc/elements/1.1/>\n"
+                    + "PREFIX opengis:<http://www.opengis.net/ont/geosparql#>\n"
+                    + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>\n"
+                    + ("count".equals(type) ? "SELECT (COUNT(*) AS ?count) WHERE {\n" : "")
+                    + "SELECT DISTINCT * {"
+                    + "SELECT DISTINCT ?ser (STR(?lat) AS ?elat) (STR(?long) AS ?elong) ?sType ?sCategory ?sTypeLang (IF(?sName1,?sName1,?sName2) as ?sName) ?multimedia ?hasGeometry (STR(?geo) AS ?sgeo) ?ag ?agname (xsd:int(?dist*10000)/10000.0 AS ?dst) WHERE {\n"
+                    + " ?ser rdf:type km4c:Service" + (sparqlType.equals("virtuoso") ? " OPTION (inference \"urn:ontology\")" : "") + ".\n"
+                    + ( excludeSameAs ?" FILTER NOT EXISTS {?ser owl:sameAs ?xxx}\n" : "")
+                    + ServiceMap.textSearchQueryFragment("?ser", "?p", textToSearch)
+                    + (inside ? 
+                      "?ser opengis:hasGeometry [geo:geometry ?geo].\n"
+                      + "  ?ser geo:lat ?lat.\n"
+                      + "  ?ser geo:long ?long.\n"
+                      + "filter(bif:st_contains(?geo,bif:st_point("+coords[1]+","+coords[0]+"),0.0000001))"
+                    : /*" {\n"
+                      + "  ?ser km4c:hasAccess ?entry.\n"
+                      + "  ?entry geo:lat ?elat.\n"
+                      + "  ?entry geo:long ?elong.\n"
+                      + ServiceMap.geoSearchQueryFragment("?entry", coords, raggioServizi)
+                      + " } UNION {\n"
+                      + */ "  ?ser geo:lat ?lat.\n"
+                      + "  ?ser geo:long ?long.\n"
+                      + ServiceMap.geoSearchQueryFragment("?ser", coords, raggioServizi)
+                      + ServiceMap.valueTypeSearchQueryFragment("?ser", value_type)
+                      + ServiceMap.graphSearchQueryFragment("?ser", graphUri)
+                      /*+ " }\n"*/)
+                    + fc
+                    + " OPTIONAL {?ser <http://schema.org/name> ?sName1}\n"
+                    + " OPTIONAL {?ser foaf:name ?sName2}\n"
+                    + (!km4cVersion.equals("old")
+                            ? " ?ser a ?sType. FILTER(?sType!=km4c:RegularService && ?sType!=km4c:Service && ?sType!=km4c:DigitalLocation && ?sType!=km4c:TransverseService && ?sType!=km4c:BusStop && ?sType!=km4c:SensorSite)\n"
+                            + filtroDL
+                            + " ?sType rdfs:subClassOf ?sCategory. FILTER(?sCategory != <http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing>)\n"
+                            + " ?sCategory rdfs:subClassOf km4c:Service.\n"
+                            + " ?sType rdfs:label ?sTypeLang. FILTER(LANG(?sTypeLang)=\"" + lang + "\")\n" : "")
+                    + (getGeometry || inside ? " OPTIONAL {?ser opengis:hasGeometry [opengis:asWKT ?wktGeometry]. BIND(!STRSTARTS(?wktGeometry,\"POINT\") as ?hasGeometry)}\n" : "")
+                    + "   OPTIONAL {?ser km4c:multimediaResource ?multimedia}.\n"
+                    //+ "   OPTIONAL {?st gtfs:stop ?ser.\n"
+                    //+ "     ?st gtfs:trip/gtfs:route/gtfs:agency ?ag.\n"
+                    //+ "     ?ag foaf:name ?agname.}\n"
+                    + "   OPTIONAL {?ser gtfs:agency ?ag.\n"
+                    + "     ?ag foaf:name ?agname.}\n"
+                    + "}\n"
+                    + "}"
+                    + (type != null ? "}" : " ORDER BY ?dst");
+          }
+        };
+
+        String queryStringServiceNear = queryNearServices.query(null);
+        ServiceMap.println(queryStringServiceNear);
+        int fullCount = -1;
+        if (!risultatiServizi.equals("0")) {
+          if (!cat_servizi.equals("categorie_t")) {
+            resServizi = ((Integer.parseInt(risultatiServizi)) - (numeroBus + numeroSensori));
+            queryStringServiceNear += " LIMIT " + resServizi;
+          } else {
+            resServizi = Integer.parseInt(risultatiServizi);
+            queryStringServiceNear += " LIMIT " + risultatiServizi;
+          }
+        } else {
+          resServizi = MAX_RESULTS - numeroBus - numeroSensori;
+        }
+        if("true".equals(makeFullCount))
+          fullCount = ServiceMap.countQuery(con, queryNearServices.query("count"));
+
+        TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, queryStringServiceNear);
+        long ts = System.nanoTime();
+        TupleQueryResult result = tupleQuery.evaluate();
+        logQuery(queryStringServiceNear, "API-nearservices", sparqlType, args, System.nanoTime() - ts);
+        if (!searchBusStop && !searchSensorSite || inside) {
+          out.println("\"Services\":{");
+        } else {
+          out.println(", \"Services\":{");
+        }
+        if (fullCount >= 0) {
+          out.println("\"fullCount\": " + fullCount + ",");
+        }
+        out.println("\"type\": \"FeatureCollection\",\n"
+                + "\"features\": [");
+        int w = 0;
+        while (result.hasNext() && numeroServizi < resServizi ) {
+          BindingSet bindingSet = result.next();
+          String valueOfSer = bindingSet.getValue("ser").stringValue();
+
+          String valueOfSType = "";
+          if (bindingSet.getValue("sType") != null) {
+            valueOfSType = bindingSet.getValue("sType").stringValue();
+          }
+          String valueOfSTypeLang = "";
+          if (bindingSet.getValue("sTypeLang") != null) {
+            valueOfSTypeLang = bindingSet.getValue("sTypeLang").stringValue();
+          }
+
+          String valueOfTipo = "";
+          valueOfTipo = valueOfSTypeLang;
+          valueOfTipo = valueOfTipo.replace(" ", "_");
+          valueOfTipo = valueOfTipo.replaceAll("[^\\P{Punct}_]+", "");
+
+          // DICHIARAZIONE VARIABILI serviceType e serviceCategory per ICONA
+          String subCategory = "";
+          if (bindingSet.getValue("sType") != null) {
+            subCategory = bindingSet.getValue("sType").stringValue();
+            subCategory = subCategory.replace("http://www.disit.org/km4city/schema#", "");
+          }
+
+          String category = "";
+          if (bindingSet.getValue("sCategory") != null) {
+            category = bindingSet.getValue("sCategory").stringValue();
+            category = category.replace("http://www.disit.org/km4city/schema#", "");
+          }
+
+          String serviceType = category + "_" + subCategory;
+
+          String valueOfSName = "";
+          if (bindingSet.getValue("sName") != null) {
+            valueOfSName = bindingSet.getValue("sName").stringValue();
+          } else {
+            valueOfSName = subCategory.replace("_", " ").toUpperCase();
+          }
+          String valueOfELat = bindingSet.getValue("elat").stringValue();
+          String valueOfELong = bindingSet.getValue("elong").stringValue();      
+          String valueOfDist = "";
+          if(bindingSet.getValue("dst")!=null)
+            valueOfDist = bindingSet.getValue("dst").stringValue();      
+          String valueOfHasGeometry = "false";
+          if(bindingSet.getValue("hasGeometry")!=null)
+            valueOfHasGeometry = "1".equals(bindingSet.getValue("hasGeometry").stringValue()) ? "true" : "false";
+          String valueOfMultimedia = "";
+          if(bindingSet.getValue("multimedia")!=null)
+            valueOfMultimedia = bindingSet.getValue("multimedia").stringValue();
+          String valueOfAgUri = null, valueOfAgName = null;
+          if(bindingSet.getValue("ag")!=null)
+            valueOfAgUri = bindingSet.getValue("ag").stringValue();
+          if(bindingSet.getValue("agname")!=null)
+            valueOfAgName = bindingSet.getValue("agname").stringValue();
+
+          if(inside && bindingSet.getValue("sgeo")!=null) {
+            //per bug di virtuoso controlla se geometria effettivamente contiene il punto richiesto
+            WKTReader wktReader=new WKTReader();
+            Geometry position=wktReader.read("POINT("+coords[1]+" "+coords[0]+")").buffer(0.0001);
+            try {
+              Geometry g=wktReader.read(bindingSet.getValue("sgeo").stringValue());
+              if(!g.intersects(position)) {
+                ServiceMap.println("SKIP! "+valueOfSName);
+                continue;
+              } else {
+                ServiceMap.println("OK "+valueOfSName);
+              }
+            }catch(Exception e) {
+              ServiceMap.notifyException(e);
+            }
+          }
+
+          if (w != 0) {
+            out.println(",");
+          }
+
+          out.print("{\n"
+                  + "\"geometry\": {\"type\": \"Point\",\"coordinates\":[" + valueOfELong + "," + valueOfELat + "]},\n"
+                  + "\"type\": \"Feature\",\n"
+                  + "\"properties\": {\n"
+                  + "\"name\": \"" + escapeJSON(valueOfSName) + "\",\n"
+                  + "\"tipo\": \"" + escapeJSON(valueOfTipo) + "\",\n"
+                  + "\"typeLabel\": \"" + escapeJSON(valueOfSTypeLang) + "\",\n"
+                  + "\"serviceType\": \"" + escapeJSON(serviceType) + "\",\n"
+                  + (getGeometry ? "\"hasGeometry\": " + escapeJSON(valueOfHasGeometry) + ",\n" : "")
+                  + "\"distance\": \"" + escapeJSON(valueOfDist) + "\",\n"
+                  + "\"serviceUri\": \"" + valueOfSer + "\",\n"
+                  + (photos ? "   \"photoThumbs\": " + ServiceMap.getServicePhotos(valueOfSer,"thumbs") + ",\n" : "")
+                  + (valueOfAgName!=null ? "   \"agency\": \"" + valueOfAgName + "\",\n" : "")
+                  + (valueOfAgUri!=null ? "   \"agencyUri\": \"" + valueOfAgUri + "\",\n" : "")
+                  + "\"multimedia\": \"" + valueOfMultimedia + "\"\n"
+                  + "},\n"
+                  + "\"id\": " + Integer.toString(w + 1) + "\n"
+                  + "}");
+          w++;
+          numeroServizi++;
+        }
+        out.println("]}");
+      }
+    } finally {
     out.println("}");
+    }
     ServiceMap.println("API-LatLngServices END elapsed: "+(System.currentTimeMillis()-tss)+"ms");
     return numeroBus + numeroSensori + numeroServizi;
   }
@@ -3050,7 +3057,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               rtData.add(rt);
               rt = new JsonObject();
               String measuredTime = ServiceMap.dateFormatterTZ.format(dt);
-              out.print("  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
+              out.print("},  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
               rt.addProperty("measuredTime", measuredTime);
               c=1;
             }
