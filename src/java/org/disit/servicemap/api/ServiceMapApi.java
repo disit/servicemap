@@ -2040,6 +2040,7 @@ public class ServiceMapApi {
         String valueOfUriCivico = binding.getValue("uriCivico").stringValue();
         String valueOfProvincia = binding.getValue("provincia").stringValue();
         String valueOfUriProvincia = binding.getValue("uriProvincia").stringValue();
+        String valueOfUriStrada = binding.getValue("uriStrada").stringValue();
         obj.put("address", valueOfVia);
         obj.put("number", valueOfNumero);
         obj.put("addressUri", valueOfUriCivico);
@@ -2047,6 +2048,7 @@ public class ServiceMapApi {
         obj.put("municipalityUri", valueOfUriComune);
         obj.put("province", valueOfProvincia);
         obj.put("provinceUri", valueOfUriProvincia);
+        obj.put("roadUri", valueOfUriStrada);
       }
       if(obj == null) {
         query = ServiceMap.latLngToMunicipalityQuery(lat, lng, sparqlType);

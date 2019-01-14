@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.api.CheckParameters"%>
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <%@page import="org.disit.servicemap.ServiceMap"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
@@ -36,10 +37,16 @@
     if(! ServiceMap.checkIP(ip, "api")) {
       response.sendError(403,"API calls daily limit reached");
       return;
-    }      
+    }
+    String selection = request.getParameter("selection");
+    String check = CheckParameters.checkLatLng(selection);
+    if(check!=null) {
+      response.sendError(404, "invalid selection value: "+check);
+      return;      
+    }
 
     RepositoryConnection con = ServiceMap.getSparqlConnection();
-    int results = serviceMapApi.queryTplAgencyList(out, con);
+    int results = serviceMapApi.queryTplAgencyList(out, con, selection);
     ServiceMap.updateResultsPerIP(ip, "api", results);
     con.close();
     ServiceMap.logAccess(request, null, "", null, null, "api-tpl-agencies", null, null, null, null, "json", uid, reqFrom);

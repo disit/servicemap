@@ -708,6 +708,11 @@ function loadServiceInfo(uri, div, id, coord) {
                         $("#" + div).html(contenutoPopup);
                         popup_fixpos(div);
                     }
+                },
+                error: function (data) {
+                  console.log(data);
+                  $("#" + div).html("Error");
+                  popup_fixpos(div);
                 }
             });
         }
@@ -1171,21 +1176,21 @@ function showmarker(feature, latlng, mType) {
     
     if(serviceType == "TransferServiceAndRenting_BusStop" ){
         if(feature.properties.agency)
-            serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, ""); 
+            serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, "").replace(/\//g, ""); 
         else
             serviceIcon = serviceIcon +"_ataflinea"; 
     }
     else if(serviceType == "TransferServiceAndRenting_Tram_stops"  ){
         if(feature.properties.agency)
-            serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, ""); 
+            serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, "").replace(/\//g, ""); 
     }
     else if(serviceType == "TransferServiceAndRenting_Train_station" ){
         if(feature.properties.agency)
-            serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, ""); 
+            serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, "").replace(/\//g, ""); 
     }
     else if(serviceType == "TransferServiceAndRenting_Ferry_stop" ){
         if(feature.properties.agency)
-            serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, ""); 
+            serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, "").replace(/\//g, ""); 
     }
     
     
@@ -1359,18 +1364,36 @@ function nascondiRisultati() {
 
 var circle = $('.leaflet-overlay-pane').children('path');
 //Function che mostra gli autobur RT
-function mostraAutobusRT(zoom) {
+var currentBusRT = null;
+function mostraAutobusRT(zoom, agency, line) {
     if (($('.leaflet-marker-icon.busRT.leaflet-zoom-animated.leaflet-clickable.selected').length) == 0) {
         $('#selezione').html("No selection");
         $('#approximativeAddress').html("");
     }
     //$('.popup_autobusRT').closest('.leaflet-popup.leaflet-zoom-animated').hide();
+    if(agency==undefined)
+      agency = $('#elencoagenzie option:selected').attr('value');
+    if(line==undefined)
+      line = $('#elencolinee option:selected').attr('value');
 
+    if(!agency) {
+      if(!mode) {
+        alert("select agency")
+        return;
+      }
+      agency = "";
+    }
+    if(currentBusRT!=null)
+      clearTimeout(currentBusRT);
     $.ajax({
         url: ctx + "/ajax/json/get-autobusRT.jsp",
         type: "GET",
         async: true,
         dataType: 'json',
+        data: {
+          agency: agency,
+          line: line
+        },
         success: function (msg) {
 
             $('#loading').hide();
@@ -1387,13 +1410,15 @@ function mostraAutobusRT(zoom) {
                     onEachFeature: function (feature, layer) {
                         var contenutoPopup = "";
                         contenutoPopup = contenutoPopup + "<div class=\"popup_autobusRT\" >";
-                        contenutoPopup = contenutoPopup + "<h3> AUTOBUS REAL TIME</h3>";
+                        contenutoPopup = contenutoPopup + "<h3> TPL REAL TIME </h3>";
                         if (feature.properties.vehicleNum != "" && feature.properties.vehicleNum)
-                            contenutoPopup = contenutoPopup + "<b>Bus Number: </b> " + feature.properties.vehicleNum + "<br />";
+                            contenutoPopup = contenutoPopup + "<b>Vehicle Number: </b> " + feature.properties.vehicleNum + "<br />";
                         if (feature.properties.line != "" && feature.properties.line)
-                            contenutoPopup = contenutoPopup + "<b>Bus Line: </b> " + feature.properties.line + "<br />";
+                            contenutoPopup = contenutoPopup + "<b>Line: </b> " + feature.properties.line + "<br />";
                         if (feature.properties.direction != "" && feature.properties.direction)
                             contenutoPopup = contenutoPopup + "<b>Direction: </b> " + feature.properties.direction + "<br />";
+                        if (feature.properties.agency != "" && feature.properties.agency)
+                            contenutoPopup = contenutoPopup + "<b>Agency: </b> " + feature.properties.agency + "<br />";
                         if (feature.properties.detectionTime != "" && feature.properties.detectionTime)
                             contenutoPopup = contenutoPopup + "<b>Info: </b> position acquired " + feature.properties.detectionTime + "min. ago.<br />";
                         layer.bindPopup(contenutoPopup);
@@ -1410,7 +1435,7 @@ function mostraAutobusRT(zoom) {
                 }
             }
         }});
-    setTimeout(mostraAutobusRT, 60000);
+    currentBusRT = setTimeout(function(){ mostraAutobusRT(undefined,agency,line)}, !line ? 60000 : 5000);
 }
 
 function searchEvent(param, raggioRic, centroRic, numEv, text) {
@@ -2354,7 +2379,7 @@ function mostraRealTimeData(divInfo, realtime) {
       if(key == "measuredTime" || key == "instantTime")
         time = v.value;
       else
-        html +="<tr><td>"+key+"</td><td>"+v.value+"</td></tr>";
+        html +="<tr><td>"+key+"</td><td>"+v.value+(v.valueDate? " <small>@"+v.valueDate+"</small>": "")+"</td></tr>";
     });
   } else {
     html += "<tr>";
@@ -2368,8 +2393,9 @@ function mostraRealTimeData(divInfo, realtime) {
       $.each( realtime.results.bindings[b], function( key, v ) {
         if(key == "measuredTime" || key == "instantTime")
           time = v.value;
-        else
-          html +="<td>"+v.value+"</td>";
+        else {          
+          html +="<td>"+v.value+(v.valueDate? " <small>@"+v.valueDate+"</small>": "")+"</td>";
+        }
       });
       html += "</tr>";
     }

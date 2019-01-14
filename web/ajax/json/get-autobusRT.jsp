@@ -38,8 +38,11 @@
 
   RepositoryConnection con = ServiceMap.getSparqlConnection();
   ServiceMapApiV1 apiV1 = new ServiceMapApiV1();
+  String agency = request.getParameter("agency");
+  String line = request.getParameter("line");
+  
   try {
-    apiV1.queryBusesLastPosition(out, con);
+    apiV1.queryTplLastPosition(out, agency, line, con);
   } finally {
     con.close();
   }

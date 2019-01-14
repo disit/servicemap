@@ -1,4 +1,6 @@
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
+<%@page import="java.util.regex.Matcher"%>
+<%@page import="java.util.regex.Pattern"%>
 <%@include file= "/include/parameters.jsp" %>
 <%
 /* ServiceMap.
@@ -67,10 +69,24 @@
 
     String srcLatLng[] = ServiceMap.parsePosition(source);
     String dstLatLng[] = ServiceMap.parsePosition(destination);
-
+    //check if it could be an OSM node id
     if(srcLatLng==null || dstLatLng==null) {
-      response.sendError(400, "wrong source or destination parameters");
-      return;
+      Pattern pattern = Pattern.compile("(OS0*)?([1-9]+[0-9]*)(NO)?");
+      Matcher matcher = pattern.matcher(source);
+      if (matcher.find())
+      {
+        srcLatLng = new String[]{matcher.group(2)};
+      }
+      matcher = pattern.matcher(destination);
+      if (matcher.find())
+      {
+        dstLatLng = new String[]{matcher.group(2)};
+      }
+
+      if(srcLatLng==null || dstLatLng==null) {
+        response.sendError(400, "wrong source or destination parameters");
+        return;
+      }
     }
     RepositoryConnection con = ServiceMap.getSparqlConnection();
 

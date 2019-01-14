@@ -344,7 +344,7 @@ public class ServiceMap {
   
   static public String latLngToAddressQuery(String lat, String lng, String sparqlType) {
     return prefixes
-            + "SELECT DISTINCT ?via ?numero ?comune	(?nc as ?uriCivico) ?uriComune ?provincia ?uriProvincia WHERE {\n"
+            + "SELECT DISTINCT ?via ?numero ?comune	(?nc as ?uriCivico) ?uriComune ?provincia ?uriProvincia (?road as ?uriStrada) WHERE {\n"
             + " ?entry rdf:type km4c:Entry.\n"
             + " ?nc km4c:hasExternalAccess ?entry.\n"
             + " ?nc km4c:extendNumber ?numero.\n"
@@ -679,8 +679,32 @@ public class ServiceMap {
 
     return "FILTER EXISTS {GRAPH <"+graphUri+"> { "+subj+" a ?anyclass }}\n";
   }
-  
+
+  static public int getHealthCount(JsonObject rtAttrs) throws Exception {
+    // return the number of samples to be retrieved for healthiness check
+    int maxNValues = 0;
+    for(Entry<String,JsonElement> e : rtAttrs.entrySet()) {
+      String name=e.getKey();
+            
+      //check different values
+      if(e.getValue().getAsJsonObject().get("different_values")!=null) {
+        try {
+          int nvalues = Integer.parseInt(e.getValue().getAsJsonObject().get("different_values").getAsString());
+          if(nvalues > maxNValues)
+            maxNValues = nvalues;
+        } catch(NumberFormatException ex) {
+          //ignore if not a valid number
+        }      
+      }
+    }
+    return maxNValues;
+  }
+
   static public JsonObject computeHealthiness(JsonArray rtData, JsonObject rtAttrs) throws Exception {
+    return computeHealthiness(rtData, rtAttrs, null);
+  }
+
+  static public JsonObject computeHealthiness(JsonArray rtData, JsonObject rtAttrs, String timeAttr) throws Exception {
     Configuration conf=Configuration.getInstance();
     JsonObject health = new JsonObject();
     if(rtData==null || rtAttrs==null)
@@ -693,7 +717,14 @@ public class ServiceMap {
     JsonObject last = null;
     if(rtData.size()>0) {
       last = rtData.get(0).getAsJsonObject();
-      String lastTime = last.get("measuredTime").getAsString();
+      String lastTime = null;
+      if(timeAttr!=null)
+        lastTime = last.get(timeAttr).getAsString();
+      else if(last.get("measuredTime")!=null)
+        lastTime = last.get("measuredTime").getAsString();
+      else
+        lastTime = last.get("instantTime").getAsString();
+      
       try {
         lastDate = ServiceMap.dateFormatterTZ.parse(lastTime);
       } catch(ParseException e) {
@@ -704,28 +735,98 @@ public class ServiceMap {
       ServiceMap.println("health: no rt data");
       reason = "no RT data";
     }
+    
     for(Entry<String,JsonElement> e : rtAttrs.entrySet()) {
       String name=e.getKey();
-      healthy = false;
+      healthy = true;
       reason = null;
-      int refreshRate = Integer.parseInt(e.getValue().getAsJsonObject().get("value_refresh_rate").getAsString());
       JsonObject h = new JsonObject();
+      int refreshRate = 0;
+      if(e.getValue().getAsJsonObject().get("value_refresh_rate")!=null && !e.getValue().getAsJsonObject().get("value_refresh_rate").isJsonNull()) {
+        try {
+          refreshRate = Integer.parseInt(e.getValue().getAsJsonObject().get("value_refresh_rate").getAsString());
+        } catch(NumberFormatException ex) {
+          //ignore if not a valid number
+        }
+      }
+      
+      // check refresh_rate
       if(lastDate!=null) {
         long delay = (now.getTime()-lastDate.getTime())/1000;
         long defaultRefreshRate = Integer.parseInt(conf.get("defaultRefreshRate","-1"));
         h.addProperty("delay", delay);
         if(delay<refreshRate || delay<defaultRefreshRate) {
-          if(last.get(name)!=null && !last.get(name).getAsString().isEmpty())
-            healthy=true;
-          else
+          if(last.get(name)!=null && !last.get(name).getAsString().isEmpty()) {
+          } else {
+            healthy = false;
             reason = "missing value";
-        }
-        else {
-          reason = "too old data "+delay+">="+refreshRate+" && delay>="+defaultRefreshRate;
+          }
+        } else {
+          healthy = false;
+          reason = "too old data "+delay+">="+refreshRate+" and delay>="+defaultRefreshRate;
         }
       }
+      
+      // check value bounds
+      if(last!=null && e.getValue().getAsJsonObject().get("value_bounds")!=null && !e.getValue().getAsJsonObject().get("value_bounds").isJsonNull()) {
+        try {
+          String[] valueBounds = e.getValue().getAsJsonObject().get("value_bounds").getAsString().split(";");
+          if(valueBounds.length == 2) {
+            double min = Double.parseDouble(valueBounds[0]);
+            double max = Double.parseDouble(valueBounds[1]);
+            if(rtData.get(0).getAsJsonObject().has(name)) {
+              double value = Double.parseDouble(last.get(name).getAsString());
+              if(value >= min && value <= max) {
+                //OK
+                reason = (reason!=null ? reason+", " : "" ) + "last value "+value+" in bounds ["+min+","+max+"]";
+              } else {
+                healthy = false;
+                reason = (reason!=null ? reason+", " : "" ) + "last value "+value+" out of bounds ["+min+","+max+"]";
+              }
+            } else {
+              // no attribute present
+              healthy = false;
+              reason = (reason!=null ? reason+", " : "" ) + "value missing for "+name;
+            }
+          }
+        } catch(NumberFormatException ex) {
+          //ignore if not a valid number
+        }
+      }
+      
+      //check different values
+      if(last!=null && e.getValue().getAsJsonObject().get("different_values")!=null && !e.getValue().getAsJsonObject().get("different_values").isJsonNull()) {
+        try {
+          int nvalues = Integer.parseInt(e.getValue().getAsJsonObject().get("different_values").getAsString());
+          if(nvalues>1 && nvalues <= rtData.size()) {
+            String lastValue = null;
+            boolean allEqual = true;
+            for(int i = 0; i < nvalues; i++) {
+              JsonElement value = rtData.get(i).getAsJsonObject().get(name);
+              if(lastValue==null) {
+                if(value!=null)
+                  lastValue = value.getAsString();
+              } else {
+                if(value!=null && !lastValue.equals(value.getAsString())) {
+                  allEqual = false;
+                  break;
+                }
+              }
+            }
+            if(allEqual) {
+              healthy = false;
+              reason = (reason!=null ? reason+", " : "" ) + "value constant for "+nvalues+" samples";
+            } else {
+              reason = (reason!=null ? reason+", " : "" ) + "value not constant for "+nvalues+" samples";              
+            }
+          }
+        } catch(NumberFormatException ex) {
+          //ignore if not a valid number
+        }      
+      }
+      
       if (reason!=null)
-        h.addProperty("reason",reason);
+        h.addProperty("reason",reason);      
       h.addProperty("healthy", healthy);
       health.add(name, h);
     }
@@ -1207,16 +1308,16 @@ public class ServiceMap {
     String[] latLng = position.split(";");
     if(latLng.length==2)
       return latLng;
-    if(!position.startsWith("http://")) {
-      return null;
-    }
-    latLng = new String[2];
-    Map<String,String> info = getServiceInfo(position,"en");
-    if(info.isEmpty())
-      return null;
-    latLng[0] = info.get("lat");
-    latLng[1] = info.get("long");
-    return latLng;
+    if(position.startsWith("http://")) {
+      latLng = new String[2];
+      Map<String,String> info = getServiceInfo(position,"en");
+      if(info.isEmpty())
+        return null;
+      latLng[0] = info.get("lat");
+      latLng[1] = info.get("long");
+      return latLng;
+    } 
+    return null;
   }
   
   public static String[] findTime(String s) {
@@ -1294,7 +1395,7 @@ public class ServiceMap {
     Configuration conf = Configuration.getInstance();
     Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
     //Class.forName("org.apache.phoenix.queryserver.client.Driver");
-    return DriverManager.getConnection(conf.get("phoenixJDBC2", "jdbc:phoenix:192.168.0.228,192.168.0.232,192.168.0.233:2281:/hbase-unsecure")); //jdbc:phoenix:thin:url=http://192.168.0.228:8765
+    return DriverManager.getConnection(conf.get("phoenixJDBC2", "jdbc:phoenix:192.168.0.229,192.168.0.230,192.168.0.236:2181:/hbase-unsecure")); //jdbc:phoenix:thin:url=http://192.168.0.228:8765
   }
   
   public static boolean checkIP(String IPAddr, String requestType) throws Exception {
@@ -1589,7 +1690,7 @@ public class ServiceMap {
       "?s gtfs:agency ?agency.\n" +
       "?agency foaf:name ?agencyName.\n" +
       "\n" +
-      "} order by ?ss";
+      "} order by xsd:int(?ss)";
     //ServiceMap.println(query);
     long start = System.nanoTime();
     TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
@@ -1689,7 +1790,7 @@ public class ServiceMap {
     return sstops;
   }
   
-  static public String getOsmNodeId(String lat, String lon) throws Exception{
+  static public String getOsmNodeId(String lat, String lon, String transport) throws Exception{
     Configuration conf = Configuration.getInstance();
     Repository repo;
     RepositoryConnection con;
@@ -1702,14 +1803,32 @@ public class ServiceMap {
     } else
       throw new Exception("invalid sparqlOsmEndpoint "+sparqlEndpoint);
     
+    if(!conf.get("experimentalOsmTransport","true").equals("true"))
+      transport = "any";
+    
     repo.initialize();
     con = repo.getConnection();
-    String query = "select ?n {\n" +
+    String query = null;
+    if(transport.equals(("car"))) {
+      query = "select ?n {\n" +
+        "?n a km4c:Node.\n" +
+        "?n geo:geometry ?g.\n" +
+        "filter(bif:st_intersects(?g, bif:st_point("+lon+","+lat+"),0.5))\n" +
+        "bind(bif:st_distance(?g,bif:st_point("+lon+","+lat+")) as ?d)\n" +
+        "?e km4c:startAtNode | km4c:endsAtNode ?n.\n" +
+        "?road km4c:containsElement ?e.\n" +
+        "?rs km4c:where ?road.\n" +
+        "?rs km4c:who ?type.\n" +
+        "filter(?type not in (\"foot\",\"horse\",\"bicycle\",\"psv\",\"emergency\",\"taxi\",\"bus\"))\n" +
+        "} order by ?d limit 1";      
+    } else {
+      query = "select ?n {\n" +
         "?n a km4c:Node.\n" +
         "?n geo:geometry ?g.\n" +
         "filter(bif:st_intersects(?g, bif:st_point("+lon+","+lat+"),0.5))\n" +
         "bind(bif:st_distance(?g,bif:st_point("+lon+","+lat+")) as ?d)\n" +
         "} order by ?d limit 1";
+    }
     TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
     long start = System.nanoTime();
     TupleQueryResult result = tq.evaluate();

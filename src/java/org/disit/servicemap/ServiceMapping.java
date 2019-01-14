@@ -74,12 +74,25 @@ public class ServiceMapping {
       trendSqlQuery = pt;
     }
     
-    public JsonObject printServiceAttributes(JspWriter out, RepositoryConnection con, String serviceUri) throws Exception {
+    public JsonObject getServiceAttributes(RepositoryConnection con, String serviceUri) throws Exception {
       //adds all attributes info
       String attrQuery = this.attributesQuery;
       if (attrQuery == null) {
-        return null;
+        attrQuery = "select ?value_name ?data_type (replace(str(?vt),\"http://www.disit.org/km4city/resource/value_type/\",\"\") as ?value_type) (replace(str(?type),\"http://www.disit.org/km4city/schema#\",\"\") as ?attr_type) ?value_unit ?healthiness_criteria ?value_refresh_rate ?value_bounds ?different_values{\n" +
+            " <%SERVICE_URI> km4c:hasAttribute ?a.\n" +
+            " ?a a ?type.\n" +
+            " ?a km4c:value_name ?value_name.\n" +
+            " ?a km4c:data_type ?data_type.\n" +
+            " optional{?a km4c:value_type ?vt.}\n" +
+            " ?a km4c:value_unit ?value_unit.\n" +
+            " optional {?a km4c:order ?o}\n" +
+            " optional {?a km4c:healthiness_criteria ?healthiness_criteria.}\n" +
+            " optional {?a km4c:value_refresh_rate ?value_refresh_rate}\n" +
+            " optional {?a km4c:value_bounds ?value_bounds}\n" +
+            " optional {?a km4c:different_values ?different_values}\n" +
+            " } order by ?o";
       }
+      
       Configuration conf = Configuration.getInstance();
       String sparqlType = conf.get("sparqlType", "virtuoso");
 
@@ -92,37 +105,30 @@ public class ServiceMapping {
       List<String> bnames = resultAttrs.getBindingNames();
 
       JsonObject r = new JsonObject();
-      out.println("    \"realtimeAttributes\":{");
-      int pp = 0;
       while (resultAttrs.hasNext()) {
         BindingSet bs = resultAttrs.next();
 
-        if (pp != 0) {
-          out.println(",");
-        } 
-
         int ppp = 0;
         String name = bs.getBinding(bnames.get(0)).getValue().stringValue();
-        out.print("      \""+name+"\":{");
         JsonObject o = new JsonObject();
         for (int i=1; i<bnames.size(); i++) {
           String n = bnames.get(i);
           if(bs.getBinding(n) != null) {
             String v = bs.getBinding(n).getValue().stringValue();
-            if (ppp != 0) {
-              out.print(",");
-            }
-            out.print("\"" + n + "\":\"" + v + "\"");
             o.addProperty(n, v);
             ppp++;
           }
         }
         r.add(name, o);
-        out.print("}");
-        pp++;
       }
-      out.println("},");
       return r;
+    }
+    
+    public JsonObject printServiceAttributes(JspWriter out, RepositoryConnection con, String serviceUri) throws Exception {
+      //adds all attributes info
+      JsonObject attrs = getServiceAttributes(con, serviceUri);
+      out.println("    \"realtimeAttributes\":"+attrs+",");
+      return attrs;
     }
   }
   

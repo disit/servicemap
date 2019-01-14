@@ -61,7 +61,7 @@
             serviceMapping.realTimeSqlQuery!=null || 
             serviceMapping.realTimeSolrQuery!=null)) {
       ServiceMapApiV1 api = new ServiceMapApiV1();
-      api.queryService(out, con, idService, "en", "true", null, "false", null, types);
+      api.queryService(out, con, idService, "en", "true", null, null, "false", null, types);
     } else if ((types.contains("BusStop") || types.contains("Tram_stops") || types.contains("Train_station") || types.contains("Ferry_stop")) && !types.contains("DigitalLocation")) {
       String nomeFermata = "";
       String queryStringBusStop = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
@@ -77,10 +77,11 @@
               + "  a ?sType;"
               + "	 foaf:name ?nomeFermata;\n"
               + "	 geo:lat ?bslat;\n"
-              + "	 geo:long ?bslong.\n"
-              + "  {?st gtfs:stop <"+idService+">.}UNION{?st gtfs:stop [owl:sameAs <"+idService+">]}" 
-              + "  ?st gtfs:trip ?t."
-              + "   ?t gtfs:route/gtfs:agency ?ag."
+              + "	 geo:long ?bslong;\n"
+              + "  gtfs:agency ?ag."
+              //+ "  {?st gtfs:stop <"+idService+">.}UNION{?st gtfs:stop [owl:sameAs <"+idService+">]}" 
+              //+ "  ?st gtfs:trip ?t."
+              //+ "   ?t gtfs:route/gtfs:agency ?ag."
               + "   ?ag foaf:name ?agname."
               + "  FILTER(?sType!=gtfs:Stop)"
               + "}LIMIT 1";
@@ -112,9 +113,9 @@
                   + "},\n"
                   + "\"type\": \"Feature\",\n"
                   + "\"properties\": {\n"
-                  + "    \"popupContent\": \"" + nomeFermata + " - fermata\",\n"
-                  + "    \"name\": \"" + nomeFermata + "\",\n"
-                  + "    \"agency\": \"" + agency + "\",\n"
+                  + "    \"popupContent\": \"" + escapeJSON(nomeFermata) + " - fermata\",\n"
+                  + "    \"name\": \"" + escapeJSON(nomeFermata) + "\",\n"
+                  + "    \"agency\": \"" + escapeJSON(agency) + "\",\n"
                   + "    \"serviceUri\": \"" + idService + "\",\n"
                   + "    \"tipo\": \"fermata\",\n"
                   + "    \"serviceType\": \"TransferServiceAndRenting_" + serviceType + "\",\n"

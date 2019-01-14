@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.api.CheckParameters"%>
 <%@page import="org.json.simple.parser.JSONParser"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
 <%@page import="java.io.IOException"%>
@@ -37,9 +38,13 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
  
  ServiceMapApiV1 api = new ServiceMapApiV1();
- RepositoryConnection conn = ServiceMap.getSparqlConnection();
+ String selection = request.getParameter("selection");
+ if(CheckParameters.checkLatLng(selection)!=null)
+   return;
+ 
+ RepositoryConnection conn = ServiceMap.getSparqlConnection();  
  try {
-  api.queryTplAgencyList(out, conn);
+  api.queryTplAgencyList(out, conn, selection);
  } finally {
   conn.close();
  }

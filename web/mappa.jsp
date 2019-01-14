@@ -635,6 +635,8 @@
                                 <br/>
                                 <input type="checkbox" name="near-weather-sensor" value="Weather_sensor"  class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_Weather_sensor.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">Weather_sensor</span>
                                 <br/>
+                                <input type="checkbox" name="near-noise_level_sensor" value="Noise_level_sensor"  class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_Noise_level_sensor.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">Noise_level_sensor</span>
+                                <br/>
                                 <input type="checkbox" name="near-smart-bench" value="Smart_bench"  class="macrocategory" id="Entertainment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Entertainment_Smart_bench.png' height='23' width='20' align='top'/> <span class="Entertainment macrocategory-label">Smart_bench</span>
                                 <br/>
                                 <input type="checkbox" name="near-first-aid" value="First_aid"  class="macrocategory" id="Emergency" /> <img src='${pageContext.request.contextPath}/img/mapicons/Emergency_First_aid.png' height='23' width='20' align='top'/> <span class="Emergency macrocategory-label">First_aid</span>
@@ -1351,6 +1353,9 @@
                                                 if("Service" in msg) {
                                                   msg = msg.Service;
                                                 }
+                                                if("Sensor" in msg) {
+                                                  msg = msg.Sensor;
+                                                }
                                                 if (msg != null && msg.meteo != null) {
                                                     $.ajax({
                                                         url: "${pageContext.request.contextPath}/ajax/get-weather.jsp",
@@ -1621,14 +1626,12 @@
                                         maxZoom: 16,
                                         style: null
                                     });
-                                    map.addControl(GPSControl);
+                                    //map.addControl(GPSControl);
                                     //$("#currentPosition").add(GPSControl);+
 
                                     // ASSOCIA FUNZIONI AGGIUNTIVE ALL'APERTURA DI UN POPUP SU PARTICOLARI TIPI DI DATI
                                     var last_marker = null;
                                     map.on('popupopen', function (e) {
-
-
                                         $('#raggioricerca').prop('disabled', false);
                                         $('#raggioricerca_t').prop('disabled', false);
                                         $('#PublicTransportLine').prop('disabled', false);
@@ -1831,11 +1834,16 @@
                                             if (parameters["description"] == "false") {
                                                 $("#queryBox").hide();
                                             }
-                                            if (parameters["showBusPosition"] == "true" || mode=="bus-position") {
-                                                mostraAutobusRT(true);
-                                            }
-                                            else
-                                                showResults(parameters);
+                                            setTimeout(function waitMapSize() { 
+                                              if(map.getSize().y>0) {
+                                                if (parameters["showBusPosition"] == "true" || mode=="bus-position") {
+                                                  mostraAutobusRT(true,parameters["agency"],parameters["line"]);
+                                                } else {
+                                                  showResults(parameters); 
+                                                }
+                                              } else 
+                                                setTimeout(waitMapSize,500); 
+                                            },500);
                                         }
                                         $("#raggioricerca").change(function(){
                                           var selected=$(this).val();

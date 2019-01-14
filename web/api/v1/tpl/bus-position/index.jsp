@@ -29,7 +29,9 @@
   if(! ServiceMap.checkIP(ip, "api")) {
     response.sendError(403,"API calls daily limit reached");
     return;
-  }      
+  }
+  String agency = request.getParameter("agency");
+  String line = request.getParameter("line");
 if ("html".equals(request.getParameter("format"))) {%>
 <jsp:include page="../../../../mappa.jsp" > <jsp:param name="mode" value="bus-position"/> </jsp:include>
 <%
@@ -41,7 +43,7 @@ if ("html".equals(request.getParameter("format"))) {%>
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
     RepositoryConnection con = ServiceMap.getSparqlConnection();
-    int results = serviceMapApi.queryBusesLastPosition(out, con);
+    int results = serviceMapApi.queryTplLastPosition(out, agency, line, con);
     ServiceMap.updateResultsPerIP(ip, "api", results);
     con.close();
     ServiceMap.logAccess(request, null, "", null, null, "api-tpl-bus-stops", null, null, null, null, "json", uid, reqFrom);
