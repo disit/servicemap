@@ -17,7 +17,9 @@
 package org.disit.servicemap.api;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.io.WKTReader;
 import java.io.IOException;
@@ -64,6 +66,7 @@ import org.apache.http.util.EntityUtils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrQuery.ORDER;
+import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrClient;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.apache.solr.client.solrj.response.FacetField.Count;
@@ -72,6 +75,7 @@ import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.disit.servicemap.ConnectionPool;
 import org.disit.servicemap.ServiceMapping;
+import org.disit.servicemap.ServiceValuesServlet;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
@@ -2107,6 +2111,15 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       out.println(e.getMessage());
     }
     if ("true".equalsIgnoreCase(realtime)) {
+      int limit = 1;
+      if(checkHealtiness.equals("true") && rtAttrs != null) {
+        limit = ServiceMap.getHealthCount(rtAttrs);
+        if(limit == 0)
+          limit = 1;
+        else {
+          fromTime = null;
+        }
+      }
       String querySensorData = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
               + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>"
               + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>"
@@ -2136,7 +2149,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 " FILTER(?timeInstant>=\""+fromTime+ServiceMap.getCurrentTimezoneOffset()+"\"^^xsd:dateTime)"
                       : "")
               + "} ORDER BY DESC (?timeInstant)"
-              + (fromTime==null ? "LIMIT 1" : "LIMIT " + conf.get("fromTimeLimit","1500"));
+              + (fromTime==null ? "LIMIT " + limit : "LIMIT " + conf.get("fromTimeLimit","1500"));
       ServiceMap.println(querySensorData);
       TupleQuery tupleQuerySensorData = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(querySensorData, km4cVersion));
       TupleQueryResult resultSensorData = tupleQuerySensorData.evaluate();
@@ -2274,7 +2287,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     out.println("}");
   }
 
-  public String queryService(JspWriter out, RepositoryConnection con, String serviceUri, String lang, String realtime, String fromTime, String checkHealthiness, String uid, List<String> serviceTypes) throws Exception {
+  public String queryService(JspWriter out, RepositoryConnection con, String serviceUri, String lang, String realtime, String valueName, String fromTime, String checkHealthiness, String uid, List<String> serviceTypes) throws Exception {
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "virtuoso");
     String km4cVersion = conf.get("km4cVersion", "new");
@@ -2775,365 +2788,447 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         out.println("{}");
       }
     } else if("true".equalsIgnoreCase(realtime)) {
-      if(md!=null && md.realTimeSqlQuery!=null && md.realTimeSolrQuery==null) {
-        String query = md.realTimeSqlQuery;
-        long ts = System.currentTimeMillis();
-        query = query.replace("%SERVICE_URI", serviceUri);
-        String serviceId = serviceUri.substring(serviceUri.lastIndexOf("/")+1);
-        query = query.replace("%SERVICE_ID", serviceId);
-        String frmTime = "";
-        String limit = "1";
-        if(fromTime!=null) {
-          frmTime = " AND observationTime>=to_date('"+fromTime.replace("T"," ")+"',null,'CET') ";
-          limit = conf.get("fromTimeLimit","1500");
-        } else if(serviceTypes.contains("Weather_sensor")) {
-          limit = "2";
+      int limit = 1;
+      if(checkHealthiness.equals("true") && rtAttributes != null) {
+        limit = ServiceMap.getHealthCount(rtAttributes);
+        if(limit == 0)
+          limit = 1;
+        else {
+          fromTime = null;
         }
-        query = query.replace("%FROM_TIME", frmTime).replace("%LIMIT", limit);
-        ServiceMap.println("realtime query: "+query);
-        out.println(", \"realtime\": ");
-        Connection rtCon = ServiceMap.getRTConnection();
-        Statement s = rtCon.createStatement();
-        s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
-        ResultSet rs = s.executeQuery(query);
-        int nCols = rs.getMetaData().getColumnCount();
-        int p = 0;
-        if(!limit.equals("2")) {
-          while (rs.next()) {
-            if (p == 0) {
-              out.print("{ \"head\": {\n"
-                      + " \"vars\":[ ");
-              int cc = 0;
-              for(int c=1; c<=nCols; c++) {
-                String v = rs.getMetaData().getColumnLabel(c);
-                if(!v.startsWith("_")) {
-                  if(cc!=0)
-                    out.print(",");
-                  out.print("\""+v+"\"");
-                  cc++;
-                }
-              }
-              out.println("]},");
-              out.println(" \"results\": {");
-              out.println(" \"bindings\": [");
-            } else {
-              out.println(",");
-            }
-            out.println("  {");
-            int cc = 0;
-            JsonObject rt = new JsonObject();
-            for(int c=1; c<=nCols; c++) {
-              String v = rs.getMetaData().getColumnLabel(c);
-              if(!v.startsWith("_")) {
-                String value = rs.getString(c);
-                if(value!=null && rs.getMetaData().getColumnType(c)==java.sql.Types.DATE || 
-                        rs.getMetaData().getColumnType(c)==java.sql.Types.TIMESTAMP ||
-                        rs.getMetaData().getColumnType(c)==java.sql.Types.TIME)
-                  value=value.replace(" ", "T").replace(".000", "")+ServiceMap.getCurrentTimezoneOffset();
-                if(value==null)
-                  value = "";
-                //ServiceMap.println("v:"+v+" -->"+value);
-                if(cc!=0)
-                  out.println(",");
-                out.print("  \""+v+"\":{\"value\":\""+value+"\"}");
-                rt.addProperty(v, value);
-                cc++;
-              }
-            }
-            out.println(" }");
-            p++;
-            rtData.add(rt);
-          }
-        } else {
-          //FIX per problema con weather sensor
-          String[] row = new String[nCols];
-          while (rs.next()) {
-            if (p == 0) {
-              out.print("{ \"head\": {\n"
-                      + " \"vars\":[ ");
-              int cc = 0;
-              for(int c=1; c<=nCols; c++) {
-                String v = rs.getMetaData().getColumnLabel(c);
-                if(!v.startsWith("_")) {
-                  if(cc!=0)
-                    out.print(",");
-                  out.print("\""+v+"\"");
-                  cc++;
-                }
-              }
-              out.println("]},");
-              out.println(" \"results\": {");
-              out.println(" \"bindings\": [");            
-            } 
-            for(int c=1; c<=nCols; c++) {
-              String v = rs.getMetaData().getColumnLabel(c);
-              if(!v.startsWith("_")) {
-                String value = rs.getString(c);
-                if(value!=null && rs.getMetaData().getColumnType(c)==java.sql.Types.DATE || 
-                        rs.getMetaData().getColumnType(c)==java.sql.Types.TIMESTAMP ||
-                        rs.getMetaData().getColumnType(c)==java.sql.Types.TIME)
-                  value=value.replace(" ", "T").replace(".000", "")+ServiceMap.getCurrentTimezoneOffset();
-                if(row[c-1]==null)
-                  row[c-1] = value;
-              }
-            }
-            p++;
-          }
-          if(p>0) {
-            int cc=0;
-            JsonObject rt = new JsonObject();
-            out.println(" {");
-            for(int c=1; c<=nCols; c++) {
-              String v = rs.getMetaData().getColumnLabel(c);
-              if(!v.startsWith("_")) {
-                if(cc!=0)
-                  out.println(",");
-                String value=row[c-1];
-                if(value==null)
-                  value="";
-                out.print("  \""+v+"\":{\"value\":\""+value+"\"}");
-                rt.addProperty(v,value);
-                cc++;
-              }
-            }
-            out.println(" }");
-            rtData.add(rt);
-          }
-        }
-        if(p>0)
-          out.println("]}}");
-        else
-          out.println("{}");
+      }
+      if(valueName!=null && rtAttributes.has(valueName) && 
+              rtAttributes.getAsJsonObject(valueName).get("attr_type")!=null &&
+              rtAttributes.getAsJsonObject(valueName).get("attr_type").getAsString().equals("CustomAttribute")) {
+        // is stored with values
+        Connection rtCon= ServiceMap.getRTConnection2();
+        ServiceValuesServlet.getValues(rtCon, conf, fromTime, null, (fromTime==null ? ""+limit : null), serviceUri, valueName, rtData, "sparql");
+        out.println(",\"realtime\":{\"head\": {\n" +
+            " \"vars\":[\""+valueName+"\"]},\n" +
+            " \"results\": {\n" +
+            " \"bindings\":"+rtData+"}}");
         rtCon.close();
-        ServiceMap.println("phoenix time realtime: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri);    
-      } else if(md!=null && md.realTimeSparqlQuery!=null && md.realTimeSolrQuery==null) {
-        String query = md.realTimeSparqlQuery;
-        query = query.replace("%SERVICE_URI",serviceUri);
-        String frmTime = "";
-        String limit = "1";
-        if(fromTime!=null) {
-          frmTime = " FILTER(?measuredTime>=\""+fromTime+ServiceMap.getCurrentTimezoneOffset()+"\"^^xsd:dateTime) ";
-          limit = conf.get("fromTimeLimit","1500");
-        }
-        query = query.replace("%FROM_TIME", frmTime).replace("%LIMIT",limit);
-        TupleQuery tupleQueryRT = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
-        long ts = System.nanoTime();
-        TupleQueryResult resultStatus = tupleQueryRT.evaluate();
-        logQuery(query, "API-service-rt-info", sparqlType, serviceUri, System.nanoTime() - ts);
-        //ServiceMap.println(query);
-        out.println(",\"realtime\": ");
-        if (resultStatus.hasNext()) {
-          List<String> vars = resultStatus.getBindingNames();
-          out.print("{ \"head\": {\n"
-                  + " \"vars\":[ ");
-          int c = 0;
-          for(String v:vars) {
-            if(!v.startsWith("_")) {
-              if(c!=0)
-                out.print(",");
-              out.print("\""+v+"\"");
-              c++;
-            }
+      } else {
+        ArrayList<String> customAttrs = new ArrayList<>();
+        if(fromTime==null && rtAttributes!=null) {
+          for(Map.Entry<String,JsonElement> e:rtAttributes.entrySet()) {
+            if(e.getValue().getAsJsonObject().has("attr_type") && e.getValue().getAsJsonObject().get("attr_type").getAsString().equals("CustomAttribute") )
+              customAttrs.add(e.getKey());
           }
-          out.println("]},");
-          out.println(" \"results\": {");
-          out.println(" \"bindings\": [");
-
-          int p = 0;
-          while (resultStatus.hasNext()) {
-            BindingSet bindingSet = resultStatus.next();
-
-            if (p != 0) {
-              out.println(",");
-            }
-
-            out.println("  {");
-            c=0;
-            JsonObject rt = new JsonObject();
-            for(String v : vars) {
-              if(!v.startsWith("_")) {
-                String value = "";
-                if (bindingSet.getValue(v) != null) {
-                  value = bindingSet.getValue(v).stringValue();
-                  //ServiceMap.println("v:"+v+" -->"+value);
-                }
-                if(c!=0)
-                  out.println(",");
-                out.print("  \""+v+"\":{\"value\":\""+value+"\"}");
-                rt.addProperty(v,value);
-                c++;
-              }
-            }
-            out.println(" }");
-            p++;
-            rtData.add(rt);
-          }
-          out.println("]}}");
-        }
-        else
-          out.println("{}");
-      } else if(md!=null && md.realTimeSolrQuery!=null) {
-        String urlString = conf.get("solrIoTIndexUrl", "http://192.168.0.12:8983/solr/sensors-ETL-IOTv3");
-        SolrClient solr = new HttpSolrClient(urlString);
-        String tilde = "~";
-        ServiceMap.println("query solr "+serviceUri);
-        String q = "serviceUri:\""+serviceUri+"\"";
-        ServiceMap.println(q);
-        SolrQuery query = new SolrQuery(q);
-        if(fromTime!=null) {
-          String fq = "date_time:["+fromTime+"Z TO *]";
-          query.addFilterQuery(fq);
-          ServiceMap.println(fq);
+          ServiceMap.println("custom:"+customAttrs);
         }
 
-        query.setRows(fromTime == null ? 100 : 10000);
-        query.addField("id");
-        query.addField("value_name");
-        query.addField("value");
-        query.addField("value_str");
-        query.addField("value_unit");
-        query.addField("date_time");
-        query.addSort("date_time", ORDER.desc);
-        query.addSort("value_name", ORDER.asc);
-        query.addFacetField("value_name");
-        
-        long ts = System.currentTimeMillis();
-        QueryResponse qr=solr.query(query);
-        SolrDocumentList sdl=qr.getResults();
-        long nfound=sdl.getNumFound();
-        ServiceMap.println("solr query "+serviceUri+" from:"+fromTime+" : "+(System.currentTimeMillis()-ts)+"ms");
-        
-        out.println(",\"realtime\": ");
-        if(nfound==0) {
-          out.println("{}");
-        } else {
-          out.print("{ \"head\": {\n"
-                    + " \"vars\":[ \"measuredTime\"");
-          for(FacetField ff : qr.getFacetFields()) {
-            for(Count count: ff.getValues()) {
-              if(count.getCount()>0) {
-                out.print(",\""+count.getName()+"\"");
-              }
-            }
-          }
-          out.println("]},");
-
-          out.println(" \"results\": {");
-          out.println(" \"bindings\": [");
-
-          int c=0;
-          Date cdt = null;
-          JsonObject rt = new JsonObject();
-          for(SolrDocument d: sdl) {
-            Date dt = (Date)d.getFieldValue("date_time");
-            Object mt = d.getFieldValue("value_name");
-            Object value = d.getFieldValue("value");
-            ServiceMap.println("value:"+value);
-            if(value==null) {
-              value = d.getFieldValue("value_str");
-              ServiceMap.println("value_str:"+value);
-            }
-            String u = (String)d.getFieldValue("value_unit");
-
-            //su solr l'ora è memorizzata come se fosse GMT quindi va tolto l'offset da GMT
-            int offset=TimeZone.getDefault().getOffset(dt.getTime());
-            dt.setTime(dt.getTime()-offset);
-
-            //ServiceMap.println(ServiceMap.dateFormatterTZ.format(dt)+" "+mt+" "+value+" "+u);
-            if(cdt==null || cdt.equals(dt)) {
-              if(c==0) {
-                String measuredTime = ServiceMap.dateFormatterTZ.format(dt);
-                out.print("  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
-                rt.addProperty("measuredTime", measuredTime);
-              }
-              else 
-                out.print(",");
-              c++;
-              cdt=dt;
-            } else {
-              if(fromTime==null) //stampa solo ultimo valore
-                break; 
-              cdt = dt;
-              rtData.add(rt);
-              rt = new JsonObject();
-              String measuredTime = ServiceMap.dateFormatterTZ.format(dt);
-              out.print("},  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
-              rt.addProperty("measuredTime", measuredTime);
-              c=1;
-            }
-            out.print("  \""+mt+"\":{\"value\":\""+value+"\",\"unit\":\""+u+"\"}");
-            rt.addProperty(mt.toString(),value.toString());
-          }
-          rtData.add(rt);
-          if(c!=0)
-            out.println(" }");
-          out.println("]}}");
+        if(md!=null && md.realTimeSqlQuery!=null && md.realTimeSolrQuery==null) {
+          realTimeSqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, fromTime, limit, conf, serviceTypes, out, rtData);
+        } else if(md!=null && md.realTimeSparqlQuery!=null && md.realTimeSolrQuery==null) {
+          realTimeSparqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, fromTime, limit, conf, con, sparqlType, out, rtData);
+        } else if(md!=null && md.realTimeSolrQuery!=null) {
+          realTimeSolrQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, limit, out, rtData);
         }
-        solr.shutdown();
       }
     }
     if(checkHealthiness.equals("true"))
       out.println(", \"healthiness\": "+ServiceMap.computeHealthiness(rtData, rtAttributes));
     Connection rtCon = null;
     if(md!=null && md.predictionSqlQuery!=null) {
-      long ts = System.currentTimeMillis();
-      String query = md.predictionSqlQuery;
-      query = query.replace("%SERVICE_URI", serviceUri);
-      ServiceMap.println("prediction query: "+query);
-      out.println(", \"predictions\": [");
-      rtCon = ServiceMap.getRTConnection();
-      Statement s = rtCon.createStatement();
-      s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
-      ResultSet rs = s.executeQuery(query);
-      int nCols = rs.getMetaData().getColumnCount();
-      int n=0;
-      while(rs.next()) {
-        out.println(n>0?",{":"{");
-        for(int c=1; c<=nCols; c++) {
-          String label = rs.getMetaData().getColumnLabel(c);
-          String value = rs.getString(c);
-          //ServiceMap.println(label+": "+value);
-          out.println((c>1 ? "," : "")+"\""+label+"\":\""+value+"\"");
-        }
-        out.println("}");
-        n++;
-      }
-      s.close();
-      out.println("]");
-      ServiceMap.println("phoenix time prediction: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri);
+      rtCon = predictionQuery(md, serviceUri, out, rtCon, conf);
     }
     if(md!=null && md.trendSqlQuery!=null) {
-      long ts = System.currentTimeMillis();
-      String query = md.trendSqlQuery;
-      query = query.replace("%SERVICE_URI", serviceUri);
-      ServiceMap.println("trend query: "+query);
-      out.println(", \"trends\": [");
-      if(rtCon==null)
-        rtCon = ServiceMap.getRTConnection();
-      Statement s = rtCon.createStatement();
-      s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
-      ResultSet rs = s.executeQuery(query);
-      int nCols = rs.getMetaData().getColumnCount();
-      int n=0;
-      while(rs.next()) {
-        out.println(n>0?",{":"{");
-        for(int c=1; c<=nCols; c++) {
-          String label = rs.getMetaData().getColumnLabel(c);
-          String value = rs.getString(c);
-          //ServiceMap.println(label+": "+value);
-          out.println((c>1 ? "," : "")+"\""+label+"\":\""+value+"\"");
-        }
-        out.println("}");
-        n++;
-      }
-      s.close();
-      out.println("]");
-      ServiceMap.println("phoenix time trend: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri);
+      rtCon = timeTrendQuery(md, serviceUri, out, rtCon, conf);
     }
     if(rtCon!=null)
       rtCon.close();
     out.println("}");
     return r;
+  }
+
+  private void realTimeSolrQuery(Configuration conf, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, int limit, JspWriter out, JsonArray rtData) throws SolrServerException, IOException {
+    //get RT data from SOLR
+    String urlString = conf.get("solrIoTIndexUrl", "http://192.168.0.12:8983/solr/sensors-ETL-IOTv3");
+    SolrClient solr = new HttpSolrClient(urlString);
+    String tilde = "~";
+    ServiceMap.println("query solr "+serviceUri);
+    String q = "serviceUri:\""+serviceUri+"\"";
+    ServiceMap.println(q);
+    SolrQuery query = new SolrQuery(q);
+    if(fromTime!=null) {
+      String fq = "date_time:["+fromTime+"Z TO *]";
+      query.addFilterQuery(fq);
+      ServiceMap.println(fq);
+    }
+    
+    query.setRows(fromTime == null ? (rtAttributes.entrySet().size()+1) * limit : 10000);
+    query.addField("id");
+    query.addField("value_name");
+    query.addField("value");
+    query.addField("value_str");
+    query.addField("value_unit");
+    query.addField("date_time");
+    query.addSort("date_time", ORDER.desc);
+    query.addSort("value_name", ORDER.asc);
+    query.addFacetField("value_name");
+    
+    long ts = System.currentTimeMillis();
+    QueryResponse qr=solr.query(query);
+    SolrDocumentList sdl=qr.getResults();
+    long nfound=sdl.getNumFound();
+    ServiceMap.println("solr query "+serviceUri+" from:"+fromTime+" : "+(System.currentTimeMillis()-ts)+"ms");
+    
+    out.println(",\"realtime\": ");
+    if(nfound==0) {
+      out.println("{}");
+    } else {
+      out.print("{ \"head\": {\n"
+              + " \"vars\":[ \"measuredTime\"");
+      for(FacetField ff : qr.getFacetFields()) {
+        for(Count count: ff.getValues()) {
+          if(count.getCount()>0) {
+            out.print(",\""+count.getName()+"\"");
+          }
+        }
+      }
+      out.println("]},");
+      
+      out.println(" \"results\": {");
+      out.println(" \"bindings\": [");
+      
+      int c=0;
+      Date cdt = null;
+      JsonObject rt = new JsonObject();
+      for(SolrDocument d: sdl) {
+        Date dt = (Date)d.getFieldValue("date_time");
+        Object mt = d.getFieldValue("value_name");
+        Object value = d.getFieldValue("value");
+        ServiceMap.println("value:"+value);
+        if(value==null) {
+          value = d.getFieldValue("value_str");
+          ServiceMap.println("value_str:"+value);
+        }
+        String u = (String)d.getFieldValue("value_unit");
+        
+        //su solr l'ora è memorizzata come se fosse GMT quindi va tolto l'offset da GMT
+        //int offset=TimeZone.getDefault().getOffset(dt.getTime());
+        //dt.setTime(dt.getTime()-offset);
+        
+        //ServiceMap.println(ServiceMap.dateFormatterTZ.format(dt)+" "+mt+" "+value+" "+u);
+        if(cdt==null || cdt.equals(dt)) {
+          if(c==0) {
+            String measuredTime = ServiceMap.dateFormatterTZ.format(dt);
+            out.print("  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
+            rt.addProperty("measuredTime", measuredTime);
+          }
+          else
+            out.print(",");
+          c++;
+          cdt=dt;
+        } else {
+          if(fromTime==null && rtData.size()>=limit-1) //prende i primi valori
+            break;
+          cdt = dt;
+          rtData.add(rt);
+          rt = new JsonObject();
+          String measuredTime = ServiceMap.dateFormatterTZ.format(dt);
+          out.print("},  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
+          rt.addProperty("measuredTime", measuredTime);
+          c=1;
+        }
+        out.print("  \""+mt+"\":{\"value\":\""+value+"\",\"unit\":\""+u+"\"}");
+        rt.addProperty(mt.toString(),value.toString());
+      }
+      rtData.add(rt);
+      if(c!=0)
+        out.println(" }");
+      out.println("]}}");
+    }
+    solr.shutdown();
+  }
+
+  private Connection timeTrendQuery(ServiceMapping.MappingData md, String serviceUri, JspWriter out, Connection rtCon, Configuration conf) throws NumberFormatException, Exception, IOException, SQLException {
+    long ts = System.currentTimeMillis();
+    String query = md.trendSqlQuery;
+    query = query.replace("%SERVICE_URI", serviceUri);
+    ServiceMap.println("trend query: "+query);
+    out.println(", \"trends\": [");
+    if(rtCon==null)
+      rtCon = ServiceMap.getRTConnection();
+    Statement s = rtCon.createStatement();
+    s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
+    ResultSet rs = s.executeQuery(query);
+    int nCols = rs.getMetaData().getColumnCount();
+    int n=0;
+    while(rs.next()) {
+      out.println(n>0?",{":"{");
+      for(int c=1; c<=nCols; c++) {
+        String label = rs.getMetaData().getColumnLabel(c);
+        String value = rs.getString(c);
+        //ServiceMap.println(label+": "+value);
+        out.println((c>1 ? "," : "")+"\""+label+"\":\""+value+"\"");
+      }
+      out.println("}");
+      n++;
+    }
+    s.close();
+    out.println("]");
+    ServiceMap.println("phoenix time trend: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri);
+    return rtCon;
+  }
+
+  private Connection predictionQuery(ServiceMapping.MappingData md, String serviceUri, JspWriter out, Connection rtCon, Configuration conf) throws IOException, SQLException, Exception, NumberFormatException {
+    long ts = System.currentTimeMillis();
+    String query = md.predictionSqlQuery;
+    query = query.replace("%SERVICE_URI", serviceUri);
+    ServiceMap.println("prediction query: "+query);
+    out.println(", \"predictions\": [");
+    rtCon = ServiceMap.getRTConnection();
+    Statement s = rtCon.createStatement();
+    s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
+    ResultSet rs = s.executeQuery(query);
+    int nCols = rs.getMetaData().getColumnCount();
+    int n=0;
+    while(rs.next()) {
+      out.println(n>0?",{":"{");
+      for(int c=1; c<=nCols; c++) {
+        String label = rs.getMetaData().getColumnLabel(c);
+        String value = rs.getString(c);
+        //ServiceMap.println(label+": "+value);
+        out.println((c>1 ? "," : "")+"\""+label+"\":\""+value+"\"");
+      }
+      out.println("}");
+      n++;
+    }
+    s.close();
+    out.println("]");
+    ServiceMap.println("phoenix time prediction: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri);
+    return rtCon;
+  }
+
+  private void realTimeSparqlQuery(ServiceMapping.MappingData md, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, int limit, Configuration conf, RepositoryConnection con, String sparqlType, JspWriter out, JsonArray rtData) throws RepositoryException, QueryEvaluationException, MalformedQueryException, IOException, NumberFormatException {
+    //get RT data from SPARQL
+    String query = md.realTimeSparqlQuery;
+    query = query.replace("%SERVICE_URI",serviceUri);
+    String frmTime = "";
+    if(fromTime!=null) {
+      frmTime = " FILTER(?measuredTime>=\""+fromTime+ServiceMap.getCurrentTimezoneOffset()+"\"^^xsd:dateTime) ";
+      limit = Integer.parseInt(conf.get("fromTimeLimit","1500"));
+    }
+    query = query.replace("%FROM_TIME", frmTime).replace("%LIMIT", ""+limit);
+    TupleQuery tupleQueryRT = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+    long ts = System.nanoTime();
+    TupleQueryResult resultStatus = tupleQueryRT.evaluate();
+    logQuery(query, "API-service-rt-info", sparqlType, serviceUri, System.nanoTime() - ts);
+    //ServiceMap.println(query);
+    out.println(",\"realtime\": ");
+    if (resultStatus.hasNext()) {
+      List<String> vars = resultStatus.getBindingNames();
+      out.print("{ \"head\": {\n"
+              + " \"vars\":[ ");
+      int c = 0;
+      for(String v:vars) {
+        if(!v.startsWith("_")) {
+          if(c!=0)
+            out.print(",");
+          out.print("\""+v+"\"");
+          c++;
+        }
+      }
+      out.println("]},");
+      out.println(" \"results\": {");
+      out.println(" \"bindings\": [");
+      
+      int p = 0;
+      while (resultStatus.hasNext()) {
+        BindingSet bindingSet = resultStatus.next();
+        
+        if (p != 0) {
+          out.println(",");
+        }
+        
+        out.println("  {");
+        c=0;
+        JsonObject rt = new JsonObject();
+        for(String v : vars) {
+          if(!v.startsWith("_")) {
+            String value = "";
+            if (bindingSet.getValue(v) != null) {
+              value = bindingSet.getValue(v).stringValue();
+              //ServiceMap.println("v:"+v+" -->"+value);
+            }
+            if(c!=0)
+              out.println(",");
+            out.print("  \""+v+"\":{\"value\":\""+value+"\"}");
+            rt.addProperty(v,value);
+            c++;
+          }
+        }
+        out.println(" }");
+        p++;
+        rtData.add(rt);
+      }
+      out.println("]}}");
+    }
+    else
+      out.println("{}");
+  }
+
+  private void realTimeSqlQuery(ServiceMapping.MappingData md, JsonObject rtAttributes, ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, int limit, Configuration conf, List<String> serviceTypes, JspWriter out, JsonArray rtData) throws NumberFormatException, IOException {    
+    // get RT data from phoenix
+    boolean isWeatherSensor = false;
+    String query = md.realTimeSqlQuery;
+    long ts = System.currentTimeMillis();
+    query = query.replace("%SERVICE_URI", serviceUri);
+    String serviceId = serviceUri.substring(serviceUri.lastIndexOf("/")+1);
+    query = query.replace("%SERVICE_ID", serviceId);
+    String frmTime = "";
+    if(fromTime!=null) {
+      frmTime = " AND observationTime>=to_date('"+fromTime.replace("T"," ")+"',null,'CET') ";
+      limit = Integer.parseInt(conf.get("fromTimeLimit","1500"));
+    } else if(serviceTypes.contains("Weather_sensor")) {
+      if(limit==1)
+        limit = 2;
+      isWeatherSensor = true;
+    }
+    query = query.replace("%FROM_TIME", frmTime).replace("%LIMIT", ""+limit);
+    ServiceMap.println("realtime query: "+query);
+    out.println(", \"realtime\": ");
+    try {
+      Connection rtCon = ServiceMap.getRTConnection();
+      Connection rtCon2 = ServiceMap.getRTConnection2();
+      Statement s = rtCon.createStatement();
+      s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
+      ResultSet rs = s.executeQuery(query);
+      int nCols = rs.getMetaData().getColumnCount();
+      int p = 0;
+      if(!isWeatherSensor) {
+        while (rs.next()) {
+          if (p == 0) {
+            out.print("{ \"head\": {\n"
+                    + " \"vars\":[ ");
+            int cc = 0;
+            for(int c=1; c<=nCols; c++) {
+              String v = rs.getMetaData().getColumnLabel(c);
+              if(!v.startsWith("_")) {
+                if(cc!=0)
+                  out.print(",");
+                out.print("\""+v+"\"");
+                cc++;
+              }
+            }
+            for(String a:customAttrs) {
+                out.print(",\""+a+"\"");              
+            }
+            out.println("]},");
+            out.println(" \"results\": {");
+            out.println(" \"bindings\": [");
+          } else {
+            out.println(",");
+          }
+          out.println("  {");
+          int cc = 0;
+          JsonObject rt = new JsonObject();
+          for(int c=1; c<=nCols; c++) {
+            String v = rs.getMetaData().getColumnLabel(c);
+            if(!v.startsWith("_")) {
+              String value = rs.getString(c);
+              if(value!=null && rs.getMetaData().getColumnType(c)==java.sql.Types.DATE ||
+                      rs.getMetaData().getColumnType(c)==java.sql.Types.TIMESTAMP ||
+                      rs.getMetaData().getColumnType(c)==java.sql.Types.TIME)
+                value=value.replace(" ", "T").replace(".000", "")+ServiceMap.getCurrentTimezoneOffset();
+              if(value==null)
+                value = "";
+              //ServiceMap.println("v:"+v+" -->"+value);
+              if(cc!=0)
+                out.println(",");
+              out.print("  \""+v+"\":{\"value\":\""+value+"\"}");
+              rt.addProperty(v, value);
+              cc++;
+            }
+          }
+          for(String a:customAttrs) {
+            JsonArray cdata = new JsonArray();            
+            ServiceValuesServlet.getValues(rtCon2, conf, null, null, "1", serviceUri, a, cdata, null);
+            if(cdata.size()>0) 
+              out.println(",\""+a+"\":"+cdata.get(0));
+          }
+          out.println(" }");
+          p++;
+          rtData.add(rt);
+        }
+      } else {
+        //FIX per problema con weather sensor
+        String[] row = new String[nCols];
+        while (rs.next()) {
+          if (p == 0) {
+            out.print("{ \"head\": {\n"
+                    + " \"vars\":[ ");
+            int cc = 0;
+            for(int c=1; c<=nCols; c++) {
+              String v = rs.getMetaData().getColumnLabel(c);
+              if(!v.startsWith("_")) {
+                if(cc!=0)
+                  out.print(",");
+                out.print("\""+v+"\"");
+                cc++;
+              }
+            }
+            for(String a:customAttrs) {
+                out.print(",\""+a+"\"");              
+            }
+            out.println("]},");
+            out.println(" \"results\": {");
+            out.println(" \"bindings\": [");
+          }
+          for(int c=1; c<=nCols; c++) {
+            String v = rs.getMetaData().getColumnLabel(c);
+            if(!v.startsWith("_")) {
+              String value = rs.getString(c);
+              if(value!=null && rs.getMetaData().getColumnType(c)==java.sql.Types.DATE ||
+                      rs.getMetaData().getColumnType(c)==java.sql.Types.TIMESTAMP ||
+                      rs.getMetaData().getColumnType(c)==java.sql.Types.TIME)
+                value=value.replace(" ", "T").replace(".000", "")+ServiceMap.getCurrentTimezoneOffset();
+              if(row[c-1]==null)
+                row[c-1] = value;
+            }
+          }
+          p++;
+        }
+        if(p>0) {
+          int cc=0;
+          JsonObject rt = new JsonObject();
+          out.println(" {");
+          for(int c=1; c<=nCols; c++) {
+            String v = rs.getMetaData().getColumnLabel(c);
+            if(!v.startsWith("_")) {
+              if(cc!=0)
+                out.println(",");
+              String value=row[c-1];
+              if(value==null)
+                value="";
+              out.print("  \""+v+"\":{\"value\":\""+value+"\"}");
+              rt.addProperty(v,value);
+              cc++;
+            }
+          }
+          for(String a:customAttrs) {
+            JsonArray cdata = new JsonArray();            
+            ServiceValuesServlet.getValues(rtCon2, conf, null, null, "1", serviceUri, a, cdata, null);
+            if(cdata.size()>0) 
+              out.println(",\""+a+"\":"+cdata.get(0));
+          }
+          out.println(" }");
+          rtData.add(rt);
+        }
+      }
+      if(p>0)
+        out.println("]}}");
+      else
+        out.println("{}");
+      rtCon.close();
+      rtCon2.close();
+      ServiceMap.println("phoenix time realtime: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri+" from:"+fromTime);
+    } catch(Exception e) {
+      out.println("{}");
+      ServiceMap.notifyException(e);
+    }
   }
 
   public void queryEvent(JspWriter out, RepositoryConnection con, String idService, String lang, String uid) throws Exception {
@@ -3726,7 +3821,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + " ?bs geo:lat ?bslat.\n"
               + " ?bs geo:long ?bslong.\n"
               + " ?bs foaf:name ?nomeFermata.\n"
-              + "} ORDER BY ASC(?ss)";
+              + "} ORDER BY ASC(xsd:int(?ss))";
       //ServiceMap.println(queryString);
 
       tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, queryString);
@@ -4013,6 +4108,184 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     return i;
   }
 
+  public int queryTplLastPosition(JspWriter out, String agency, String line, RepositoryConnection con) throws Exception {
+    Configuration conf = Configuration.getInstance();
+    String sparqlType = conf.get("sparqlType", "virtuoso");
+    String agencyUri = null;
+    if(agency == null || agency.trim().isEmpty()) {
+      agencyUri = conf.get("defaultTplAgencyUri", "http://www.disit.org/km4city/resource/Bus_ataflinea_Agency_777-08");
+      agency = null;
+    }
+    else if(agency.startsWith("http://")) {
+      agencyUri = agency;
+      agency = null;
+    }
+    String lineUri = null;
+    if(line!=null && line.startsWith("http://")) {
+      lineUri = line;
+      line = null;
+      agencyUri = null;
+      agency = null;
+    } else if(line!=null && line.trim().isEmpty()) {
+      line = null;
+    }
+    
+    boolean predictPosition = false;
+    if(conf.get("enableRtTplLinePosition","true").equalsIgnoreCase("true") && (lineUri!=null || line!=null) )
+      predictPosition = true;
+    if(conf.get("enableRtTplAgPosition","false").equalsIgnoreCase("true") && (lineUri==null && line==null) )
+      predictPosition = true;
+    
+    String  queryText = "select ?trip ?rName ?lat ?long ?stopName (?busid as ?v) ?bsFirst ?bsLast ?prev ?delay (str(xsd:time(now())) as ?time) ?agName {\n" +
+              "{select ?trip max(?at2) as ?prev {\n" +
+              "?x1 a gtfs:StopTime.\n" +
+              "?x1 gtfs:arrivalTime ?at1.\n" +
+              "?x1 gtfs:trip ?trip.\n" +
+              "?x2 a gtfs:StopTime.\n" +
+              "?x2 gtfs:arrivalTime ?at2.\n" +
+              "?x2 gtfs:trip ?trip.\n" +              
+              (agencyUri!=null ? "?trip gtfs:route ?r.\n?r gtfs:agency <"+agencyUri+">.\n" : "")+
+              (agency!=null ? "?trip gtfs:route ?r.\n?r gtfs:agency/foaf:name \""+agency+"\".\n" : "")+
+              ((agencyUri!=null || agency!=null) && line!=null ? "?r gtfs:shortName \""+line+"\".\n" : "")+
+              (lineUri!=null ? "?trip gtfs:route <"+lineUri+">.\n" : "")+
+              "?trip gtfs:service/dcterms:date ?d.\n" +
+              "filter(?d=SUBSTR(STR(xsd:date(now())),1,10) && str(?at1)>str(xsd:time(now())) && str(?at2)<str(xsd:time(now())))\n" +
+              "} group by ?trip\n" +
+              "}\n" +
+              "?x a gtfs:StopTime.\n" +
+              "?x gtfs:trip ?trip.\n" +
+              "?x gtfs:arrivalTime ?prev.\n" +
+              "?x gtfs:stop ?stop.\n" +
+              "?x gtfs:stop ?stop.\n" +
+              "?stop geo:lat ?lat.\n" +
+              "?stop geo:long ?long.\n" +
+              "?stop foaf:name ?stopName.\n" +
+              "?trip gtfs:route ?r.\n" +
+              "?trip gtfs:headsign ?bsLast.\n" +
+              "?trip dcterms:identifier ?busid.\n" +
+              "?r gtfs:shortName ?rName.\n" +
+              "?r gtfs:agency/foaf:name ?agName.\n" +
+              "?fs a gtfs:StopTime.\n" +
+              "?fs gtfs:trip ?trip.\n" +
+              //"?fs gtfs:stopSequence \"01\".\n" +
+              "?fs gtfs:stopSequence ?ss. FILTER(xsd:int(?ss)=1)\n" +
+              "?fs gtfs:stop/foaf:name ?bsFirst.\n" +
+              "bind(bif:dateDiff('minute',xsd:time(?prev),xsd:time(now())) as ?delay)" +
+              "} order by ?v";
+
+    TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, queryText);
+    tupleQuery.setMaxQueryTime(40000);
+    long startTime = System.nanoTime();
+    TupleQueryResult result = tupleQuery.evaluate();
+    logQuery(queryText, "TPLRT", sparqlType, agencyUri+";"+line, System.nanoTime() - startTime);
+    int i = 0;
+    out.println("{ "
+            + "\"type\": \"FeatureCollection\", "
+            + "\"features\": [ ");
+    String prevBusNumber = "";
+    while (result.hasNext()) {
+      BindingSet bindingSet = result.next();
+      //String serviceUri = bindingSet.getValue("ser").stringValue();
+      String trip = "";
+      if (bindingSet.getValue("trip") != null) {
+        trip = bindingSet.getValue("trip").stringValue();
+      }
+
+      String serviceLat = "";
+      if (bindingSet.getValue("lat") != null) {
+        serviceLat = bindingSet.getValue("lat").stringValue();
+      }
+      String serviceLong = "";
+      if (bindingSet.getValue("long") != null) {
+        serviceLong = bindingSet.getValue("long").stringValue();
+      }
+
+      String nomeLinea = "";
+      if (bindingSet.getValue("rName") != null) {
+        nomeLinea = ServiceMap.escapeJSON(bindingSet.getValue("rName").stringValue());
+      }
+
+      String bsFirst = "";
+      if (bindingSet.getValue("bsFirst") != null) {
+        bsFirst = bindingSet.getValue("bsFirst").stringValue();
+      }
+
+      String bsLast = "";
+      if (bindingSet.getValue("bsLast") != null) {
+        bsLast = ServiceMap.escapeJSON(bindingSet.getValue("bsLast").stringValue());
+      }
+
+      String busNumber = "";
+      if (bindingSet.getValue("v") != null) {
+        busNumber = bindingSet.getValue("v").stringValue();
+        busNumber = busNumber.substring(busNumber.lastIndexOf('_')+1);
+      }
+
+      String delay = "";
+      if (bindingSet.getValue("delay") != null) {
+        delay = bindingSet.getValue("delay").stringValue();
+      }
+      
+      String time = "";
+      if (bindingSet.getValue("time") != null) {
+        time = bindingSet.getValue("time").stringValue();
+        time = time.split("\\+")[0]; //remove timezone
+      }
+      
+      String agencyName = "";
+      if (bindingSet.getValue("agName") != null) {
+        agencyName = bindingSet.getValue("agName").stringValue();
+      }
+
+      if(!busNumber.equals(prevBusNumber)) {
+        if (i != 0) {
+          out.println(", ");
+        }
+        if(predictPosition) {
+          try {
+            long sst= System.nanoTime();
+            TplLocation loc = new TplLocation(trip, con);
+            Coordinate pos = loc.currentLoc(time);
+            long sse = System.nanoTime();
+            ServiceMap.println("tpllocation "+trip+" "+time+" time: "+(sse-sst)/1000000+"ms");
+            serviceLat = pos.y+"";
+            serviceLong = pos.x+"";
+          } catch(Exception e) {
+            ServiceMap.notifyException(e,"TplLocation: "+trip+" "+time);
+          }
+        }
+        out.println("{ "
+                + " \"geometry\": {  "
+                + "     \"type\": \"Point\",  "
+                + "    \"coordinates\": [  "
+                + "      " + serviceLong + ",  "
+                + "      " + serviceLat + "  "
+                + " ]  "
+                + "},  "
+                + "\"type\": \"Feature\",  "
+                + "\"properties\": {  "
+                + "\"vehicleNum\": \"" + busNumber + "\", "
+                + "\"line\": \"" + nomeLinea + "\", "
+                + "\"agency\": \"" + agencyName + "\", "
+                + "\"direction\": \"" + bsFirst + " &#10132; " + bsLast + "\", "
+                + "\"tipo\": \"RealTimeInfo\", "
+                + "\"serviceUri\": \"busCode" + busNumber + "\", "
+                + "\"detectionTime\": \"" + delay + "\", "
+                + "\"serviceType\": \"bus_real_time\", "
+                + "\"tripUri\": \""+trip+"\", "
+                + "\"time\": \""+time+"\" "
+                + "}, "
+                + "\"id\": " + Integer.toString(i + 1) + "  "
+                + "}\n");
+        i++;
+      }
+      prevBusNumber = busNumber;
+    }
+    out.println("] "
+            + "}");
+    return i;
+  }
+  
   public int queryBusesLastPosition(JspWriter out, RepositoryConnection con) throws Exception {
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "virtuoso");
@@ -4315,16 +4588,33 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
   return null;    
   }
   
-  public int queryTplAgencyList(JspWriter out, RepositoryConnection con) throws Exception {
+  public int queryTplAgencyList(JspWriter out, RepositoryConnection con, String selection) throws Exception {
     Configuration conf = Configuration.getInstance();
     final String sparqlType = conf.get("sparqlType", "virtuoso");
     final String km4cVersion = conf.get("km4cVersion", "new");
 
-    String queryForAgencies = "SELECT DISTINCT ?ag ?name WHERE {"
+    String queryForAgencies;
+    if(selection == null)
+      queryForAgencies= "SELECT DISTINCT ?ag ?name WHERE {"
             + " ?ag a gtfs:Agency."
             + " ?ag foaf:name ?name."
             + "} ORDER BY ?name";
-
+    else {
+      String[] latLng = selection.split(";");
+      queryForAgencies = "select distinct ?ag ?name {\n" +
+            "{\n" +
+            "select ?ag max(?lat) as ?mxlat min(?lat) as ?mnlat max(?lng) as ?mxlng min(?lng) as ?mnlng {\n" +
+            "?s a gtfs:Stop.\n" +
+            "?s gtfs:agency ?ag.\n" +
+            "?s geo:lat ?lat.\n" +
+            "?s geo:long ?lng.\n" +
+            "} group by ?ag\n" +
+            "}\n" +
+            "?ag foaf:name ?name.\n" +
+//            "bind(bif:st_geomfromtext(concat(\"POLYGON((\",?mnlng,\" \",?mnlat,\",\",?mnlng,\" \",?mxlat,\",\",?mxlng,\" \",?mxlat,\",\",?mxlng,\" \",?mnlat,\",\",?mnlng,\" \",?mnlat,\"))\")) as ?geo)\n" +
+            "filter(bif:st_intersects(bif:st_point("+latLng[1]+","+latLng[0]+"),bif:st_geomfromtext(concat(\"POLYGON((\",?mnlng,\" \",?mnlat,\",\",?mnlng,\" \",?mxlat,\",\",?mxlng,\" \",?mxlat,\",\",?mxlng,\" \",?mnlat,\",\",?mnlng,\" \",?mnlat,\"))\")),1))\n" +
+            "} ORDER BY ?name";
+    }
     TupleQuery tupleQuery;
     tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, queryForAgencies);
     long ts = System.nanoTime();
@@ -4355,12 +4645,15 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
       datetime = sdf.format(new Date());
     }
+    String transport = "any";
     if(routeType==null || routeType.equals("feet") || routeType.equals("foot_shortest"))
       routeType = "shortest_foot_optimization";
     else if(routeType.equals("foot_quiet"))
       routeType = "quietest_foot_optimization";
-    else if(routeType.equals("car"))
+    else if(routeType.equals("car")) {
       routeType = "fastest_car_optimization";
+      transport = "car";
+    }
     else if(routeType.equals("public_transport"))
       routeType = "public_transit_optimization";
     else
@@ -4368,22 +4661,32 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     if(maxFeet==null)
       maxFeet = "0.1";
     
-    String srcnode="",dstnode="";
+    String srcnode="",dstnode="", nid;
     if(conf.get("useInternalOsm","true").equals("true")) {
-      String nid = ServiceMap.getOsmNodeId(srcLatLng[0], srcLatLng[1]);
-      if(nid!=null)
-        srcnode = ",\"node_id\":\""+nid+"\"";
-      nid = ServiceMap.getOsmNodeId(dstLatLng[0], dstLatLng[1]);
-      if(nid!=null)
-        dstnode = ",\"node_id\":\""+nid+"\"";      
+      if(srcLatLng.length>=2) {
+        nid = ServiceMap.getOsmNodeId(srcLatLng[0], srcLatLng[1], transport);
+        if(nid!=null)
+          srcnode = "\"lat\":"+srcLatLng[0]+",\"lon\":"+srcLatLng[1]+",\"node_id\":\""+nid+"\"";
+      } else
+        srcnode = "\"lat\":0,\"lon\":0,\"node_id\":\""+srcLatLng[0]+"\"";
+      if(dstLatLng.length>=2) {
+        nid = ServiceMap.getOsmNodeId(dstLatLng[0], dstLatLng[1], transport);
+        if(nid!=null)
+          dstnode = "\"lat\":"+dstLatLng[0]+",\"lon\":"+dstLatLng[1]+",\"node_id\":\""+nid+"\"";      
+      } else {
+          dstnode = "\"lat\":0,\"lon\":0,\"node_id\":\""+dstLatLng[0]+"\"";              
+      }
+    } else {
+      srcnode = "\"lat\":"+srcLatLng[0]+",\"lon\":"+srcLatLng[1];      
+      dstnode = "\"lat\":"+dstLatLng[0]+",\"lon\":"+dstLatLng[1];      
     }
     String JSON="{\"message_version\":\"1.0\",\n"+
       "\"journey\":{\n"+
       "\"search_route_type\": \""+routeType+"\",\n"+
       "\"search_max_feet_km\":"+maxFeet+",\n"+
       "\"start_datetime\":\""+datetime+"\",\n"+
-      "\"source_node\":{\"lat\":"+srcLatLng[0]+",\"lon\":"+srcLatLng[1]+srcnode+"},\n"+
-      "\"destination_node\":{\"lat\":"+dstLatLng[0]+",\"lon\":"+dstLatLng[1]+dstnode+"}\n"+
+      "\"source_node\":{"+srcnode+"},\n"+
+      "\"destination_node\":{"+dstnode+"}\n"+
       "}}";
     
     HttpClient httpclient = HttpClients.createDefault();
@@ -5185,8 +5488,4 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     out.println("]");
   }
  
-  public String checkSensor(String uri) throws Exception {
-    return "";    
-  }
-  
 }  

@@ -1,5 +1,6 @@
 <%@page import="org.disit.servicemap.ServiceMapping"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
+<%@page import="org.disit.servicemap.api.CheckParameters"%>
 <%@page import="java.net.URLDecoder"%>
 <%@ page import="org.openrdf.query.algebra.Count"%>
 <%@ page import="java.io.IOException"%> 
@@ -55,6 +56,7 @@ String search = request.getParameter("search");
 String showBusPosition = request.getParameter("showBusPosition");
 String value_type = request.getParameter("value_type");
 String graphUri = request.getParameter("graphUri");
+String valueName = request.getParameter("valueName");
         
 if(idService==null && selection==null && queryId==null && search==null && showBusPosition==null) {
     response.sendError(400, "please specify 'selection', 'search', 'serviceUri' or 'queryId' parameters");
@@ -67,6 +69,11 @@ if(queryId!=null && (queryId.length()>32 || !queryId.matches("[0-9a-fA-F]+"))) {
 if(idService!=null && !idService.startsWith("http://www.disit.org/km4city/resource/")) {
     response.sendError(400, "invalid 'serviceUri' parameter");
     return;
+}
+String check;
+if((check=CheckParameters.checkSelection(selection))!=null) {
+    response.sendError(400, "invalid 'selection' parameter: " + check);
+    return;  
 }
 if ("html".equals(request.getParameter("format")) || (request.getParameter("format") == null && request.getParameter("queryId") != null)) {%>
 <jsp:include page="../../mappa.jsp" > <jsp:param name="mode" value="query"/> </jsp:include>
@@ -352,7 +359,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       String types = null;
       ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, serviceTypes);
       if(md!=null && (md.realTimeSqlQuery!=null || md.realTimeSparqlQuery!=null || md.realTimeSolrQuery!=null )) {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, fromTime, checkHealthiness, uid, serviceTypes);        
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, checkHealthiness, uid, serviceTypes);        
       } 
       else if (serviceTypes.contains("BusStop")|| serviceTypes.contains("NearBusStops")) {
         serviceMapApi.queryTplStop(out, con, idService, "BusStop", lang, realtime, uid);
@@ -378,14 +385,14 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         types = "TransferServiceAndRenting;SensorSite";
       }
       else if (serviceTypes.contains("Service") || serviceTypes.contains("RegularService")) {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, fromTime, checkHealthiness, uid, serviceTypes);
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, checkHealthiness, uid, serviceTypes);
       }
       else if (serviceTypes.contains("Event")) {
         serviceMapApi.queryEvent(out, con, idService, lang, uid);
         types = "Service;Event";
       }
       else {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, fromTime, checkHealthiness, uid, serviceTypes);
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, checkHealthiness, uid, serviceTypes);
       }
       ServiceMap.logAccess(request, null, null, types, idService, "api-service-info", null, null, queryId, null, "json", uid, reqFrom);
       ServiceMap.updateResultsPerIP(ip, requestType, 1);
