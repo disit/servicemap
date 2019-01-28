@@ -28,20 +28,20 @@
 
     String uid = request.getParameter("uid");
     if(uid!=null && !ServiceMap.validateUID(uid)) {
-      response.sendError(404, "invalid uid");
+      ServiceMap.logError(request, response, 404, "invalid uid");
       return;
     }
     String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
     if(! ServiceMap.checkIP(ip, "api")) {
-      response.sendError(403,"API calls daily limit reached");
+      ServiceMap.logError(request, response, 403,"API calls daily limit reached");
       return;
     }
     String selection = request.getParameter("selection");
     String check = CheckParameters.checkLatLng(selection);
     if(check!=null) {
-      response.sendError(404, "invalid selection value: "+check);
+      ServiceMap.logError(request, response, 404, "invalid selection value: "+check);
       return;      
     }
 

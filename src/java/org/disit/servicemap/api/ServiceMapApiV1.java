@@ -2287,7 +2287,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     out.println("}");
   }
 
-  public String queryService(JspWriter out, RepositoryConnection con, String serviceUri, String lang, String realtime, String valueName, String fromTime, String checkHealthiness, String uid, List<String> serviceTypes) throws Exception {
+  public String queryService(JspWriter out, RepositoryConnection con, String serviceUri, String lang, String realtime, String valueName, String fromTime, String toTime, String checkHealthiness, String uid, List<String> serviceTypes) throws Exception {
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "virtuoso");
     String km4cVersion = conf.get("km4cVersion", "new");
@@ -2802,7 +2802,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               rtAttributes.getAsJsonObject(valueName).get("attr_type").getAsString().equals("CustomAttribute")) {
         // is stored with values
         Connection rtCon= ServiceMap.getRTConnection2();
-        ServiceValuesServlet.getValues(rtCon, conf, fromTime, null, (fromTime==null ? ""+limit : null), serviceUri, valueName, rtData, "sparql");
+        ServiceValuesServlet.getValues(rtCon, conf, fromTime, toTime, (fromTime==null ? ""+limit : null), serviceUri, valueName, rtData, "sparql");
         out.println(",\"realtime\":{\"head\": {\n" +
             " \"vars\":[\""+valueName+"\"]},\n" +
             " \"results\": {\n" +
@@ -2819,7 +2819,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         }
 
         if(md!=null && md.realTimeSqlQuery!=null && md.realTimeSolrQuery==null) {
-          realTimeSqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, fromTime, limit, conf, serviceTypes, out, rtData);
+          realTimeSqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, fromTime, toTime, limit, conf, serviceTypes, out, rtData);
         } else if(md!=null && md.realTimeSparqlQuery!=null && md.realTimeSolrQuery==null) {
           realTimeSparqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, fromTime, limit, conf, con, sparqlType, out, rtData);
         } else if(md!=null && md.realTimeSolrQuery!=null) {
@@ -3070,7 +3070,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       out.println("{}");
   }
 
-  private void realTimeSqlQuery(ServiceMapping.MappingData md, JsonObject rtAttributes, ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, int limit, Configuration conf, List<String> serviceTypes, JspWriter out, JsonArray rtData) throws NumberFormatException, IOException {    
+  private void realTimeSqlQuery(ServiceMapping.MappingData md, JsonObject rtAttributes, ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, String toTime, int limit, Configuration conf, List<String> serviceTypes, JspWriter out, JsonArray rtData) throws NumberFormatException, IOException {    
     // get RT data from phoenix
     boolean isWeatherSensor = false;
     String query = md.realTimeSqlQuery;
@@ -3079,6 +3079,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     String serviceId = serviceUri.substring(serviceUri.lastIndexOf("/")+1);
     query = query.replace("%SERVICE_ID", serviceId);
     String frmTime = "";
+    String tTime = "";
+    if(toTime!=null) {
+      tTime = " AND observationTime<=to_date('"+toTime.replace("T"," ")+"',null,'CET') ";
+    }
     if(fromTime!=null) {
       frmTime = " AND observationTime>=to_date('"+fromTime.replace("T"," ")+"',null,'CET') ";
       limit = Integer.parseInt(conf.get("fromTimeLimit","1500"));
@@ -3087,17 +3091,26 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         limit = 2;
       isWeatherSensor = true;
     }
-    query = query.replace("%FROM_TIME", frmTime).replace("%LIMIT", ""+limit);
+    query = query.replace("%FROM_TIME", frmTime+tTime).replace("%LIMIT", ""+limit);
     ServiceMap.println("realtime query: "+query);
     out.println(", \"realtime\": ");
     try {
       Connection rtCon = ServiceMap.getRTConnection();
-      Connection rtCon2 = ServiceMap.getRTConnection2();
+      //Connection rtCon2 = ServiceMap.getRTConnection2();
       Statement s = rtCon.createStatement();
       s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
       ResultSet rs = s.executeQuery(query);
       int nCols = rs.getMetaData().getColumnCount();
       int p = 0;
+      String customAttrLastValues = "";
+      if(fromTime == null) {
+        for(String a:customAttrs) {
+          JsonArray cdata = new JsonArray();            
+          ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
+          if(cdata.size()>0) 
+            customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
+        }
+      }
       if(!isWeatherSensor) {
         while (rs.next()) {
           if (p == 0) {
@@ -3143,12 +3156,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               cc++;
             }
           }
-          for(String a:customAttrs) {
-            JsonArray cdata = new JsonArray();            
-            ServiceValuesServlet.getValues(rtCon2, conf, null, null, "1", serviceUri, a, cdata, null);
-            if(cdata.size()>0) 
-              out.println(",\""+a+"\":"+cdata.get(0));
-          }
+          out.println(customAttrLastValues);
           out.println(" }");
           p++;
           rtData.add(rt);
@@ -3208,12 +3216,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               cc++;
             }
           }
-          for(String a:customAttrs) {
-            JsonArray cdata = new JsonArray();            
-            ServiceValuesServlet.getValues(rtCon2, conf, null, null, "1", serviceUri, a, cdata, null);
-            if(cdata.size()>0) 
-              out.println(",\""+a+"\":"+cdata.get(0));
-          }
+          out.println(customAttrLastValues);
           out.println(" }");
           rtData.add(rt);
         }
@@ -3223,7 +3226,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       else
         out.println("{}");
       rtCon.close();
-      rtCon2.close();
+      //rtCon2.close();
       ServiceMap.println("phoenix time realtime: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri+" from:"+fromTime);
     } catch(Exception e) {
       out.println("{}");

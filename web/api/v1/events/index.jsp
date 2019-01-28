@@ -29,12 +29,12 @@
       if(range==null)
         range = "day";
       if(!range.equals("day") && !range.equals("week") && !range.equals("month"))
-        response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'range' parameter value (day,week,month)");
+        ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"invalid 'range' parameter value (day,week,month)");
       String maxDists = request.getParameter("maxDists");
       String maxResults = request.getParameter("maxResults");    
       String uid = request.getParameter("uid");
       if(uid!=null && !ServiceMap.validateUID(uid)) {
-        response.sendError(HttpServletResponse.SC_BAD_REQUEST, "invalid uid");
+        ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST, "invalid uid");
         return;
       }
       String text = request.getParameter("text");
@@ -47,7 +47,7 @@
         if(!selection.startsWith("wkt:") && ! selection.startsWith("geo:")) {
           coords = selection.split(";");
           if(coords.length!=2 && coords.length!=4) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'selection' parameter (lat;long[;lat;long] | wkt:... | geo: ...)");
+            ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"invalid 'selection' parameter (lat;long[;lat;long] | wkt:... | geo: ...)");
             return;
           }
           if(maxDists==null)
@@ -56,14 +56,14 @@
             for(int i=0;i<coords.length;i++)
               Float.parseFloat(coords[i]);
           } catch(NumberFormatException e) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'selection' parameter (lat or long not float numbers)");
+            ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"invalid 'selection' parameter (lat or long not float numbers)");
             return;
           }
           try {
             if(coords.length==2)
               Float.parseFloat(maxDists);
           } catch(NumberFormatException e) {
-            response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'maxDists' parameter (not float number)");
+            ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"invalid 'maxDists' parameter (not float number)");
             return;
           }
         }
@@ -73,7 +73,7 @@
         }
       }
       if(! ServiceMap.checkIP(ip, "api")) {
-        response.sendError(403,"API calls daily limit reached");
+        ServiceMap.logError(request, response, 403,"API calls daily limit reached");
         return;
       }      
       int results = serviceMapApi.queryEventList(out, con, range, coords, maxDists, maxResults, text, reqFrom!=null);

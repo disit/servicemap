@@ -1,3 +1,4 @@
+<%@page import="java.text.ParseException"%>
 <%@page import="org.disit.servicemap.ServiceMapping"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
 <%@page import="org.disit.servicemap.api.CheckParameters"%>
@@ -46,7 +47,7 @@
 
 String uid = request.getParameter("uid");
 if(uid!=null && !ServiceMap.validateUID(uid)) {
-  response.sendError(404, "invalid uid");
+  ServiceMap.logError(request, response, 404, "invalid uid");
   return;
 }
 String idService = request.getParameter("serviceUri");
@@ -59,20 +60,20 @@ String graphUri = request.getParameter("graphUri");
 String valueName = request.getParameter("valueName");
         
 if(idService==null && selection==null && queryId==null && search==null && showBusPosition==null) {
-    response.sendError(400, "please specify 'selection', 'search', 'serviceUri' or 'queryId' parameters");
+    ServiceMap.logError(request, response, 400, "please specify 'selection', 'search', 'serviceUri' or 'queryId' parameters");
     return;
 }
 if(queryId!=null && (queryId.length()>32 || !queryId.matches("[0-9a-fA-F]+"))) {
-    response.sendError(400, "invalid queryId parameter");
+    ServiceMap.logError(request, response, 400, "invalid queryId parameter");
     return;
 }
 if(idService!=null && !idService.startsWith("http://www.disit.org/km4city/resource/")) {
-    response.sendError(400, "invalid 'serviceUri' parameter");
+    ServiceMap.logError(request, response, 400, "invalid 'serviceUri' parameter");
     return;
 }
 String check;
 if((check=CheckParameters.checkSelection(selection))!=null) {
-    response.sendError(400, "invalid 'selection' parameter: " + check);
+    ServiceMap.logError(request, response, 400, "invalid 'selection' parameter: " + check);
     return;  
 }
 if ("html".equals(request.getParameter("format")) || (request.getParameter("format") == null && request.getParameter("queryId") != null)) {%>
@@ -175,7 +176,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     }
 
     if(idService==null && selection==null && queryId==null && textToSearch==null) {
-        response.sendError(400, "please specify one of 'selection', 'search', 'serviceUri' or 'queryId' parameters");
+        ServiceMap.logError(request, response, 400, "please specify one of 'selection', 'search', 'serviceUri' or 'queryId' parameters");
         return;
     }
     String categorie = "";
@@ -262,6 +263,15 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     String geometry = request.getParameter("geometry");
     boolean getGeometry = "true".equalsIgnoreCase(geometry);
     boolean findInside = "inside".equalsIgnoreCase(raggi);
+    
+    String toTime = request.getParameter("toTime");
+    if(toTime!=null) {
+      if(!toTime.matches("^\\d\\d\\d\\d-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d$")) {
+        ServiceMap.logError(request, response, 400, "invalid 'toTime' parameter, expected yyyy-mm-ddThh:mm:ss");
+        return;
+      }
+    }
+
     String fromTime = request.getParameter("fromTime");
     if(fromTime!=null) {
       if(fromTime.matches("^\\d*-(day|hour|minute)$")) {
@@ -273,15 +283,26 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
           n=n*60*60;
         else if(d[1].equals("minute"))
           n=n*60;
-        Date from=new Date(new Date().getTime()-n*1000);
+        Date now = new Date();
+        if(toTime!=null) {
+          //parse toTime and store as now
+          try {
+            now = ServiceMap.dateFormatter.parse(toTime.replace("T", " "));
+          } catch(ParseException e) {
+            ServiceMap.logError(request, response, 400, "invalid toTime "+toTime);
+            return;
+          }
+        }          
+        Date from=new Date(now.getTime()-n*1000);
         fromTime=ServiceMap.dateFormatter.format(from).replace(" ", "T");
       }
       else if(!fromTime.matches("^\\d\\d\\d\\d-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d$")) {
-        response.sendError(400, "invalid 'fromTime' parameter, expected n-day,n-hour,n-minute or yyyy-mm-ddThh:mm:ss");
+        ServiceMap.logError(request, response, 400, "invalid 'fromTime' parameter, expected n-day,n-hour,n-minute or yyyy-mm-ddThh:mm:ss");
         return;
       }
     }
     ServiceMap.println("fromTime:"+fromTime);
+    ServiceMap.println("toTime:"+toTime);
     
     if (queryId != null) {
       Connection conMySQL = null;
@@ -329,7 +350,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         }
       }
       else {
-        response.sendError(400, "'queryId' not found");
+        ServiceMap.logError(request, response, 400, "'queryId' not found");
         conMySQL.close();
         return;
       }
@@ -341,7 +362,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     String reqFrom = request.getParameter("requestFrom");
     String requestType = (idService==null ? "api" : "details");
     if(! ServiceMap.checkIP(ip, requestType)) {
-      response.sendError(403,"API calls daily limit reached");
+      ServiceMap.logError(request, response, 403,"API calls daily limit reached");
       return;
     }
 
@@ -352,14 +373,14 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       int i = 0;
       ArrayList<String> serviceTypes = ServiceMap.getTypes(con, idService);
       if(serviceTypes.size()==0) {
-        response.sendError(400, "no type found for "+idService);
+        ServiceMap.logError(request, response, 400, "no type found for "+idService);
         con.close();
         return;
       }
       String types = null;
       ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, serviceTypes);
       if(md!=null && (md.realTimeSqlQuery!=null || md.realTimeSparqlQuery!=null || md.realTimeSolrQuery!=null )) {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, checkHealthiness, uid, serviceTypes);        
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, toTime, checkHealthiness, uid, serviceTypes);        
       } 
       else if (serviceTypes.contains("BusStop")|| serviceTypes.contains("NearBusStops")) {
         serviceMapApi.queryTplStop(out, con, idService, "BusStop", lang, realtime, uid);
@@ -385,14 +406,14 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         types = "TransferServiceAndRenting;SensorSite";
       }
       else if (serviceTypes.contains("Service") || serviceTypes.contains("RegularService")) {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, checkHealthiness, uid, serviceTypes);
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, toTime, checkHealthiness, uid, serviceTypes);
       }
       else if (serviceTypes.contains("Event")) {
         serviceMapApi.queryEvent(out, con, idService, lang, uid);
         types = "Service;Event";
       }
       else {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, checkHealthiness, uid, serviceTypes);
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, toTime, checkHealthiness, uid, serviceTypes);
       }
       ServiceMap.logAccess(request, null, null, types, idService, "api-service-info", null, null, queryId, null, "json", uid, reqFrom);
       ServiceMap.updateResultsPerIP(ip, requestType, 1);

@@ -24,17 +24,17 @@
 
   String serviceUri = request.getParameter("serviceUri");
   if(serviceUri==null) {
-    response.sendError(404, "missing serviceUri");
+    ServiceMap.logError(request, response, 404, "missing serviceUri");
     return;
   }
  
   String uid = request.getParameter("uid");
   if(uid==null || uid.trim().isEmpty() || uid.equals("null")) {
-    response.sendError(404, "missing uid");
+    ServiceMap.logError(request, response, 404, "missing uid");
     return;
   }
   if(!ServiceMap.validateUID(uid)) {
-    response.sendError(404, "invalid uid");
+    ServiceMap.logError(request, response, 404, "invalid uid");
     return;
   }
   
@@ -42,7 +42,7 @@
   if(request.getParameter("stars")!=null) {
     stars=Integer.parseInt(request.getParameter("stars"));
     if(stars<1 || stars>5) {
-      response.sendError(404, "invalid number of stars (1-5)");
+      ServiceMap.logError(request, response, 404, "invalid number of stars (1-5)");
       return;
     }
   }
@@ -53,7 +53,7 @@
     if(serviceName == null)
       serviceName = ServiceMap.getServiceIdentifier(con, serviceUri);
     if(serviceName==null) {
-      response.sendError(404,"invalid serviceUri (no name/id found)");
+      ServiceMap.logError(request, response, 404,"invalid serviceUri (no name/id found)");
       ServiceMap.println("request invalid serviceUri "+serviceUri);
       return;
     }
@@ -63,7 +63,7 @@
     String reqFrom = request.getParameter("requestFrom");
 
     if(! ServiceMap.checkIP(ip, "api")) {
-      response.sendError(403,"API calls daily limit reached");
+      ServiceMap.logError(request, response, 403,"API calls daily limit reached");
       return;
     }      
 
@@ -80,7 +80,7 @@
       ServiceMap.logAccess(request, null, null, null, serviceUri, "api-service-comment", null, null, null, null, null, uid, reqFrom);
     }
     else if(stars==0) {
-      response.sendError(404,"stars or comment parameter should be provided");
+      ServiceMap.logError(request, response, 404,"stars or comment parameter should be provided");
       return;
     }
     out.println("\"OK\"");

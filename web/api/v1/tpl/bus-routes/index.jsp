@@ -28,19 +28,19 @@
     String geometry = request.getParameter("geometry");
     String uid = request.getParameter("uid");
     if(uid!=null && !ServiceMap.validateUID(uid)) {
-      response.sendError(404, "invalid uid");
+      ServiceMap.logError(request, response, 404, "invalid uid");
       return;
     }    
     String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
     if(! ServiceMap.checkIP(ip, "api")) {
-      response.sendError(403,"API calls daily limit reached");
+      ServiceMap.logError(request, response, 403,"API calls daily limit reached");
       return;
     }      
 
     if(line == null && stopName == null && agency==null) {
-      response.sendError(HttpServletResponse.SC_BAD_REQUEST,"missing 'line' or 'busStopName' or 'agency' parameters");
+      ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"missing 'line' or 'busStopName' or 'agency' parameters");
     }
     else {
       RepositoryConnection con = ServiceMap.getSparqlConnection();
