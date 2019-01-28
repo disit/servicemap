@@ -27,7 +27,7 @@
 
     String uid = request.getParameter("uid");
     if(uid!=null && !ServiceMap.validateUID(uid)) {
-      response.sendError(404, "invalid uid");
+      ServiceMap.logError(request, response, 404, "invalid uid");
       return;
     }
     String ip = ServiceMap.getClientIpAddress(request);
@@ -35,11 +35,11 @@
     String reqFrom = request.getParameter("requestFrom");
     String agency = request.getParameter("agency");
     if(agency==null) {
-      response.sendError(400, "missing agency paramenter");
+      ServiceMap.logError(request, response, 400, "missing agency paramenter");
       return;
     }
     if(! ServiceMap.checkIP(ip, "api")) {
-      response.sendError(403,"API calls daily limit reached");
+      ServiceMap.logError(request, response, 403,"API calls daily limit reached");
       return;
     }      
 

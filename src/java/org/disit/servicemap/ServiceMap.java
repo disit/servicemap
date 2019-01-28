@@ -63,6 +63,7 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.openrdf.query.BindingSet;
@@ -85,6 +86,7 @@ public class ServiceMap {
   static private Map<String,String> photosAvailable = null; 
   
   static private BufferedWriter accessLog = null;
+  static private BufferedWriter errorLog = null;
   
   static private Map<String,String> icons = null; 
 
@@ -1870,5 +1872,30 @@ public class ServiceMap {
     offset = (offsetInMillis >= 0 ? "+" : "-") + offset;
 
     return offset;
-}   
+  }
+  
+  public static void logError(HttpServletRequest request, HttpServletResponse response, int status, String msg) throws IOException {
+    logError(request, response, status, msg, null);
+  }
+  
+  public static void logError(HttpServletRequest request, HttpServletResponse response, int status, String msg, String extra) throws IOException {
+    response.sendError(status, msg);
+    final Configuration conf = Configuration.getInstance();
+    final Date now = new Date();
+    String filePath = conf.get("errorLogFile", null);
+    if (filePath != null && !filePath.trim().isEmpty()) {
+      try {
+        synchronized (ServiceMap.class) {
+          if (errorLog == null) {
+            FileWriter fstream = new FileWriter(filePath, true); //true tells to append data.
+            errorLog = new BufferedWriter(fstream);
+          }
+        }
+        errorLog.write(now + "|" + request.getMethod() + "|" + request.getContextPath() + request.getServletPath() + request.getPathInfo() + "?" + request.getQueryString() + "|" + status + "|" + msg + "|" + extra+"\n");
+        errorLog.flush();
+      } catch (Exception e) {
+        ServiceMap.notifyException(e);
+      }
+    }
+  }
 }

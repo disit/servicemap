@@ -14,6 +14,28 @@
    You should have received a copy of the GNU Affero General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
+/* TABLES
+
+CREATE TABLE ServiceDataTrends (
+ serviceUri VARCHAR(255) NOT NULL,
+ valueName VARCHAR(50) NOT NULL,
+ trendType VARCHAR(20) NOT NULL,
+ timeAggregation VARCHAR(20) NOT NULL,
+ hour VARCHAR(5) NOT NULL,
+ "value" VARCHAR(20) DEFAULT NULL,
+ CONSTRAINT pk PRIMARY KEY (serviceUri, valueName, trendType, timeAggregation, hour)
+)
+
+CREATE TABLE ServiceDataValues (
+ serviceUri VARCHAR(255) NOT NULL,
+ valueName VARCHAR(50) NOT NULL,
+ valueDate TIME NOT NULL,
+ valueAcqDate TIME NOT NULL,
+ "value" VARCHAR(20) DEFAULT NULL,
+ CONSTRAINT pk PRIMARY KEY (serviceUri, valueName, valueDate, valueAcqDate)
+)
+*/
+
 package org.disit.servicemap;
 
 import com.google.gson.JsonArray;
@@ -57,7 +79,7 @@ public class ServiceValuesServlet extends HttpServlet {
     String ip = ServiceMap.getClientIpAddress(request);
     try {
       if(! ServiceMap.checkIP(ip, "api")) {
-        response.sendError(403,"API calls daily limit reached");
+        ServiceMap.logError(request, response, 403,"API calls daily limit reached");
         return;
       }    
     } catch(Exception e) {
@@ -70,7 +92,7 @@ public class ServiceValuesServlet extends HttpServlet {
       JsonParser parser = new JsonParser();
       obj = parser.parse(request.getReader()).getAsJsonObject();
     } catch (Exception e) {
-      response.sendError(400, "invalid JSON object");
+      ServiceMap.logError(request, response, 400, "invalid JSON object");
       return;
     }
     String path = request.getPathInfo();
@@ -81,73 +103,73 @@ public class ServiceValuesServlet extends HttpServlet {
     
     String uid = request.getParameter("uid");
     if(uid!=null && !ServiceMap.validateUID(uid)) {
-      response.sendError(404, "invalid uid");
+      ServiceMap.logError(request, response, 404, "invalid uid");
       return;
     }
     String reqFrom = request.getParameter("requestFrom");
     
     try {
       if(path.equals("/register/")) {
-        if(registerValues(obj, response)) {
+        if(registerValues(obj, request, response)) {
           ServiceMap.updateResultsPerIP(ip, "api", 1);
           ServiceMap.logAccess(request, null, "", null, obj.get("serviceUris").getAsString(), "api-values-register", null, null, null, null, "json", uid, reqFrom);
         }
       } else if(path.equals("/")) {
         //save data to phoenix
-        if(saveValues(obj, response)) {
+        if(saveValues(obj, request, response)) {
           ServiceMap.updateResultsPerIP(ip, "api", 1);
           ServiceMap.logAccess(request, null, "", null, obj.get("serviceUri").getAsString(), "api-values-post", null, null, null, null, "json", uid, reqFrom);
         }
       } else if(path.equals("/trends/")) {
-        if(saveTrends(obj, response)) {
+        if(saveTrends(obj, request, response)) {
           ServiceMap.updateResultsPerIP(ip, "api", 1);
           ServiceMap.logAccess(request, null, "", null, obj.get("serviceUri").getAsString(), "api-values-trends", null, null, null, null, "json", uid, reqFrom);
         }
       } else {
-        response.sendError(400, "invalid path of request");
+        ServiceMap.logError(request, response, 400, "invalid path of request");
       }
     } catch(Exception e) {
       ServiceMap.notifyException(e);
-      response.sendError(500, "error");
+      ServiceMap.logError(request, response, 500, "error");
     }
   }
 
-  private boolean registerValues(JsonObject obj, HttpServletResponse response) throws Exception {
+  private boolean registerValues(JsonObject obj, HttpServletRequest request, HttpServletResponse response) throws Exception {
     //check attributes
     JsonElement serviceUris = obj.get("serviceUris");
     if (serviceUris == null || !serviceUris.isJsonArray()) {
-      response.sendError(400, "invalid object: missing serviceUris array");
+      ServiceMap.logError(request, response, 400, "invalid object: missing serviceUris array");
       return false;
     }
     RepositoryConnection con = ServiceMap.getSparqlConnection();
     try {
       for (JsonElement s : serviceUris.getAsJsonArray()) {
         if (!s.isJsonPrimitive()) {
-          response.sendError(400, "invalid object: serviceUri not valid");
+          ServiceMap.logError(request, response, 400, "invalid object: serviceUri not valid");
           return false;
         }
         ArrayList<String> types = ServiceMap.getTypes(con, s.getAsString());
         if (types.isEmpty()) {
-          response.sendError(400, "invalid object: serviceUri not not found " + s);
+          ServiceMap.logError(request, response, 400, "invalid object: serviceUri not not found " + s);
           return false;
         }
       }
       JsonElement attributes = obj.get("attributes");
       if (attributes == null || !attributes.isJsonArray()) {
-        response.sendError(400, "invalid object: missing attributes array");
+        ServiceMap.logError(request, response, 400, "invalid object: missing attributes array");
         return false;
       }
       for (JsonElement a : attributes.getAsJsonArray()) {
         if (!a.isJsonObject()) {
-          response.sendError(400, "invalid object: attribute no object");
+          ServiceMap.logError(request, response, 400, "invalid object: attribute no object");
           return false;
         }
         if (!a.getAsJsonObject().has("valueName")) {
-          response.sendError(400, "invalid object: attribute with no valueName");
+          ServiceMap.logError(request, response, 400, "invalid object: attribute with no valueName");
           return false;
         }
         if (!a.getAsJsonObject().has("dataType")) {
-          response.sendError(400, "invalid object: attribute with no dataType");
+          ServiceMap.logError(request, response, 400, "invalid object: attribute with no dataType");
           return false;
         }
       }
@@ -260,10 +282,10 @@ public class ServiceValuesServlet extends HttpServlet {
     return r;
   }
 
-  private boolean saveValues(JsonObject obj, HttpServletResponse response) throws Exception {
+  private boolean saveValues(JsonObject obj, HttpServletRequest request, HttpServletResponse response) throws Exception {
     JsonElement serviceUri = obj.get("serviceUri");
     if (serviceUri == null || !serviceUri.isJsonPrimitive()) {      
-      response.sendError(400, "invalid object: missing serviceUri");
+      ServiceMap.logError(request, response, 400, "invalid object: missing serviceUri");
       return false;
     }
     RepositoryConnection con = ServiceMap.getSparqlConnection();
@@ -271,14 +293,14 @@ public class ServiceValuesServlet extends HttpServlet {
     try {
       ArrayList<String> types = ServiceMap.getTypes(con, serviceUri.getAsString());
       if (types.isEmpty()) {
-        response.sendError(400, "invalid object: serviceUri not not found " + serviceUri.getAsString());
+        ServiceMap.logError(request, response, 400, "invalid object: serviceUri not not found " + serviceUri.getAsString());
         return false;
       }
       JsonObject attrs = getRegisterValues(serviceUri.getAsString());
       
       JsonElement attributes = obj.get("attributes");
       if (attributes == null || (!attributes.isJsonArray() && !attributes.isJsonObject())) {
-        response.sendError(400, "invalid object: missing attributes array");
+        ServiceMap.logError(request, response, 400, "invalid object: missing attributes array");
         return false;
       }
       if(attributes.isJsonObject()) {
@@ -288,31 +310,31 @@ public class ServiceValuesServlet extends HttpServlet {
       }
       for (JsonElement a : attributes.getAsJsonArray()) {
         if (!a.isJsonObject()) {
-          response.sendError(400, "invalid object: attribute no object");
+          ServiceMap.logError(request, response, 400, "invalid object: attribute no object");
           return false;
         }
         if (!a.getAsJsonObject().has("valueName")) {
-          response.sendError(400, "invalid object: attribute with no valueName");
+          ServiceMap.logError(request, response, 400, "invalid object: attribute with no valueName");
           return false;
         }
         String valueName = a.getAsJsonObject().get("valueName").getAsString();
         if(!attrs.has(valueName)) {
-          response.sendError(400, "invalid object: valueName "+valueName+" not registered for "+serviceUri.getAsString());
+          ServiceMap.logError(request, response, 400, "invalid object: valueName "+valueName+" not registered for "+serviceUri.getAsString());
           return false;          
         }
         if (!a.getAsJsonObject().has("value")) {
-          response.sendError(400, "invalid object: attribute with no value");
+          ServiceMap.logError(request, response, 400, "invalid object: attribute with no value");
           return false;
         }
         if (!a.getAsJsonObject().has("valueDate")) {
-          response.sendError(400, "invalid object: attribute with no valueDate");
+          ServiceMap.logError(request, response, 400, "invalid object: attribute with no valueDate");
           return false;
         }
         String vd = a.getAsJsonObject().get("valueDate").getAsString();
         try {
           long d = df.parse(vd).getTime();
         } catch(ParseException e) {
-          response.sendError(400, "invalid valueDate: "+vd);
+          ServiceMap.logError(request, response, 400, "invalid valueDate: "+vd);
           return false;
         }
         if(a.getAsJsonObject().has("valueAcqDate")) {
@@ -320,12 +342,12 @@ public class ServiceValuesServlet extends HttpServlet {
           try {
             long d = df.parse(vad).getTime();
           } catch(ParseException e) {
-            response.sendError(400, "invalid valueAcqDate: "+vad);
+            ServiceMap.logError(request, response, 400, "invalid valueAcqDate: "+vad);
             return false;
           }
         }
       }
-      Connection conn = ServiceMap.getRTConnection2();
+      Connection conn = ServiceMap.getRTConnection();
       try {
         for(JsonElement a : attributes.getAsJsonArray()) {
           JsonObject attr = a.getAsJsonObject();
@@ -363,45 +385,46 @@ public class ServiceValuesServlet extends HttpServlet {
     return false;
   }
 
-  private boolean saveTrends(JsonObject obj, HttpServletResponse response) throws Exception {
+  private boolean saveTrends(JsonObject obj, HttpServletRequest request, HttpServletResponse response) throws Exception {
     JsonElement serviceUri = obj.get("serviceUri");
     if (serviceUri == null || !serviceUri.isJsonPrimitive()) {      
-      response.sendError(400, "invalid object: missing serviceUri");
+      ServiceMap.logError(request, response, 400, "invalid object: missing serviceUri");
       return false;
     }
     RepositoryConnection con = ServiceMap.getSparqlConnection();
     try {
       ArrayList<String> types = ServiceMap.getTypes(con, serviceUri.getAsString());
       if (types.isEmpty()) {
-        response.sendError(400, "invalid object: serviceUri not found " + serviceUri.getAsString());
+        ServiceMap.logError(request, response, 400, "invalid object: serviceUri not found " + serviceUri.getAsString());
         return false;
       }
       JsonObject attrs = getRegisterValues(serviceUri.getAsString());
       
       JsonElement valueNames = obj.get("valueNames");
       if (valueNames == null || !valueNames.isJsonArray()) {
-        response.sendError(400, "invalid object: missing valueNames array");
+        ServiceMap.logError(request, response, 400, "invalid object: missing valueNames array");
         return false;
       }
       for (JsonElement vn : valueNames.getAsJsonArray()) {
         if (!vn.isJsonPrimitive()) {
-          response.sendError(400, "invalid object: invalid valueName "+vn);
+          ServiceMap.logError(request, response, 400, "invalid object: invalid valueName "+vn);
           return false;
         }
         //TBD check valueNames and all other data
       }
+      
       JsonElement trendType = obj.get("trendType");
       if (trendType == null || !trendType.isJsonPrimitive()) {      
-        response.sendError(400, "invalid object: missing trendType");
+        ServiceMap.logError(request, response, 400, "invalid object: missing trendType");
         return false;
       }
       JsonElement trends = obj.get("trends");
       if (trends == null || !trends.isJsonObject()) {      
-        response.sendError(400, "invalid object: missing trendType");
+        ServiceMap.logError(request, response, 400, "invalid object: missing trendType");
         return false;
       }
       
-      Connection conn = ServiceMap.getRTConnection2();
+      Connection conn = ServiceMap.getRTConnection();
       try {
           for(Entry<String,JsonElement> e : trends.getAsJsonObject().entrySet()) {
             String timeAggregation = e.getKey();
@@ -450,7 +473,7 @@ public class ServiceValuesServlet extends HttpServlet {
       return;
       
     if(uid!=null && !ServiceMap.validateUID(uid)) {
-      response.sendError(404, "invalid uid");
+      ServiceMap.logError(request, response, 404, "invalid uid");
       return;
     }
     String reqFrom = request.getParameter("requestFrom");
@@ -458,7 +481,7 @@ public class ServiceValuesServlet extends HttpServlet {
     String ip = ServiceMap.getClientIpAddress(request);
     try {
       if(! ServiceMap.checkIP(ip, "api")) {
-        response.sendError(403,"API calls daily limit reached");
+        ServiceMap.logError(request, response, 403,"API calls daily limit reached");
         return;
       }    
     } catch(Exception e) {
@@ -467,7 +490,7 @@ public class ServiceValuesServlet extends HttpServlet {
     
     
     if(serviceUri == null) {
-        response.sendError(400, "missing serviceUri");
+        ServiceMap.logError(request, response, 400, "missing serviceUri");
         return;
     }
 
@@ -485,7 +508,7 @@ public class ServiceValuesServlet extends HttpServlet {
         fromTime=ServiceMap.dateFormatter.format(from).replace(" ", "T");
       }
       else if(!fromTime.matches("^\\d\\d\\d\\d-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d$")) {
-        response.sendError(400, "invalid 'fromTime' parameter, expected n-day,n-hour,n-minute or yyyy-mm-ddThh:mm:ss");
+        ServiceMap.logError(request, response, 400, "invalid 'fromTime' parameter, expected n-day,n-hour,n-minute or yyyy-mm-ddThh:mm:ss");
         return;
       }
     }
@@ -496,7 +519,7 @@ public class ServiceValuesServlet extends HttpServlet {
         //get type of service
         ArrayList<String> types = ServiceMap.getTypes(con, serviceUri);
         if(types.isEmpty()) {
-          response.sendError(400, "serviceUri not found");
+          ServiceMap.logError(request, response, 400, "serviceUri not found");
           return;          
         }
 
@@ -541,7 +564,7 @@ public class ServiceValuesServlet extends HttpServlet {
                 }
               }
             }
-            Connection rtCon = ServiceMap.getRTConnection2();
+            Connection rtCon = ServiceMap.getRTConnection();
             for(Entry<String,JsonElement> e : attrs.entrySet()) {
               if(otherAttrs.has(e.getKey())) {
                 JsonArray l = new JsonArray();
@@ -559,7 +582,7 @@ public class ServiceValuesServlet extends HttpServlet {
         } else {
           //retrive historical values
           if(!attrs.has(valueName) && !otherAttrs.has(valueName)) {
-            response.sendError(400, "invalid valueName");
+            ServiceMap.logError(request, response, 400, "invalid valueName");
             return;    
           }
           if(fromTime == null && limit == null) {
@@ -569,7 +592,7 @@ public class ServiceValuesServlet extends HttpServlet {
           JsonObject attr = new JsonObject();
           if(otherAttrs.has(valueName)) {
             //valueName is one of the values table
-            Connection rtCon = ServiceMap.getRTConnection2();
+            Connection rtCon = ServiceMap.getRTConnection();
             if(healthiness!=null && healthiness.equals("true")) {
               attr.add(valueName, otherAttrs.get(valueName));
               int l = ServiceMap.getHealthCount(attrs);
@@ -585,7 +608,7 @@ public class ServiceValuesServlet extends HttpServlet {
             //valueName is on phoenix specific table or solr
             if(md==null) {
               //ERROR serviceuri with no mapping
-              response.sendError(400, "serviceUri "+serviceUri+" is not configured for value retrieval");
+              ServiceMap.logError(request, response, 400, "serviceUri "+serviceUri+" is not configured for value retrieval");
               return;
             }
             if(healthiness!=null && healthiness.equals("true")) {
@@ -625,13 +648,21 @@ public class ServiceValuesServlet extends HttpServlet {
     String accessToken = request.getParameter("accessToken");
     if (accessToken==null) {
       String ipAddress = ServiceMap.getClientIpAddress(request);
-      if (!ipAddress.startsWith(conf.get("internalNetworkIpPrefix", "192.168.0.")) && !ipAddress.equals("127.0.0.1")) {
-        response.sendError(401, "cannot access from "+ipAddress);
+      String[] otherIps = conf.get("allowedNetworkIpPrefixes", "127.0.0.1;192.168.0.;192.168.1.").split(";");
+      boolean allowed = false;
+      for(String s: otherIps) {
+        if(ipAddress.startsWith(s.trim())) {
+          allowed=true;
+          break;
+        }
+      }
+      if (!allowed) {
+        ServiceMap.logError(request, response, 401, "cannot access from "+ipAddress);
         return false;
       }
     } else {
       //TBD check access token
-      response.sendError(401, "accessToken cannot be checked");
+      ServiceMap.logError(request, response, 401, "accessToken cannot be checked");
       return false;
     }
     return true;

@@ -26,7 +26,7 @@
     if(range==null)
       range = "day";
     if(!range.equals("day") && !range.equals("week") && !range.equals("month") && !range.equals("15-days")) {
-      response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'range' parameter value (day,week,15-days,month)");
+      ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"invalid 'range' parameter value (day,week,15-days,month)");
       return;
     }
       
@@ -39,7 +39,7 @@
       maxDists = "8";
     String uid = request.getParameter("uid");
     if(uid!=null && !ServiceMap.validateUID(uid)) {
-      response.sendError(404, "invalid uid");
+      ServiceMap.logError(request, response, 404, "invalid uid");
       return;
     }
     String text = request.getParameter("text");
@@ -47,7 +47,7 @@
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
     if(! ServiceMap.checkIP(ip, "api")) {
-      response.sendError(403,"API calls daily limit reached");
+      ServiceMap.logError(request, response, 403,"API calls daily limit reached");
       return;
     }      
 

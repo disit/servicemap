@@ -21,13 +21,13 @@
 
   Configuration conf = Configuration.getInstance();
   if(!conf.get("enablePathSearch", "true").equalsIgnoreCase("true")){
-    response.sendError(400, "service not available, try later");
+    ServiceMap.logError(request, response, 400, "service not available, try later");
     return;
   }
   String source = request.getParameter("source");
   String destination = request.getParameter("destination");
   if(source==null || destination==null) {
-    response.sendError(400, "missing source or destination parameters");
+    ServiceMap.logError(request, response, 400, "missing source or destination parameters");
     return;
   }
   
@@ -37,7 +37,7 @@
           !"car".equals(routeType) && 
           !"public_transport".equals(routeType) && 
           !"feet".equals(routeType)) {
-    response.sendError(400, "invalid routeType parameter (foot_shortest, foot_quiet, car, public_transport) ");    
+    ServiceMap.logError(request, response, 400, "invalid routeType parameter (foot_shortest, foot_quiet, car, public_transport) ");    
     return;
   }
   String maxFeetKM = request.getParameter("maxFeetKM");
@@ -45,14 +45,14 @@
 
   String uid = request.getParameter("uid");
   if(uid!=null && !ServiceMap.validateUID(uid)) {
-    response.sendError(404, "invalid uid");
+    ServiceMap.logError(request, response, 404, "invalid uid");
     return;
   }
   String ip = ServiceMap.getClientIpAddress(request);
   String ua = request.getHeader("User-Agent");
   String reqFrom = request.getParameter("requestFrom");
   if(! ServiceMap.checkIP(ip, "api")) {
-    response.sendError(403,"API calls daily limit reached");
+    ServiceMap.logError(request, response, 403,"API calls daily limit reached");
     return;
   }      
 
@@ -84,7 +84,7 @@
       }
 
       if(srcLatLng==null || dstLatLng==null) {
-        response.sendError(400, "wrong source or destination parameters");
+        ServiceMap.logError(request, response, 400, "wrong source or destination parameters");
         return;
       }
     }
@@ -93,7 +93,7 @@
     try {
       serviceMapApi.makeShortestPath(out, con, srcLatLng, dstLatLng, startDatetime, routeType, maxFeetKM);
     }catch(IllegalArgumentException e) {
-      response.sendError(400, e.getMessage());
+      ServiceMap.logError(request, response, 400, e.getMessage());
     }
     finally {
       con.close();

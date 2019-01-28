@@ -25,7 +25,7 @@
     String selection = request.getParameter("selection");
     String uid = request.getParameter("uid");
     if(uid!=null && !ServiceMap.validateUID(uid)) {
-      response.sendError(404, "invalid uid");
+      ServiceMap.logError(request, response, 404, "invalid uid");
       return;
     }    
     String maxDist = request.getParameter("maxDist");
@@ -45,12 +45,12 @@
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
     if(! ServiceMap.checkIP(ip, "api")) {
-      response.sendError(403,"API calls daily limit reached");
+      ServiceMap.logError(request, response, 403,"API calls daily limit reached");
       return;
     }      
 
     if(selection == null) {
-      response.sendError(HttpServletResponse.SC_BAD_REQUEST,"missing 'selection' parameter");
+      ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"missing 'selection' parameter");
     }
     else {
       String c[] = selection.split(";");
@@ -62,6 +62,6 @@
         ServiceMap.logAccess(request, null, selection, null, null, "api-tpl-latlng", null, null, null, null, "json", uid, reqFrom);
       }
       else
-        response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'selection' parameter (accepted 'lat;long', 'lat1;long1;lat2;long2', 'wkt:...' or 'geo:...' )");
+        ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"invalid 'selection' parameter (accepted 'lat;long', 'lat1;long1;lat2;long2', 'wkt:...' or 'geo:...' )");
     }
 %>

@@ -44,19 +44,19 @@
     String intersectGeom = request.getParameter("intersectGeom");
     String uid = request.getParameter("uid");
     if(uid!=null && !ServiceMap.validateUID(uid)) {
-      response.sendError(404, "invalid uid");
+      ServiceMap.logError(request, response, 404, "invalid uid");
       return;
     }
     String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
     if(! ServiceMap.checkIP(ip, "api")) {
-      response.sendError(403,"API calls daily limit reached");
+      ServiceMap.logError(request, response, 403,"API calls daily limit reached");
       return;
     }      
 
     if(position == null && search==null) {
-      response.sendError(HttpServletResponse.SC_BAD_REQUEST,"missing 'position' or 'search' parameters");
+      ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"missing 'position' or 'search' parameters");
     }
     else {
       if(search!=null) {
@@ -75,7 +75,7 @@
           con.close();
         }
         else
-          response.sendError(HttpServletResponse.SC_BAD_REQUEST,"invalid 'position' parameter (missing lat;long)");
+          ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"invalid 'position' parameter (missing lat;long)");
       }
     }
 %>

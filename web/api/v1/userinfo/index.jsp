@@ -19,5 +19,5 @@
 
     response.setContentType("application/json; charset=UTF-8");
     response.addHeader("Access-Control-Allow-Origin", "*");
-    response.sendError(HttpServletResponse.SC_BAD_REQUEST, "API UNDER DEVELOPMENT");
+    ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST, "API UNDER DEVELOPMENT");
 %>
