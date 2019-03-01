@@ -56,7 +56,7 @@
     ServiceMap.logAccess(request, null, centro, null, null, "ui-events-"+range, numEv, raggio, null, null, null, null, null);
 
     try {
-        serviceMapApi.queryEventList(out, con, range, coord, raggio, numEv, textFilter, true);
+        serviceMapApi.queryEventList(out, con, range, coord, raggio, numEv, textFilter, null, true);
     } catch (Exception e) {
         ServiceMap.notifyException(e);
     }finally{

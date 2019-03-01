@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.api.CheckParameters"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
 <%@page import="java.util.regex.Matcher"%>
 <%@page import="java.util.regex.Pattern"%>
@@ -42,6 +43,11 @@
   }
   String maxFeetKM = request.getParameter("maxFeetKM");
   String startDatetime = request.getParameter("startDatetime");
+  String msg;
+  if(startDatetime!=null && (msg=CheckParameters.checkDatetime(startDatetime))!=null) {
+    ServiceMap.logError(request, response, 400, "invalid startDatetime parameter : "+msg);        
+    return;
+  }
 
   String uid = request.getParameter("uid");
   if(uid!=null && !ServiceMap.validateUID(uid)) {

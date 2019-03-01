@@ -313,14 +313,14 @@ function showLinea(numLinea, codRoute, direction, nomeLinea, typeSer, polyline, 
         line = line.substr(11, line.length - 12);
     }
     //alert(line);
-    var vet_point = line.split(", ");
+    var vet_point = line.split(",");
     var Point_pol = new Array();
     
     //var className = "route_ATAF_" + codRoute.substr(38);
     var className = "route_" + codRoute.substr(38);
     Point_pol = [];
     for (var j = 0; j < vet_point.length; j++) {
-        var point = vet_point[j].split(" ");
+        var point = vet_point[j].trim().split(" ");
         Point_pol[j] = [parseFloat(point[1]), parseFloat(point[0])];
     }
 
@@ -507,10 +507,10 @@ function Estract_features(Str_location, id, serType) {
             var Point_pol = new Array();
             for (var i = 0; i < Vet_str.length; i++) {
 //vengono visualizzate le singole aree
-                var vet_point = Vet_str[i].split(", ");
+                var vet_point = Vet_str[i].split(",");
                 Point_pol = [];
                 for (var j = 0; j < vet_point.length; j++) {
-                    var point = vet_point[j].split(" ");
+                    var point = vet_point[j].trim().split(" ");
                     Point_pol[j] = [parseFloat(point[1]), parseFloat(point[0])];
                 }
                 if (JSON.stringify(serType).indexOf('Controlled_parking_zone') != -1)
@@ -528,12 +528,12 @@ function Estract_features(Str_location, id, serType) {
             n = Str_location.search(/LINESTRING/i);
             if (n != -1) {
                 Str_location = Str_location.substr(13, Str_location.length - 15);
-                var vet_point = Str_location.split(", ");
+                var vet_point = Str_location.split(",");
                 var numberMarker;
                 var Point_pol = new Array();
                 Point_pol = [];
                 for (var j = 0; j < vet_point.length; j++) {
-                    var point = vet_point[j].split(" ");
+                    var point = vet_point[j].trim().split(" ");
                     Point_pol[j] = [parseFloat(point[1]), parseFloat(point[0])];
                     if (((JSON.stringify(serType).indexOf('Tourist_trail') != -1) && (j != 0) && (j != (vet_point.length - 1)))) {
                         numberMarker = L.marker([parseFloat(point[1]), parseFloat(point[0])], {
@@ -651,8 +651,10 @@ function createLinestring(route) {
 //FUNZIONE CHE CARICA NEL POPUP LE INFORMAZIONI DELLA SCHEDA DI UN SERVIZIO
 function loadServiceInfo(uri, div, id, coord) {
     if (uri.indexOf("Event") != -1) {
+      //skip events
     } else {
         if (uri.indexOf("busCode") == -1) {
+            $("#" + div).html("Loading... <img src=\""+ctx+"/img/ajax-loader.gif\" width=\"16\" />")
             $.ajax({
                 data: {
                     serviceUri: uri
@@ -1085,6 +1087,8 @@ function svuotaLayers() {
     servicesLayer.clearLayers();
     eventLayer.clearLayers();
     GPSLayer.clearLayers();
+    oms.clearMarkers();
+    
     if ($("div.leaflet-marker-pane").html() != null) {
         $("img.leaflet-marker-icon.leaflet-zoom-animated.leaflet-clickable").hide();
         $("div.leaflet-marker-icon.leaflet-zoom-animated.leaflet-clickable").hide();
@@ -1244,6 +1248,7 @@ function showmarker(feature, latlng, mType) {
         });
         marker = L.marker(latlng, {icon: icon, title: serviceType + " - " + feature.properties.vehicleNum + " - " + feature.properties.line, riseOnHover: true});
     }
+    oms.addMarker(marker);
     return marker;
 }
 
@@ -2414,7 +2419,7 @@ function mapLatLngClick(latLngPunto, zoom, fndGeo) {
     $('#nResultsSensori').prop('disabled', false);
     $('#nResultsBus').prop('disabled', false);
     ricercaInCorso = true;
-    $('#approximativeAddress').html("Address: <img src=\"img/ajax-loader.gif\" width=\"16\" />");
+    $('#approximativeAddress').html("Address: <img src=\""+ctx+"/img/ajax-loader.gif\" width=\"16\" />");
     clickLayer.clearLayers();
     clickLayer = L.layerGroup([new L.marker(latLngPunto)]).addTo(map);
     if(zoom)

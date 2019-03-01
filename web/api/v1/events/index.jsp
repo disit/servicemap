@@ -33,6 +33,7 @@
       String maxDists = request.getParameter("maxDists");
       String maxResults = request.getParameter("maxResults");    
       String uid = request.getParameter("uid");
+      String lang = request.getParameter("lang");
       if(uid!=null && !ServiceMap.validateUID(uid)) {
         ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST, "invalid uid");
         return;
@@ -76,7 +77,7 @@
         ServiceMap.logError(request, response, 403,"API calls daily limit reached");
         return;
       }      
-      int results = serviceMapApi.queryEventList(out, con, range, coords, maxDists, maxResults, text, reqFrom!=null);
+      int results = serviceMapApi.queryEventList(out, con, range, coords, maxDists, maxResults, text, lang, reqFrom!=null);
       ServiceMap.updateResultsPerIP(ip, "api", results);
       ServiceMap.logAccess(request, null, selection, null, null, "api-events-"+range, maxResults, maxDists, null, null, "json", uid, reqFrom);
     } finally {

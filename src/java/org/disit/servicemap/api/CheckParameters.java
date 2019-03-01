@@ -16,6 +16,9 @@
 
 package org.disit.servicemap.api;
 
+import java.text.ParseException;
+import org.disit.servicemap.ServiceMap;
+
 public class CheckParameters {
   public static String checkLatLng(String position) {
     if(position==null)
@@ -29,20 +32,20 @@ public class CheckParameters {
       chk = checkLat(ll[0]);
       if(chk!=null)
         return chk;
-      chk = checkLat(ll[1]);
+      chk = checkLng(ll[1]);
       if(chk!=null)
         return chk;      
     } else if(ll.length==4) {
       chk = checkLat(ll[0]);
       if(chk!=null)
         return chk;
-      chk = checkLat(ll[1]);
+      chk = checkLng(ll[1]);
       if(chk!=null)
         return chk;      
       chk = checkLat(ll[2]);
       if(chk!=null)
         return chk;
-      chk = checkLat(ll[3]);
+      chk = checkLng(ll[3]);
       if(chk!=null)
         return chk;            
     } else
@@ -69,10 +72,6 @@ public class CheckParameters {
     } catch(NumberFormatException e) {
       return "invalid longitude '"+slng+"'";
     }
-    return null;
-  }
-  
-  public static String checkDatetime(String s) {
     return null;
   }
   
@@ -119,6 +118,15 @@ public class CheckParameters {
   public static String checkAlphanumString(String s) {
     if(!s.matches("^[\\p{L}0-9 ]*$"))
       return "invalid alphanum string";
+    return null;
+  }
+  
+  public static String checkDatetime(String dateTime) {
+      try {
+        ServiceMap.dateFormatter.parse(dateTime);
+      } catch(ParseException e) {
+        return "invalid date time string "+e.getMessage();
+      }
     return null;
   }
 }
