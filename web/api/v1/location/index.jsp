@@ -1,4 +1,5 @@
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
+<%@page import="org.disit.servicemap.api.CheckParameters"%>
 <%@ page trimDirectiveWhitespaces="true" %>
 <%@ include file= "/include/parameters.jsp" %>
 <%
@@ -22,7 +23,12 @@
     response.addHeader("Access-Control-Allow-Origin", "*");
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
+    String msg;
     String position = request.getParameter("position");
+    if(position!=null && (msg=CheckParameters.checkLatLng(position))!=null) {
+      ServiceMap.logError(request, response, 400, "invalid position: "+msg);
+      return;      
+    }
     String search = request.getParameter("search");
     String searchMode = request.getParameter("searchMode");
     String maxResults = request.getParameter("maxResults");

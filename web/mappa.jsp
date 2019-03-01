@@ -48,6 +48,7 @@
         <script src="${pageContext.request.contextPath}/js/datetime-moment.js"></script>
         <script src="${pageContext.request.contextPath}/js/jquery.timepicker.min.js"></script>
         <script src="${pageContext.request.contextPath}/js/zoomHandler.js"></script>
+        <script src="${pageContext.request.contextPath}/js/oms.min.js"></script>
         <!-- code per gallery -->
         <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/lib/jquery.mousewheel-3.0.6.pack.js"></script>
         <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/jquery.fancybox.css" type="text/css" media="screen" />
@@ -803,71 +804,8 @@
                                             dataType: 'json',
                                             async: true,
                                             success: function (data) {
-                                                /*numeroEventi = searchEvent("free_text", null, null, limit, textEv);
-                                                 if(numeroEventi != 0){
-                                                 risultatiRicerca((numService+numeroEventi), 0, 0, 1);
-                                                 limit = (limit - numeroEventi);
-                                                 $("input[name=event_choice][value=day]").attr('checked', 'checked');
-                                                 }*/
-                                                var array = new Array();
-                                                         var delta = new Array();
-                                                        var sin = new Array();
-                                                        var cos = new Array();
-                                                        var sx = new Array();
-                                                        var dx = new Array();
-                                                        var fract = 0.523599;
-                                                        var dist = 1.2;
-                                                        var passo = 0.00007;
-                                                        
-                                                        for (var r = 0; r < data.features.length; r++) {
-                                                            array[r] = new Array();
-                                                            for (var c = 0; c < 2; c++) {
-                                                                array[r][c] = 0;
-                                                            }
-                                                            delta[r] = 0;
-                                                            sin[r] = 0;
-                                                            cos[r] = 0;
-                                                            sx[r] = 0;
-                                                            dx[r] = 0;
-                                                        }
-                                                var i = 0;        
                                                 if (data.features.length > 0) {
                                                     numTotRes = numTotRes + data.fullCount;
-                                                    var count = 0;
-                                                            for (i = 0; i < data.features.length; i++) {
-                                                                if (data.features[i].properties.serviceType == 'TourismService_Tourist_trail') {
-                                                                    if (count == 0) {
-                                                                        array[0][0] = data.features[i].geometry.coordinates[0];
-                                                                        array[0][1] = data.features[i].geometry.coordinates[1];
-                                                                    } else {
-                                                                        for (var k = 0; k < count; k++) {
-                                                                            if ((data.features[i].geometry.coordinates[0] == array[k][0]) && (data.features[i].geometry.coordinates[1] == array[k][1])) {
-                                                                                //array[count][0] = data.features[i].geometry.coordinates[0] + (Math.random() - .4) / 1500;
-                                                                                //array[count][1] = data.features[i].geometry.coordinates[1] + (Math.random() - .4) / 1500;
-                                                                                //data.features[i].geometry.coordinates[0] = array[count][0];
-                                                                                //data.features[i].geometry.coordinates[1] = array[count][1];
-                                                                                delta[count] = (fract*count);
-                                                                                sin[count] = Math.sin(delta[count]);
-                                                                                cos[count] = Math.cos(delta[count]);
-                                                                                sx[count] = (sin[count]*passo*dist*count);
-                                                                                dx[count] = (cos[count]*passo*dist*count);
-                                                                                
-                                                                                array[count][0] = (array[0][0])+sx[count];
-                                                                                array[count][1] = (array[0][1])+dx[count];
-                                                                                data.features[i].geometry.coordinates[0] = array[count][0];
-                                                                                data.features[i].geometry.coordinates[1] = array[count][1];
-                                                                            } else {
-                                                                                array[count][0] = data.features[i].geometry.coordinates[0];
-                                                                                array[count][1] = data.features[i].geometry.coordinates[1];
-                                                                            }
-
-                                                                        }
-
-                                                                    }
-                                                                    count++;
-                                                                }
-
-                                                            }
                                                     servicesLayer = L.geoJson(data, {
                                                         pointToLayer: function (feature, latlng) {
                                                             marker = showmarker(feature, latlng);
@@ -875,10 +813,6 @@
                                                         },
                                                         onEachFeature: function (feature, layer) {
                                                             popupContent = "";
-                                                            /*var divId = feature.id + "-" + feature.properties.typeLabel;
-                                                            if ((feature.properties.typeLabel == "Strada") || (feature.properties.typeLabel == "Road")) {
-                                                                popupContent = popupContent + "<h3>" + feature.properties.name + " n. " + feature.properties.civic + "</h3>";
-                                                            }*/
                                                             var divId = feature.id + "-" + feature.properties.tipo;
                                                             if (feature.properties.typeLabel == "Strada") {
                                                                 popupContent = popupContent + "<h3>" + feature.properties.name + " n. " + feature.properties.civic + "</h3>";
@@ -886,16 +820,6 @@
                                                             popupContent = popupContent + "<div id=\"" + divId + "\" ></div>";
                                                             layer.bindPopup(popupContent);
                                                             numService++;
-                                                            /*if (feature.properties.serviceType == "NearBusStop") {
-                                                             numBusstop++;
-                                                             }
-                                                             else {
-                                                             if (feature.properties.serviceType == "RoadSensor")
-                                                             numSensor++;
-                                                             else
-                                                             numService++;
-                                                             }*/
-
                                                         }
                                                     });
             <%if (clusterResults > 0) {%>
@@ -917,18 +841,12 @@
                                                 }
                                                 else {
                                                     $('#loading').hide();
-                                                    //risultatiRicerca(numService, numBusstop, numSensor, 1);
                                                     if (numeroEventi == 0) {
                                                         risultatiRicerca(0, 0, 0, 0, null, 0, 0, 0);
                                                     } else {
                                                         risultatiRicerca(numeroEventi, 0, 0, 1, null, 0, 0, 0);
                                                     }
                                                 }
-                                                /*numeroEventi = searchEvent("free_text", null, null, limit, textEv);
-                                                 if(numeroEventi != 0){
-                                                 risultatiRicerca((numService+numeroEventi), 0, 0, 1);
-                                                 $("input[name=event_choice][value=day]").attr('checked', 'checked');
-                                                 }*/
                                             },
                                             error: function (request, status, error) {
                                                 $('#loading').hide();
@@ -1626,6 +1544,7 @@
                                         maxZoom: 16,
                                         style: null
                                     });
+                                    var oms = new OverlappingMarkerSpiderfier(map, { keepSpiderfied: true });
                                     //map.addControl(GPSControl);
                                     //$("#currentPosition").add(GPSControl);+
 
@@ -1705,32 +1624,8 @@
                                             $(markerPopup._icon).addClass('selected');
                                             last_marker = markerPopup;
                                         }
-                                        /*if ((tipoServizio != 'fermata')||(tipoServizio != 'parcheggio_auto')||(tipoServizio != 'parcheggio_Coperto')||(tipoServizio != "parcheggio_all'aperto")||(tipoServizio != 'car_park@en')||(tipoServizio != 'sensore')) {
-                                         //showService(currentServiceUri);
-                                         loadServiceInfo(currentServiceUri, divId);
-                                         
-                                         }*/
-
-                                        //if ((mode != "query") && (mode != "embed")) {
                                         loadServiceInfo(currentServiceUri, divId, idServizio, coordinates);
-                                        //}
                                         coordinateSelezione = markerPopup.feature.geometry.coordinates[1] + ";" + markerPopup.feature.geometry.coordinates[0];
-                                        /*if (tipoServizio == 'fermata') {
-                                         selezione = 'Fermata Bus: ' + markerPopup.feature.properties.nome;
-                                         coordinateSelezione = markerPopup.feature.geometry.coordinates[1] + ";" + markerPopup.feature.geometry.coordinates[0];
-                                         $('#selezione').html(selezione);
-                                         var divLinee = divId + "-linee";
-                                         mostraAVMAJAX(nome, divId);
-                                         mostraLineeBusAJAX(nome, divLinee);
-                                         }
-                                         if (tipoServizio == 'parcheggio_auto' || tipoServizio == "parcheggio_Coperto" || tipoServizio == "parcheggi_all'aperto" || tipoServizio == "car_park@en") {
-                                         mostraParcheggioAJAX(nome, divId);
-                                         }
-                                         
-                                         if (tipoServizio == 'sensore') {
-                                         mostraSensoreAJAX(nome, divId);
-                                         }
-                                         // var stringJsonPopUp=JSON.stringify(markerPopup);*/
                                         listOfPopUpOpen.push(currentServiceUri);
                                     });
                                     map.on('popupclose', function (e) {
@@ -2428,85 +2323,12 @@
                                                         }
                                                         else {
                                                             if ($("#elencocomuni").val() != 'all') {
-                                                                //if (selectOption.options[selectOption.options.selectedIndex].value != 'all'){
-                                                                /*
-                                                                 $.ajax({
-                                                                 url : "${pageContext.request.contextPath}/ajax/get-weather.jsp",
-                                                                 type : "GET",
-                                                                 async: true,
-                                                                 //dataType: 'json',
-                                                                 data : {
-                                                                 nomeComune: $("#elencocomuni").val()
-                                                                 },
-                                                                 success : function(msg) {
-                                                                 $('#info-aggiuntive .content').html(msg);
-                                                                 }
-                                                                 });
-                                                                 */
-                                                            }
-                                                            var array = new Array();
-                                                             var delta = new Array();
-                                                            var sin = new Array();
-                                                            var cos = new Array();
-                                                            var sx = new Array();
-                                                            var dx = new Array();
-                                                            var fract = 0.523599;
-                                                            var dist = 1.2;
-                                                            var passo = 0.00007;
-                                                        
-                                                            for (var r = 0; r < 10; r++) {
-                                                            array[r] = new Array();
-                                                            for (var c = 0; c < 2; c++) {
-                                                                array[r][c] = 0;
-                                                            }
-                                                                delta[r] = 0;
-                                                                sin[r] = 0;
-                                                                cos[r] = 0;
-                                                                sx[r] = 0;
-                                                                dx[r] = 0;
                                                             }
 
                                                             $('#loading').hide();
                                                             if (msg.features.length > 0) {
                                                                 var i = 0;
                                                                 var count = 0;
-                                                            for (i = 0; i < msg.features.length; i++) {
-                                                                if (msg.features[i].properties.serviceType == 'TourismService_Tourist_trail') {
-                                                                    if (count == 0) {
-                                                                        array[0][0] = msg.features[i].geometry.coordinates[0];
-                                                                        array[0][1] = msg.features[i].geometry.coordinates[1];
-                                                                    } else {
-                                                                        for (var k = 0; k < count; k++) {
-                                                                            if ((msg.features[i].geometry.coordinates[0] == array[k][0]) && (msg.features[i].geometry.coordinates[1] == array[k][1])) {
-                                                                                delta[count] = (fract*count);
-                                                                                sin[count] = Math.sin(delta[count]);
-                                                                                cos[count] = Math.cos(delta[count]);
-                                                                                sx[count] = (sin[count]*passo*dist*count);
-                                                                                dx[count] = (cos[count]*passo*dist*count);;
-                                                                                
-                                                                                //array[count][0] = msg.features[i].geometry.coordinates[0] + (Math.random() - .4) / 1500;
-                                                                                //array[count][1] = msg.features[i].geometry.coordinates[1] + (Math.random() - .4) / 1500;
-                                                                                //msg.features[i].geometry.coordinates[0] = array[count][0];
-                                                                                //msg.features[i].geometry.coordinates[1] = array[count][1];
-                                                                                
-                                                                                array[count][0] = (array[0][0])+sx[count];
-                                                                                array[count][1] = (array[0][1])+dx[count];
-                                                                                msg.features[i].geometry.coordinates[0] = array[count][0];
-                                                                                msg.features[i].geometry.coordinates[1] = array[count][1];
-                                                                            } else {
-                                                                                array[count][0] = msg.features[i].geometry.coordinates[0];
-                                                                                array[count][1] = msg.features[i].geometry.coordinates[1];
-                                                                            }
-
-                                                                        }
-
-                                                                    }
-                                                                    count++;
-                                                                }
-
-                                                            }
-                                                                
-                                                                
                                                                 servicesLayer = L.geoJson(msg, {
                                                                     pointToLayer: function (feature, latlng) {
                                                                         marker = showmarker(feature, latlng);
@@ -2515,15 +2337,6 @@
                                                                     onEachFeature: function (feature, layer) {
                                                                         var contenutoPopup = "";
                                                                         var divId = feature.id + "-" + feature.properties.tipo;
-                                                                        // X TEMPI DI CARICAMENTO INFO SCHEDA ALL'APERTURA DEL POPUP LUNGHI, VISUALIZZARE NOME, LOD E TIPOLOGIA DI SERVIZIO
-                                                                        /*if (feature.properties.nome != null && feature.properties.nome != "")
-                                                                         contenutoPopup = "<h3>" + feature.properties.nome + "</h3>";
-                                                                         else {
-                                                                         if (feature.properties.identifier != null && feature.properties.identifier != "")
-                                                                         contenutoPopup = "<h3>" + feature.properties.identifier + "</h3>";
-                                                                         }
-                                                                         contenutoPopup = contenutoPopup + "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
-                                                                         contenutoPopup = contenutoPopup + "<b>Tipologia: </b>" + feature.properties.category +" - "+ feature.properties.subCategory + "<br />";*/
                                                                         contenutoPopup = contenutoPopup + "<div id=\"" + divId + "\" ></div>";
                                                                         layer.bindPopup(contenutoPopup);
                                                                         if (feature.properties.serviceType == "TransferServiceAndRenting_BusStop") {
@@ -2537,7 +2350,6 @@
                                                                                 numeroServizi++;
                                                                             }
                                                                         }
-
                                                                     }
                                                                 });
                                                                 <%if (clusterResults > 0) {%>
@@ -2564,25 +2376,13 @@
                                                                 //if (mode != "embed") {
                                                                 var confiniMappa = servicesLayer.getBounds();
                                                                 map.fitBounds(confiniMappa, {padding: [50, 50]});
-                                                                //}
-                                                                //numeroServizi = numeroServizi;
-                                                                //numeroBus = numeroBus;
-                                                                //numeroSensori = numeroSensori;
-                                                                /*if (msg.features.length < numeroRisultati || numeroRisultati == 0) {
-                                                                 risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 0);
-                                                                 }
-                                                                 else {
-                                                                 risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 0);
-                                                                 }*/
                                                                 if (tipo_categoria == "categorie" || tipo_categoria.indexOf("categorie:") != -1) {
                                                                     risultatiRicerca((numeroServizi + numeroBus + numeroSensori), 0, 0, 1, null, 0, 0, 0);
                                                                 } else {
-                                                                    //risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 2); //DA DECOMMENTARE QUANDO SISTEMATI TRANSVERSE SERVICE
                                                                     risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 1, null, 0, 0, 0);
                                                                 }
                                                             }
                                                             else {
-                                                                //MICHELA: qui Nel caso di BUsStop senza centro mappa NON ci devo arrivare!!!!
                                                                 risultatiRicerca(0, 0, 0, 0, null, 0, 0, 0);
                                                             }
                                                         }
@@ -2595,8 +2395,6 @@
                                                         }
                                                     },
                                                     error: function (request, status, error) {
-
-                                                        //console.log(error);
                                                         if ($("#elencocomuni").val() != 'all') {
                                                             $.ajax({
                                                                 url: "${pageContext.request.contextPath}/ajax/get-weather.jsp",
@@ -2642,44 +2440,14 @@
                                                         $("#body").html(JSON.stringify(msg_response));
                                                     }
                                                     else {
-                                                        var array = new Array();
-                                                        var delta = new Array();
-                                                        var sin = new Array();
-                                                        var cos = new Array();
-                                                        var sx = new Array();
-                                                        var dx = new Array();
-                                                        var fract = 0.523599;
-                                                        var dist = 1.2;
-                                                        var passo = 0.00007;
                                                         var nServices=0;
                                                         if(msg_response.Services!=undefined)
-                                                          nServices=msg_response.Services.features.length
-                                                        
-                                                        for (var r = 0; r < nServices; r++) {
-                                                            array[r] = new Array();
-                                                            for (var c = 0; c < 2; c++) {
-                                                                array[r][c] = 0;
-                                                            }
-                                                            delta[r] = 0;
-                                                            sin[r] = 0;
-                                                            cos[r] = 0;
-                                                            sx[r] = 0;
-                                                            dx[r] = 0;
-                                                        }
-                                                        var i = 0;
-                                                        /*
-                                                        if(tipo_categoria == "categorie_t"){
-                                                            if(loading_categories<=1)
-                                                                $('#loading').hide();
-                                                        }
-                                                        else
-                                                            $('#loading').hide();//TODO
-                                                        */
-                                                       $('#loading').hide();//TODO
+                                                          nServices=msg_response.Services.features.length                                                        
+                                                        $('#loading').hide();//TODO
                                                         var msg = {
-                                                                "fullCount": 0,
-                                                                "type": "FeatureCollection",
-                                                                "features": []
+                                                            "fullCount": 0,
+                                                            "type": "FeatureCollection",
+                                                            "features": []
                                                         };
                                                         
                                                         // conversione JSON restituito dalle API a JSON utilizzato in precedenza
@@ -2711,46 +2479,7 @@
                                                         }    
                                                                 
                                                         numTotRisultati = msg.fullCount;
-                                                        if (msg != null && msg.features.length > 0) {
-                                                            var count = 0;
-                                                            for (i = 0; i < msg.features.length; i++) {
-                                                                // Codice che realizza spirale dei marker appartenti alla classe TourismService_Tourist_trail che hanno tutti uguali coordinate
-                                                                if (msg.features[i].properties.serviceType == 'TourismService_Tourist_trail') {
-                                                                    if (count == 0) {
-                                                                        array[0][0] = msg.features[i].geometry.coordinates[0];
-                                                                        array[0][1] = msg.features[i].geometry.coordinates[1];
-                                                                    } else {
-                                                                        for (var k = 0; k < count; k++) {
-                                                                            if ((msg.features[i].geometry.coordinates[0] == array[k][0]) && (msg.features[i].geometry.coordinates[1] == array[k][1])) {
-                                                                                
-                                                                                delta[count] = (fract*count);
-                                                                                sin[count] = Math.sin(delta[count]);
-                                                                                cos[count] = Math.cos(delta[count]);
-                                                                                sx[count] = (sin[count]*passo*dist*count);
-                                                                                dx[count] = (cos[count]*passo*dist*count);;
-                                                                                
-                                                                                //array[count][0] = msg.features[i].geometry.coordinates[0] + (Math.random() - .4) / 1500;
-                                                                                //array[count][1] = msg.features[i].geometry.coordinates[1] + (Math.random() - .4) / 1500;
-                                                                                //msg.features[i].geometry.coordinates[0] = array[count][0];
-                                                                                //msg.features[i].geometry.coordinates[1] = array[count][1];
-                                                                                
-                                                                                array[count][0] = (array[0][0])+sx[count];
-                                                                                array[count][1] = (array[0][1])+dx[count];
-                                                                                msg.features[i].geometry.coordinates[0] = array[count][0];
-                                                                                msg.features[i].geometry.coordinates[1] = array[count][1];
-                                                                            } else {
-                                                                                array[count][0] = msg.features[i].geometry.coordinates[0];
-                                                                                array[count][1] = msg.features[i].geometry.coordinates[1];
-                                                                            }
-
-                                                                        }
-
-                                                                    }
-                                                                    count++;
-                                                                }
-
-                                                            }
-                                                            
+                                                        if (msg != null && msg.features.length > 0) {                                                            
                                                             servicesLayer = L.geoJson(msg, {
                                                                 pointToLayer: function (feature, latlng) {
                                                                     marker = showmarker(feature, latlng);
@@ -2758,21 +2487,8 @@
                                                                 },
                                                                 onEachFeature: function (feature, layer) {
                                                                     // codice per apertura all'avvio di percorsi e aree.
-                                                                    /*if((feature.properties.cordList != "") && ($('#apri_path').attr('checked')) && (feature.properties.serviceType.indexOf('Tourist_trail') == -1)){
-                                                                        Estract_features(feature.properties.cordList, null ,feature.properties.serviceType);
-                                                                    }*/
                                                                     var contenutoPopup = "";
                                                                     var divId = feature.id + "-" + feature.properties.tipo;
-                                                                    // X TEMPI DI CARICAMENTO INFO SCHEDA ALL'APERTURA DEL POPUP LUNGHI, VISUALIZZARE NOME, LOD E TIPOLOGIA DI SERVIZIO
-                                                                    /*if (feature.properties.nome != null && feature.properties.nome != "")
-                                                                     contenutoPopup = "<h3>" + feature.properties.nome + "</h3>";
-                                                                     else {
-                                                                     if (feature.properties.identifier != null && feature.properties.identifier != "")
-                                                                     contenutoPopup = "<h3>" + feature.properties.identifier + "</h3>";
-                                                                     }
-                                                                     contenutoPopup = contenutoPopup + "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
-                                                                     contenutoPopup = contenutoPopup + "<b>Tipologia: </b>" + feature.properties.category +" - "+ feature.properties.subCategory + "<br />";*/
-
                                                                     contenutoPopup = contenutoPopup + "<div id=\"" + divId + "\" ></div>";
                                                                     layer.bindPopup(contenutoPopup);
                                                                     if (feature.properties.serviceType == "TransferServiceAndRenting_BusStop") {
@@ -2873,10 +2589,7 @@
                                                             $("#body").html(JSON.stringify(msg));
                                                         }
                                                         else {
-                                                            
-                                                            
-                                                                $('#loading').hide();//TODO
-                                                            
+                                                            $('#loading').hide();//TODO                                                            
                                                             if (msg != null && msg.PublicTransportLine.features.length > 0) {
                                                                 numLineeBus = msg.PublicTransportLine.features.length;
                                                                 for (i = 0; i < msg.PublicTransportLine.features.length; i++) {
@@ -2886,13 +2599,8 @@
                                                                 }
                                                                 
                                                                 //risultatiRicerca(msg.PublicTransportLine.features.length+numeroServizi, numeroBus, numeroSensori, 1);
-                                                                $('#resultTPL').show();/*
+                                                                $('#resultTPL').show();
                                                                 var template = "{{#features}}" +
-                                                                        "<div class=\"tplItem\" id=\"route_ATAF_{{properties.route}}\" style=\"margin-top:5px; border:1px solid #000; padding:6px; overflow:auto;\" onmouseover=\"selectRoute({{properties.route}})\" onmouseout=\"deselectRoute({{properties.route}})\">\n\
-                                                         <div class=\"tplName\"><b style=\"color:#B500B5;\"><b>TPL Line:</b> {{properties.lineName}}</b></div>" +
-                                                                        "<div class=\"tplDirection\" style=\"float:left; margin-top:7px; display:block; width:85%;\"><b>Direction:</b> {{properties.direction}}<br></div></div>" +
-                                                                        "{{/features}}";*/
-                                                            var template = "{{#features}}" +
                                                                         "<div class=\"tplItem\" id=\"route_ATAF_{{properties.route}}\" style=\"margin-top:5px; border:1px solid #000; padding:6px; overflow:auto;\" onmouseover=\"selectRoute({{properties.routeUri}})\" onmouseout=\"deselectRoute({{properties.routeUri}})\">\n\
                                                                         <div class=\"tplName\"><b style=\"color:#B500B5;\"><b>TPL Line:</b> {{properties.lineName}}</b></div>" +
                                                                         "<div class=\"tplDirection\" style=\"float:left; margin-top:7px; display:block; width:85%;\"><b>Direction:</b> {{properties.direction}}<br></div></div>" +
@@ -2906,10 +2614,6 @@
                                                                     $('#msg').html('');
                                                                     $('#searchOutput').hide();
                                                                 }
-                                                                /*if(numeroServizi == 0){
-                                                                    risultatiRicerca(0, 0, 0, 0);
-                                                                    $(".circle.leaflet-clickable").css({stroke: "#0c0", fill: "#0c0"});
-                                                                }*/
                                                             } else {
                                                                 if (categorie == "PublicTransportLine" || (numeroServizi == 0)) {
                                                                     risultatiRicerca(0, 0, 0, 0, null, 0, 0, 0);
@@ -2918,12 +2622,7 @@
                                                         }
                                                     }
                                                 });
-                                                /*
-                                                if(tipo_categoria == "categorie_t"){
-                                                    loading_categories--;
-                                                }*/
-                                            }
-                                            
+                                            }                                            
                                         }
                                         else {
                                             // caso tutte le fermate oppure ricerca per comune
@@ -2984,69 +2683,9 @@
                                                                  });
                                                                  */
                                                             }
-                                                            var array = new Array();
-                                                             var delta = new Array();
-                                                            var sin = new Array();
-                                                            var cos = new Array();
-                                                            var sx = new Array();
-                                                            var dx = new Array();
-                                                            var fract = 0.523599;
-                                                            var dist = 1.2;
-                                                            var passo = 0.00007;
-                                                        
-                                                            for (var r = 0; r < 10; r++) {
-                                                            array[r] = new Array();
-                                                            for (var c = 0; c < 2; c++) {
-                                                                array[r][c] = 0;
-                                                            }
-                                                                delta[r] = 0;
-                                                                sin[r] = 0;
-                                                                cos[r] = 0;
-                                                                sx[r] = 0;
-                                                                dx[r] = 0;
-                                                            }
 
                                                             $('#loading').hide();
                                                             if (msg.features.length > 0) {
-                                                                var i = 0;
-                                                                var count = 0;
-                                                            for (i = 0; i < msg.features.length; i++) {
-                                                                if (msg.features[i].properties.serviceType == 'TourismService_Tourist_trail') {
-                                                                    if (count == 0) {
-                                                                        array[0][0] = msg.features[i].geometry.coordinates[0];
-                                                                        array[0][1] = msg.features[i].geometry.coordinates[1];
-                                                                    } else {
-                                                                        for (var k = 0; k < count; k++) {
-                                                                            if ((msg.features[i].geometry.coordinates[0] == array[k][0]) && (msg.features[i].geometry.coordinates[1] == array[k][1])) {
-                                                                                delta[count] = (fract*count);
-                                                                                sin[count] = Math.sin(delta[count]);
-                                                                                cos[count] = Math.cos(delta[count]);
-                                                                                sx[count] = (sin[count]*passo*dist*count);
-                                                                                dx[count] = (cos[count]*passo*dist*count);;
-                                                                                
-                                                                                //array[count][0] = msg.features[i].geometry.coordinates[0] + (Math.random() - .4) / 1500;
-                                                                                //array[count][1] = msg.features[i].geometry.coordinates[1] + (Math.random() - .4) / 1500;
-                                                                                //msg.features[i].geometry.coordinates[0] = array[count][0];
-                                                                                //msg.features[i].geometry.coordinates[1] = array[count][1];
-                                                                                
-                                                                                array[count][0] = (array[0][0])+sx[count];
-                                                                                array[count][1] = (array[0][1])+dx[count];
-                                                                                msg.features[i].geometry.coordinates[0] = array[count][0];
-                                                                                msg.features[i].geometry.coordinates[1] = array[count][1];
-                                                                            } else {
-                                                                                array[count][0] = msg.features[i].geometry.coordinates[0];
-                                                                                array[count][1] = msg.features[i].geometry.coordinates[1];
-                                                                            }
-
-                                                                        }
-
-                                                                    }
-                                                                    count++;
-                                                                }
-
-                                                            }
-                                                                
-                                                                
                                                                 servicesLayer = L.geoJson(msg, {
                                                                     pointToLayer: function (feature, latlng) {
                                                                         marker = showmarker(feature, latlng);
@@ -3104,25 +2743,13 @@
                                                                 //if (mode != "embed") {
                                                                 var confiniMappa = servicesLayer.getBounds();
                                                                 map.fitBounds(confiniMappa, {padding: [50, 50]});
-                                                                //}
-                                                                //numeroServizi = numeroServizi;
-                                                                //numeroBus = numeroBus;
-                                                                //numeroSensori = numeroSensori;
-                                                                /*if (msg.features.length < numeroRisultati || numeroRisultati == 0) {
-                                                                 risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 0);
-                                                                 }
-                                                                 else {
-                                                                 risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 0);
-                                                                 }*/
                                                                 if (tipo_categoria == "categorie" || tipo_categoria.indexOf("categorie:") != -1) {
                                                                     risultatiRicerca((numeroServizi + numeroBus + numeroSensori), 0, 0, 1, null, 0, 0, 0);
                                                                 } else {
-                                                                    //risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 2); //DA DECOMMENTARE QUANDO SISTEMATI TRANSVERSE SERVICE
                                                                     risultatiRicerca(numeroServizi, numeroBus, numeroSensori, 1, null, 0, 0, 0);
                                                                 }
                                                             }
                                                             else {
-                                                                //MICHELA: qui Nel caso di BUsStop senza centro mappa NON ci devo arrivare!!!!
                                                                 risultatiRicerca(0, 0, 0, 0, null, 0, 0, 0);
                                                             }
                                                         }
@@ -3135,8 +2762,6 @@
                                                         }
                                                     },
                                                     error: function (request, status, error) {
-
-                                                        //console.log(error);
                                                         if ($("#elencocomuni").val() != 'all') {
                                                             $.ajax({
                                                                 url: "${pageContext.request.contextPath}/ajax/get-weather.jsp",

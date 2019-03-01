@@ -64,6 +64,17 @@ import javax.mail.internet.MimeMessage;
 import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.apache.http.HttpHost;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.document.DocumentField;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.SortOrder;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.openrdf.query.BindingSet;
@@ -1891,7 +1902,7 @@ public class ServiceMap {
             errorLog = new BufferedWriter(fstream);
           }
         }
-        errorLog.write(now + "|" + request.getMethod() + "|" + request.getContextPath() + request.getServletPath() + request.getPathInfo() + "?" + request.getQueryString() + "|" + status + "|" + msg + "|" + extra+"\n");
+        errorLog.write(now + "|" + ServiceMap.getClientIpAddress(request) + "|" + request.getMethod() + "|" + request.getContextPath() + request.getServletPath() + request.getPathInfo() + "?" + request.getQueryString() + "|" + status + "|" + msg + "|" + extra+"\n");
         errorLog.flush();
       } catch (Exception e) {
         ServiceMap.notifyException(e);

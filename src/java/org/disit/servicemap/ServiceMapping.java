@@ -54,6 +54,8 @@ public class ServiceMapping {
   }
   
   public class MappingData {
+    public String serviceType;
+    public int version;
     public String section;
     public String detailsQuery;
     public String attributesQuery;
@@ -63,7 +65,9 @@ public class ServiceMapping {
     public String predictionSqlQuery;
     public String trendSqlQuery;
     
-    public MappingData(String s,String d, String a, String rt, String sqlrt, String solrrt, String p, String pt) {
+    public MappingData(String st, int v, String s,String d, String a, String rt, String sqlrt, String solrrt, String p, String pt) {
+      serviceType = st;
+      version = v;
       section = s;
       detailsQuery = d;
       attributesQuery = a;
@@ -163,7 +167,7 @@ public class ServiceMapping {
         String predictionSqlQuery = rs.getString("servicePredictionSqlQuery");
         String trendSqlQuery = rs.getString("serviceTrendSqlQuery");
         int version = rs.getInt("apiVersion");
-        maps.get(version-1).put(serviceType, new MappingData(section,
+        maps.get(version-1).put(serviceType, new MappingData(serviceType, version, section,
                 detailsQuery, 
                 attributesQuery, 
                 realTimeQuery, 
@@ -199,8 +203,8 @@ public class ServiceMapping {
 
   public String asHtml() {
     String html = "";
-    html+="<table>";
-    html += "<tr><td>Class</td><td>attributes</td><td>details</td><td>RT SOLR</td><td>RT SPARQL</td><td>RT SQL</td></tr>";
+    html+="<table border=\"1\" cellspacing=\"0\">";
+    html += "<tr><th>Class</th><th>Attributes</th><th>details</th><th>RT SOLR</th><th>RT SPARQL</th><th>RT SQL</th></tr>";
     for(String key:maps.get(0).keySet()) {
       MappingData md=maps.get(0).get(key);
       html += "<tr><td>"+key+

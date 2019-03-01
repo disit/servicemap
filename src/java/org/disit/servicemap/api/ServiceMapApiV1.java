@@ -46,8 +46,10 @@ import org.openrdf.query.TupleQueryResult;
 import org.openrdf.repository.RepositoryConnection;
 import java.util.Date;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
@@ -56,6 +58,7 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
@@ -76,9 +79,31 @@ import org.apache.solr.common.SolrDocumentList;
 import org.disit.servicemap.ConnectionPool;
 import org.disit.servicemap.ServiceMapping;
 import org.disit.servicemap.ServiceValuesServlet;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationBuilder;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.AggregatorFactory;
+import org.elasticsearch.search.aggregations.BucketOrder;
+import org.elasticsearch.search.aggregations.PipelineAggregationBuilder;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
+import org.elasticsearch.search.aggregations.pipeline.PipelineAggregator;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
+import org.elasticsearch.search.sort.SortOrder;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
+import org.openrdf.query.Binding;
 import org.openrdf.query.MalformedQueryException;
 import org.openrdf.query.QueryEvaluationException;
 import org.openrdf.repository.RepositoryException;
@@ -425,31 +450,78 @@ public class ServiceMapApiV1 extends ServiceMapApi {
   
   public String queryTplTimeTable(RepositoryConnection con, String stopUri, String agencyName, String code) throws Exception {
     Map<String,String> rtPassages = ServiceMap.getTplRealPassageTimes(agencyName, code);
+    Configuration conf=Configuration.getInstance();
     
     String s = "\"timetable\":";
-    /*String queryString = "prefix dcterms:<http://purl.org/dc/terms/>\n" +
-        "select distinct ?at ?dt ?routeName ?lineName ?lineDesc ?now where {\n" +
-        "{\n" +
-        "?s km4c:hasBusStop [owl:sameAs <"+stopUri+">]\n" +
-        "} UNION {\n" +
-        "?s km4c:hasBusStop <"+stopUri+">\n" +
-        "}\n" +
-        "?r km4c:hasSection ?s.\n" +
-        "?r km4c:hasTplServiceDate ?sd.\n" +
-        "?r dcterms:description ?routeName.\n" +
-        "?sd dcterms:date ?d.\n" +
-        "?s km4c:arrivalTime ?at.\n" +
-        "?s km4c:departureTime ?dt.\n" +
-        "bind(xsd:time(now()) as ?now)\n" +
-        "filter(xsd:date(?d)=xsd:date(now()) && xsd:time(?at)>?now)\n" +
-        "?r km4c:hasPublicTransportLine ?l.\n" +
-        "optional{?l foaf:name ?lineName.}\n" +
-        "?l dcterms:description ?lineDesc.\n" +
-        "} \n" +
-        "order by ?d ?at ";*/
+    
+    Date now = new Date();
+    
+    String timeZoneId = "Europe/Rome";
+    JsonObject agency = getTplAgencyOfStop(con, stopUri);
+    if(agency!=null && agency.has("timeZone"))
+      timeZoneId = agency.get("timeZone").getAsString();
+    
+    TimeZone tz = TimeZone.getTimeZone(timeZoneId);
+    DateFormat dateFormatterDate = new SimpleDateFormat("yyyy-MM-dd");
+    DateFormat dateFormatterTime = new SimpleDateFormat("HH:mm:ss");
+    dateFormatterDate.setTimeZone(tz);
+    dateFormatterTime.setTimeZone(tz);
+
+    String nowDate = dateFormatterDate.format(now);
+    String nowTime = dateFormatterTime.format(now);
+    if(agencyName==null || agencyName.isEmpty()) {
+      agencyName = "none";
+      if(agency!=null && agency.has("agencyName"))
+        agencyName = agency.get("agencyName").getAsString();
+    }
+    
+    ServiceMap.println(agencyName + " now@"+timeZoneId+": "+nowDate+" "+nowTime);
+    Map<String,String> gtfsrtPassages = null;
+    if(conf.get("gtfsRealtime","Helsingin seudun liikenne").contains(agencyName)) {
+      Connection rtcon = ServiceMap.getRTConnection2();
+      //find passage
+      gtfsrtPassages = new HashMap<>();
+      Statement stmt = rtcon.createStatement();
+      stmt.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
+      String gtfsrtTable = conf.get("gtfsRealTimeTable", "gtfsrTripupdate_hel");
+      long ts = System.currentTimeMillis();
+      ResultSet rs = stmt.executeQuery("SELECT tripUri, convert_tz(arrivalTime,'UTC','"+timeZoneId+"') FROM " + gtfsrtTable + " WHERE stopUri='" + stopUri + "' AND arrivalTime>=NOW()");
+      while(rs.next()) {
+        String gtfsTripUri = rs.getString(1);
+        String gtfsRtArrivalTime = rs.getString(2);
+        ServiceMap.println(stopUri+" "+gtfsTripUri+" --> "+gtfsRtArrivalTime);
+        gtfsrtPassages.put(gtfsTripUri, gtfsRtArrivalTime);
+      }
+      ServiceMap.println("GTFSRT checked stop "+stopUri+" time:"+(System.currentTimeMillis()-ts)+"ms");
+      stmt.close();
+      rtcon.close();
+    }
+    Map<String,String> gtfsrtAlerts = null;
+    if(conf.get("gtfsAlerts","Helsingin seudun liikenne").contains(agencyName)) {
+      long ts = System.currentTimeMillis();
+      Connection rtcon = ServiceMap.getRTConnection2();
+      //find active alerts
+      gtfsrtAlerts = new HashMap<>();
+      Statement stmt = rtcon.createStatement();
+      stmt.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
+      String table = conf.get("gtfsAlertsTable", "Bus_hsl_yaml_RT_temp");
+      ResultSet rs = stmt.executeQuery("SELECT tripuri,effect,descren FROM " + table + " where alertstart<=NOW() AND ALERTEND>=NOW()");
+      int na=0;
+      while(rs.next()) {
+        String tripUri = rs.getString(1);
+        String gtfsEffect = rs.getString(2);
+        String gtfsDescrEn = rs.getString(3);
+        gtfsrtAlerts.put(tripUri, "{\"effect\":\""+gtfsEffect+"\",\"description\":\""+gtfsDescrEn+"\"}");
+        na++;
+      }
+      stmt.close();
+      rtcon.close();
+      ServiceMap.println("GTFSALERT nalert:"+na+" time:"+(System.currentTimeMillis()-ts)+"ms");
+    }
+
     String queryString = "prefix dcterms:<http://purl.org/dc/terms/>\n" +
         "prefix gtfs:<http://vocab.gtfs.org/terms#>\n" +
-        "select distinct ?at ?dt ?routeName ?lineName ?lineDesc ?trip ?d ?now (xsd:date(?d)=xsd:date(now()) as ?today) where {\n" +
+        "select distinct ?at ?dt ?routeName ?lineName ?lineDesc ?trip ?d where {\n" +
         "{\n" +
         "?st gtfs:stop [owl:sameAs <"+stopUri+">]\n" +
         "} UNION {\n" +
@@ -458,8 +530,7 @@ public class ServiceMapApiV1 extends ServiceMapApi {
         "?st gtfs:trip ?trip.\n" +
         "?trip gtfs:service ?sd.\n" +
         "?sd dcterms:date ?d.\n" +
-        "bind(xsd:time(now()) as ?now)\n" +
-        "filter((xsd:date(?d)=xsd:date(now()) && str(?at)>str(xsd:time(now())))||(xsd:date(?d)=bif:dateadd(\"day\",1,xsd:date(now())) && str(?at)<str(xsd:time(now()))))\n" +
+        "filter((xsd:date(?d)=xsd:date(\""+nowDate+"\") && str(?at)>str(xsd:time(\""+nowTime+"\")))||(xsd:date(?d)=bif:dateadd(\"day\",1,xsd:date(\""+nowDate+"\")) && str(?at)<str(xsd:time(\""+nowTime+"\"))))\n" +
         "optional{?trip gtfs:headsign ?routeName.}\n" +
         "?st gtfs:arrivalTime ?at.\n" +
         "?st gtfs:departureTime ?dt.\n" +
@@ -473,7 +544,7 @@ public class ServiceMapApiV1 extends ServiceMapApi {
     long ts = System.nanoTime();
     TupleQueryResult result = tupleQuery.evaluate();
     logQuery(queryString, "API-busstop-timetable", "", stopUri, System.nanoTime() - ts);
-    //ServiceMap.println(queryString);
+    ServiceMap.println(queryString);
     try {
       s += "{ \"head\": {"
                 + "\"vars\":[ "
@@ -501,8 +572,6 @@ public class ServiceMapApiV1 extends ServiceMapApi {
           valueOfLineName = JSONObject.escape(bindingSet.getValue("lineName").stringValue());
         String valueOfLineDesc = JSONObject.escape(bindingSet.getValue("lineDesc").stringValue());
         String valueOfTrip = bindingSet.getValue("trip").stringValue();
-        String now = bindingSet.getValue("now").stringValue();
-        String today = bindingSet.getValue("today").stringValue();
         String valueOfDate = bindingSet.getValue("d").stringValue();
 
         String[] dta = fixTPLDateTime(valueOfDate, valueOfArrivalTime);
@@ -520,6 +589,32 @@ public class ServiceMapApiV1 extends ServiceMapApi {
           if(realTime!=null)
             valueOfArrivalTime = realTime;
         }
+        String plannedDate = null;
+        String plannedArrivalTime = null;
+        String plannedDepartureTime = null;
+        if(gtfsrtPassages!=null) {
+          String realArrivalTime = gtfsrtPassages.get(valueOfTrip);
+          if(realArrivalTime!=null) {
+            String[] at = realArrivalTime.split(" ");
+            if(at.length == 2) {
+              ServiceMap.println("GTFSRT stop "+stopUri+" "+valueOfTrip+" --> "+realArrivalTime+"/"+valueOfDate+" "+valueOfArrivalTime);
+              plannedDate = valueOfDate;
+              plannedArrivalTime = valueOfArrivalTime;
+              valueOfDate = at[0];
+              valueOfArrivalTime = at[1].replace(".000", "");
+              if(valueOfDepartureTime.equals(plannedArrivalTime)) {
+                plannedDepartureTime = plannedArrivalTime;
+                valueOfDepartureTime = valueOfArrivalTime;
+              }
+            }
+          }
+        }
+        String alert = null;
+        if(gtfsrtAlerts!=null) {
+          alert = gtfsrtAlerts.get(valueOfTrip);
+          if(alert==null)
+            alert = "{}";
+        }
         //ServiceMap.println("--- "+valueOfArrivalTime+" "+now);
         //per bug virtuoso verifica che effetivamente l'ora sia successiva alla data attuale
         //ServiceMap.println("date: "+valueOfDate+" today:"+today);
@@ -527,34 +622,39 @@ public class ServiceMapApiV1 extends ServiceMapApi {
           if(i>0)
             s += ",";
           s += "{"
-                  + "\"date\": {"
-                  + "\"type\": \"literal\","
-                  + "\"value\": \"" + valueOfDate + "\" "
-                  + " },"
-                  + "\"arrivalTime\": {"
-                  + "\"type\": \"literal\","
-                  + "\"value\": \"" + valueOfArrivalTime + "\" "
-                  + " },"
-                  + "\"departureTime\": {"
-                  + "\"type\": \"literal\","
-                  + "\"value\": \"" + valueOfDepartureTime + "\" "
-                  + " },"
-                  + "\"lineName\": { "
-                  + "\"type\": \"literal\","
-                  + "\"value\": \"" + valueOfLineName + "\" "
-                  + " },"
-                  + "\"lineDesc\": {"
-                  + "\"type\": \"literal\","
-                  + "\"value\": \"" + valueOfLineDesc + "\" "
-                  + " },"
-                  + "\"routeName\": {"
-                  + "\"type\": \"literal\","
-                  + "\"value\": \"" + valueOfRouteName + "\" "
-                  + " },"
-                  + "\"trip\": {"
-                  + "\"type\": \"uri\","
-                  + "\"value\": \"" + valueOfTrip + "\" "
-                  + "}}";
+                  + "\"date\":{"
+                  + "\"type\":\"literal\","
+                  + "\"value\":\"" + valueOfDate + "\""
+                  + (plannedDate!=null ? ",\"planned\":\""+plannedDate+"\"":"")
+                  + "},"
+                  + "\"arrivalTime\":{"
+                  + "\"type\":\"literal\","
+                  + "\"value\":\"" + valueOfArrivalTime + "\""
+                  + (plannedArrivalTime!=null ? ",\"planned\": \""+plannedArrivalTime+"\"":"")
+                  + "},"
+                  + "\"departureTime\":{"
+                  + "\"type\":\"literal\","
+                  + "\"value\":\"" + valueOfDepartureTime + "\""
+                  + (plannedDepartureTime!=null ? ",\"planned\": \""+plannedDepartureTime+"\"":"")
+                  + "},"
+                  + "\"lineName\":{ "
+                  + "\"type\":\"literal\","
+                  + "\"value\":\"" + valueOfLineName + "\" "
+                  + "},"
+                  + "\"lineDesc\":{"
+                  + "\"type\":\"literal\","
+                  + "\"value\":\"" + valueOfLineDesc + "\" "
+                  + "},"
+                  + "\"routeName\":{"
+                  + "\"type\":\"literal\","
+                  + "\"value\":\"" + valueOfRouteName + "\" "
+                  + "},"
+                  + "\"trip\":{"
+                  + "\"type\":\"uri\","
+                  + "\"value\":\"" + valueOfTrip + "\" "
+                  + "}"
+                  + (alert!=null ? ",\"alert\":"+alert+"" : "")
+                  + "}";
           i++;
         //}
       }
@@ -581,6 +681,33 @@ public class ServiceMapApiV1 extends ServiceMapApi {
       c.add(Calendar.DATE, 1);  // number of days to add
       r[0] = sdf.format(c.getTime());  // dt is now the new date
       return r;
+    }
+    return null;
+  }
+  
+  public JsonObject getTplAgencyOfStop(RepositoryConnection con, String stopUri) throws Exception {
+    String queryString = "prefix dcterms:<http://purl.org/dc/terms/>\n" +
+        "prefix gtfs:<http://vocab.gtfs.org/terms#>\n" +
+        "select distinct ?agencyUri ?agencyName ?timeZone ?fareUrl where {\n" +
+        " <"+stopUri+"> gtfs:agency ?agencyUri.\n" +
+        " ?agencyUri foaf:name ?agencyName. \n"+
+        " optional { ?agencyUri gtfs:timeZone ?timeZone. }\n"+
+        " optional { ?agencyUri gtfs:fareUrl ?fareUrl.} \n" +
+        "}";
+
+    TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, queryString);
+    long ts = System.nanoTime();
+    TupleQueryResult result = tupleQuery.evaluate();
+    logQuery(queryString, "API-busstop-agency", "", stopUri, System.nanoTime() - ts);
+    ServiceMap.println(queryString);
+    if (result.hasNext()) {
+      BindingSet bindingSet = result.next();
+
+      JsonObject a=new JsonObject();
+      for(Binding b : bindingSet) {
+        a.addProperty(b.getName(),b.getValue().stringValue());
+      }
+      return a;
     }
     return null;
   }
@@ -2300,6 +2427,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     int i = 0;
     ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, serviceTypes);
     if(md==null || (md.detailsQuery==null)) {
+      ServiceMap.println("querySerice: no mapping or no details query");
       String queryService = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
               + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
               + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
@@ -2548,6 +2676,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       }
       out.println("] }");
     } else {
+        ServiceMap.println("queryService: using mapping "+md.serviceType);
         String detailsQuery = md.detailsQuery;
         if(detailsQuery==null) {
           throw new Exception("Missing details query for "+serviceUri);
@@ -2823,7 +2952,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         } else if(md!=null && md.realTimeSparqlQuery!=null && md.realTimeSolrQuery==null) {
           realTimeSparqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, fromTime, limit, conf, con, sparqlType, out, rtData);
         } else if(md!=null && md.realTimeSolrQuery!=null) {
-          realTimeSolrQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, limit, out, rtData);
+          if(md.realTimeSolrQuery.equals("true") || md.realTimeSolrQuery.equals("solr"))
+            realTimeSolrQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, toTime, limit, out, rtData);
+          else if(md.realTimeSolrQuery.equals("elasticsearch"))
+            realTimeElasticSearchQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, toTime, limit, out, rtData);
         }
       }
     }
@@ -2842,7 +2974,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     return r;
   }
 
-  private void realTimeSolrQuery(Configuration conf, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, int limit, JspWriter out, JsonArray rtData) throws SolrServerException, IOException {
+  private void realTimeSolrQuery(Configuration conf, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, String toTime, int limit, JspWriter out, JsonArray rtData) throws SolrServerException, IOException {
     //get RT data from SOLR
     String urlString = conf.get("solrIoTIndexUrl", "http://192.168.0.12:8983/solr/sensors-ETL-IOTv3");
     SolrClient solr = new HttpSolrClient(urlString);
@@ -2851,8 +2983,15 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     String q = "serviceUri:\""+serviceUri+"\"";
     ServiceMap.println(q);
     SolrQuery query = new SolrQuery(q);
-    if(fromTime!=null) {
-      String fq = "date_time:["+fromTime+"Z TO *]";
+    if(fromTime!=null || toTime!=null) {
+      String fq = null;
+      String tz = "Z";
+      if(fromTime!=null && toTime==null)
+        fq = "date_time:["+fromTime+tz+" TO *]";
+      else if(fromTime==null && toTime!=null)
+        fq = "date_time:[* TO "+toTime+tz+"]";
+      else
+        fq = "date_time:["+fromTime+tz+" TO "+toTime+tz+"]";
       query.addFilterQuery(fq);
       ServiceMap.println(fq);
     }
@@ -2907,8 +3046,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         String u = (String)d.getFieldValue("value_unit");
         
         //su solr l'ora è memorizzata come se fosse GMT quindi va tolto l'offset da GMT
-        //int offset=TimeZone.getDefault().getOffset(dt.getTime());
-        //dt.setTime(dt.getTime()-offset);
+        int offset=TimeZone.getDefault().getOffset(dt.getTime());
+        dt.setTime(dt.getTime()-offset);
         
         //ServiceMap.println(ServiceMap.dateFormatterTZ.format(dt)+" "+mt+" "+value+" "+u);
         if(cdt==null || cdt.equals(dt)) {
@@ -2932,7 +3071,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           rt.addProperty("measuredTime", measuredTime);
           c=1;
         }
-        out.print("  \""+mt+"\":{\"value\":\""+value+"\",\"unit\":\""+u+"\"}");
+        out.print("  \""+mt+"\":{\"value\":\""+value+"\"}");
         rt.addProperty(mt.toString(),value.toString());
       }
       rtData.add(rt);
@@ -2943,6 +3082,120 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     solr.shutdown();
   }
 
+  private void realTimeElasticSearchQuery(Configuration conf, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, String toTime, int limit, JspWriter out, JsonArray rtData) throws SolrServerException, IOException, ParseException {
+    //get RT data from SOLR
+    String[] hosts = conf.get("elasticSearchHosts", "192.168.1.53,192.168.1.54,192.168.1.56,192.168.1.57").split(",");
+    int port = Integer.parseInt(conf.get("elasticSearchPort", "9200"));
+    String index = conf.get("elasticSearchIndex", "sensorinew");
+    
+    HttpHost[] httpHosts = new HttpHost[hosts.length];
+    for(int i=0; i<hosts.length; i++)
+      httpHosts[i] = new HttpHost(hosts[i],port, "http");
+    RestHighLevelClient client = new RestHighLevelClient(RestClient.builder(httpHosts));
+    
+    String q = "serviceUri:\""+serviceUri+"\"";
+    
+    if(fromTime!=null || toTime!=null) {
+      String fq = null;
+      String tz = "Z";
+      if(fromTime!=null && toTime==null)
+        fq = "date_time:["+fromTime+tz+" TO *]";
+      else if(fromTime==null && toTime!=null)
+        fq = "date_time:[* TO "+toTime+tz+"]";
+      else
+        fq = "date_time:["+fromTime+tz+" TO "+toTime+tz+"]";
+      q += " AND "+fq;
+    }
+    
+    SearchRequest sr = new SearchRequest();
+    SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder(); 
+    searchSourceBuilder.query(QueryBuilders.boolQuery().must(
+            QueryBuilders.queryStringQuery(q)
+    )).sort("date_time", SortOrder.DESC)
+      .sort("value_name.keyword", SortOrder.ASC)
+      .aggregation(AggregationBuilders.terms("value_name").field("value_name.keyword").size(100).order(BucketOrder.key(true)))
+      .size(fromTime == null ? (rtAttributes.entrySet().size()+1) * limit : 10000); 
+    sr.source(searchSourceBuilder);
+    sr.indices(index);
+    
+    long ts = System.currentTimeMillis();
+    SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
+    SearchHit[] hits = r.getHits().getHits();
+    long nfound=r.getHits().getTotalHits();
+    ServiceMap.println("elasticsearch query "+serviceUri+" from:"+fromTime+" to:"+toTime+" : "+(System.currentTimeMillis()-ts)+"ms");
+    
+    out.println(",\"realtime\": ");
+    if(nfound==0) {
+      out.println("{}");
+    } else {
+      out.print("{ \"head\": {\n"
+              + " \"vars\":[ \"measuredTime\"");
+      Terms agg = r.getAggregations().get("value_name");
+
+      for (Terms.Bucket entry : agg.getBuckets()) {
+        //System.out.println(" "+entry.getKey()+" "+entry.getDocCount());
+        if(entry.getDocCount()>0)
+          out.print(",\""+entry.getKey()+"\"");
+      }
+      out.println("]},");
+      
+      out.println(" \"results\": {");
+      out.println(" \"bindings\": [");
+      
+      int c=0;
+      Date cdt = null;
+      JsonObject rt = new JsonObject();
+      for(SearchHit h:hits) { 
+        Map<String, Object> d = h.getSourceAsMap();
+
+        String dts = (String)d.get("date_time");
+        Object vn = d.get("value_name");
+        Object value = d.get("value");
+        //ServiceMap.println("value:"+value);
+        if(value==null) {
+          value = d.get("value_str");
+          //ServiceMap.println("value_str:"+value);
+        }
+        
+        //su solr l'ora è memorizzata come se fosse GMT quindi va tolto l'offset da GMT
+        Date dt;
+        dt = ServiceMap.dateFormatterTZ.parse(dts);
+        int offset=TimeZone.getDefault().getOffset(dt.getTime());
+        dt.setTime(dt.getTime()-offset);
+        
+        //ServiceMap.println(ServiceMap.dateFormatterTZ.format(dt)+" "+mt+" "+value+" "+u);
+        if(cdt==null || cdt.equals(dt)) {
+          if(c==0) {
+            String measuredTime = ServiceMap.dateFormatterTZ.format(dt);
+            out.print("  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
+            rt.addProperty("measuredTime", measuredTime);
+          }
+          else
+            out.print(",");
+          c++;
+          cdt=dt;
+        } else {
+          if(fromTime==null && rtData.size()>=limit-1) //prende i primi valori
+            break;
+          cdt = dt;
+          rtData.add(rt);
+          rt = new JsonObject();
+          String measuredTime = ServiceMap.dateFormatterTZ.format(dt);
+          out.print("},  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
+          rt.addProperty("measuredTime", measuredTime);
+          c=1;
+        }
+        out.print("  \""+vn+"\":{\"value\":\""+value+"\"}");
+        rt.addProperty(vn.toString(),value.toString());
+      }
+      rtData.add(rt);
+      if(c!=0)
+        out.println(" }");
+      out.println("]}}");
+    }
+    client.close();    
+  }
+  
   private Connection timeTrendQuery(ServiceMapping.MappingData md, String serviceUri, JspWriter out, Connection rtCon, Configuration conf) throws NumberFormatException, Exception, IOException, SQLException {
     long ts = System.currentTimeMillis();
     String query = md.trendSqlQuery;
@@ -3247,7 +3500,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             + "PREFIX schema:<http://schema.org/>"
             + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>"
             + "PREFIX dcterms:<http://purl.org/dc/terms/>"
-            + "SELECT ?elat ?elong ?name1 ?name2 ?note ?description1 ?description2 ?website ?address ?number ?prov ?city ?startDate ?endDate ?startTime ?categ1 ?categ2 WHERE{"
+            + "SELECT ?elat ?elong ?name1 ?name2 ?note ?description1 ?description2 ?website ?address ?number ?prov ?city ?startDate ?endDate ?startTime ?categ1 ?categ2 ?multimedia WHERE{"
             + " {"
             + "  <" + idService + "> km4c:hasAccess ?entry ."
             + "  ?entry geo:lat ?elat;"
@@ -3277,6 +3530,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             + " OPTIONAL {<" + idService + "> schema:price ?price}"
             + " OPTIONAL {<" + idService + "> km4c:eventCategory ?categ1"
             + "  OPTIONAL {<" + idService + "> km4c:eventCategory ?categ2 FILTER(?categ2!=?categ1)}}"
+            + " OPTIONAL {<" + idService + "> km4c:multimediaResource ?multimedia}"
             //+ "   OPTIONAL {<" + idService + "> schema:email ?email } . "
             + "}LIMIT 1";
 
@@ -3354,6 +3608,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       if (bindingSetService.getValue("categ2") != null) {
         valueOfCateg2 = bindingSetService.getValue("categ2").stringValue();
       }
+      String valueOfMultimedia = "";
+      if (bindingSetService.getValue("multimedia") != null) {
+        valueOfMultimedia = bindingSetService.getValue("multimedia").stringValue();
+      }
 
       NOS = valueOfName;
 
@@ -3392,6 +3650,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + "    \"endDate\": \"" + escapeJSON(valueOfEndDate) + "\", "
               + "    \"eventCategory\": \"" + escapeJSON(valueOfCateg1) + "\", "
               + "    \"eventCategory2\": \"" + escapeJSON(valueOfCateg2) + "\", "
+              + "    \"multimedia\": \"" + escapeJSON(valueOfMultimedia) + "\", "
               + "    \"photos\": " + ServiceMap.getServicePhotos(idService) + ",\n"
               + "    \"photoThumbs\": " + ServiceMap.getServicePhotos(idService,"thumbs") + ",\n"
               + "    \"photoOrigs\": " + ServiceMap.getServicePhotos(idService,"originals") + ",\n"
@@ -3407,7 +3666,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     out.println("] }}");
   }
 
-  public int queryEventList(JspWriter out, RepositoryConnection con, String range, String[] coords, String dist, String numEv, String textFilter, boolean photos) throws Exception {
+  public int queryEventList(JspWriter out, RepositoryConnection con, String range, String[] coords, String dist, String numEv, String textFilter, String lang, boolean photos) throws Exception {
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "virtuoso");
     String km4cVersion = conf.get("km4cVersion", "new");
@@ -3437,6 +3696,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     }
     args += range + ";" + dist + ";" + numEv + ";" + textFilter;
 
+    if(lang==null)
+      lang = conf.get("eventsLang", "it");
+    if(lang.equals("any"))
+      lang = null;
     String queryEvList = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
             + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
             + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
@@ -3445,7 +3708,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             + "PREFIX schema:<http://schema.org/> \n"
             + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#> \n"
             + "PREFIX dcterms:<http://purl.org/dc/terms/> \n"
-            + "SELECT DISTINCT ?ev ?elat ?elong  ?nameIta ?place (substr(str(?sDate), 1,10) AS ?startDate)  (substr(str(?eDate), 1,10) AS ?endDate) ?time ?cost ?identifier ?catIta ?civic ?address ?price ?website ?phone ?descIta ?x WHERE{\n"
+            + "SELECT DISTINCT ?ev ?elat ?elong  ?nameLang ?place (substr(str(?sDate), 1,10) AS ?startDate)  (substr(str(?eDate), 1,10) AS ?endDate) ?time ?cost ?identifier ?catLang ?catEng ?civic ?address ?price ?website ?phone ?descLang ?descEng ?multimedia ?x WHERE{\n"
             /*+ " {"
              + "  <" + idService + "> km4c:hasAccess ?entry ."
              + "  ?entry geo:lat ?elat;"
@@ -3461,7 +3724,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             + ServiceMap.geoSearchQueryFragment("?ev", coords, dist)
             + " ?ev geo:lat ?elat; \n"
             + "   geo:long ?elong. \n"
-            + " ?ev schema:name ?nameIta. FILTER(LANG(?nameIta)= \"it\") \n"
+            + " ?ev schema:name ?nameLang. "+ (lang!=null ? "FILTER(LANG(?nameLang)= \""+lang+"\")\n" : "\n")
             + " ?ev km4c:placeName ?place. \n"
             + " ?ev schema:startDate ?sDate. FILTER (?sDate <= \"" + data_inizio + "\"^^xsd:date). \n"
             //+ " OPTIONAL {"
@@ -3469,13 +3732,16 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             //+ " } \n"
             + " OPTIONAL {?ev km4c:eventTime ?time.} \n"
             + " OPTIONAL {?ev km4c:freeEvent ?cost.} \n"
-            + " OPTIONAL {?ev km4c:eventCategory ?catIta. FILTER(LANG(?catIta)= \"it\")} \n"
+            + " OPTIONAL {?ev km4c:eventCategory ?catLang. "+(lang!=null ? "FILTER(LANG(?catLang)= \""+lang+"\")" : "") + "}\n"
+            + " OPTIONAL {?ev km4c:eventCategory ?catEng. FILTER(LANG(?catEng)= \"en\")}\n"
             + " OPTIONAL {?ev km4c:houseNumber ?civic.} \n"
             + " OPTIONAL {?ev schema:streetAddress ?address.} \n"
             + " OPTIONAL {?ev schema:price ?price.} \n"
-            + " OPTIONAL {?ev schema:description ?descIta. FILTER(LANG(?descIta)= \"it\")} \n"
+            + " OPTIONAL {?ev schema:description ?descLang. "+ (lang!=null ? "FILTER(LANG(?descLang)= \""+lang+"\")" : "") + "}\n"
+            + " OPTIONAL {?ev schema:description ?descEng. FILTER(LANG(?descEng)= \"en\")}\n"
             + " OPTIONAL {?ev schema:url ?website.} \n"
             + " OPTIONAL {?ev schema:telephone ?phone.} \n"
+            + " OPTIONAL {?ev km4c:multimediaResource ?multimedia.} \n"
             + "} ORDER BY asc(?sDate)";
 
     if (numEventi != null && !numEventi.equals("0")) {
@@ -3495,8 +3761,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     while (resultEvList.hasNext()) {
       BindingSet bindingSetEvList = resultEvList.next();
       String valueOfName = "";
-      if (bindingSetEvList.getValue("nameIta") != null) {
-        valueOfName = bindingSetEvList.getValue("nameIta").stringValue();
+      if (bindingSetEvList.getValue("nameLang") != null) {
+        valueOfName = bindingSetEvList.getValue("nameLang").stringValue();
       }
 
       //if(i == 1){
@@ -3549,21 +3815,31 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         valueOfCivic = bindingSetEvList.getValue("civic").stringValue();
       }
 
-      String valueOfCatIta = "";
-      if (bindingSetEvList.getValue("catIta") != null) {
-        valueOfCatIta = bindingSetEvList.getValue("catIta").stringValue();
+      String valueOfCatLang = "";
+      if (bindingSetEvList.getValue("catLang") != null) {
+        valueOfCatLang = bindingSetEvList.getValue("catLang").stringValue();
       }
 
+      String valueOfCatEng = "";
+      if (bindingSetEvList.getValue("catEng") != null) {
+        valueOfCatEng = bindingSetEvList.getValue("catEng").stringValue();
+      }
+      
       String valueOfPrice = "";
       if (bindingSetEvList.getValue("price") != null) {
         valueOfPrice = bindingSetEvList.getValue("price").stringValue();
       }
 
-      String valueOfDescIta = "";
-      if (bindingSetEvList.getValue("descIta") != null) {
-        valueOfDescIta = bindingSetEvList.getValue("descIta").stringValue();
+      String valueOfDescLang = "";
+      if (bindingSetEvList.getValue("descLang") != null) {
+        valueOfDescLang = bindingSetEvList.getValue("descLang").stringValue();
       }
 
+      String valueOfDescEng = "";
+      if (bindingSetEvList.getValue("descEng") != null) {
+        valueOfDescEng = bindingSetEvList.getValue("descEng").stringValue();
+      }
+      
       String valueOfWebsite = "";
       if (bindingSetEvList.getValue("website") != null) {
         valueOfWebsite = bindingSetEvList.getValue("website").stringValue();
@@ -3574,7 +3850,16 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         valueOfPhone = bindingSetEvList.getValue("phone").stringValue();
       }
 
+      String valueOfMultimedia = "";
+      if (bindingSetEvList.getValue("multimedia") != null) {
+        valueOfMultimedia = bindingSetEvList.getValue("multimedia").stringValue();
+      }
+      
       String serviceType = "Event";
+      String llang = "";
+      if(lang!=null) {
+        llang=lang.toUpperCase();
+      }
 
       /*Normalizer.normalize(valueOfNote, Normalizer.Form.NFD).replaceAll("[^\\p{ASCII}]", "");
        valueOfNote = valueOfNote.replaceAll("[^A-Za-z0-9 \\.,:;]+", "");*/
@@ -3613,11 +3898,14 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 + "    \"freeEvent\": \"" + escapeJSON(valueOfCost) + "\",\n"
                 + "    \"address\": \"" + escapeJSON(valueOfAddress) + "\",\n"
                 + "    \"civic\": \"" + escapeJSON(valueOfCivic) + "\",\n"
-                + "    \"categoryIT\": \"" + escapeJSON(valueOfCatIta) + "\",\n"
+                + "    \"categoryEN\": \"" + escapeJSON(valueOfCatEng) + "\",\n"
+                + (!llang.equals("EN") ? "    \"category"+llang+"\": \"" + escapeJSON(valueOfCatLang) + "\",\n" : "")
                 + "    \"price\": \"" + escapeJSON(valueOfPrice) + "\",\n"
                 + "    \"phone\": \"" + escapeJSON(valueOfPhone) + "\",\n"
-                + "    \"descriptionIT\": \"" + escapeJSON(valueOfDescIta) + "\",\n"
+                + "    \"descriptionEN\": \"" + escapeJSON(valueOfDescEng) + "\",\n"
+                + (!llang.equals("EN") ? "    \"description"+llang+"\": \"" + escapeJSON(valueOfDescLang) + "\",\n" : "")
                 + "    \"website\": \"" + escapeJSON(valueOfWebsite) + "\",\n"
+                + "    \"multimedia\": \"" + escapeJSON(valueOfMultimedia) + "\",\n"
                 + (photos ? "    \"photoThumbs\": " + ServiceMap.getServicePhotos(valueOfIdentifier,"thumbs") + ",\n" : "")
                 + "    \"serviceType\": \"" + serviceType + "\"\n"
                 + "}, "
@@ -4606,7 +4894,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       String[] latLng = selection.split(";");
       queryForAgencies = "select distinct ?ag ?name {\n" +
             "{\n" +
-            "select ?ag max(?lat) as ?mxlat min(?lat) as ?mnlat max(?lng) as ?mxlng min(?lng) as ?mnlng {\n" +
+            "select ?ag (str(max(?lat)) as ?mxlat) (str(min(?lat)) as ?mnlat) (str(max(?lng)) as ?mxlng) (str(min(?lng)) as ?mnlng) {\n" +
             "?s a gtfs:Stop.\n" +
             "?s gtfs:agency ?ag.\n" +
             "?s geo:lat ?lat.\n" +

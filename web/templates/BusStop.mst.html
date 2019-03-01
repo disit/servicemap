@@ -51,9 +51,9 @@ table.dataTable thead th, table.dataTable thead td {
                 <tbody>
                     <!--{{#bindings}} -->
                     <tr>
-                        <td>{{departureTime.value}} {{date.value}}</td>
+                        <td> <span {{#arrivalTime.planned}}style="font-weight:bold;color:red;cursor:pointer;" title="planned {{arrivalTime.planned}}"{{/arrivalTime.planned}}> {{arrivalTime.value}}</span> {{date.value}}</td>
                         <td onclick="showLinea( {{lineName.value}},'D' )" >{{#lineName}}{{#value}}{{value}}{{/value}}{{^value}}{{#lineDesc}}{{#value}}{{value}}{{/value}}{{/lineDesc}}{{/value}}{{/lineName}}</td>
-                        <td>{{#routeName.value}}{{routeName.value}}{{/routeName.value}}{{^routeName.value}}{{#lineDesc.value}}{{lineDesc.value}}{{/lineDesc.value}}{{/routeName.value}}</td>
+                        <td><span {{#alert.effect}}style="font-weight:bold;color:red;cursor:pointer;" title="{{alert.effect}} {{alert.description}}"{{/alert.effect}}>{{#routeName.value}}{{routeName.value}}{{/routeName.value}}{{^routeName.value}}{{#lineDesc.value}}{{lineDesc.value}}{{/lineDesc.value}}{{/routeName.value}}</span></td>
                     </tr>
                     <!-- {{/bindings}} -->
                 </tbody>
