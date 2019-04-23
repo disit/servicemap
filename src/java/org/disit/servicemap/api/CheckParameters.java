@@ -17,6 +17,7 @@
 package org.disit.servicemap.api;
 
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import org.disit.servicemap.ServiceMap;
 
 public class CheckParameters {
@@ -123,9 +124,13 @@ public class CheckParameters {
   
   public static String checkDatetime(String dateTime) {
       try {
-        ServiceMap.dateFormatter.parse(dateTime);
+        new SimpleDateFormat(ServiceMap.dateFormatT).parse(dateTime);
       } catch(ParseException e) {
-        return "invalid date time string "+e.getMessage();
+        try {
+          new SimpleDateFormat(ServiceMap.dateFormatTmin).parse(dateTime);
+        } catch(ParseException ex) {
+          return "invalid date time string "+e.getMessage(); 
+        }        
       }
     return null;
   }

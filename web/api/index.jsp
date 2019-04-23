@@ -255,7 +255,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       //get data of a single service
       int i = 0;
       ServiceMap.logAccess(request, null, null, null, idService, "api-service-info", null, null, queryId, null, "json", uid, reqFrom);
-      ArrayList<String> serviceTypes = ServiceMap.getTypes(con, idService);
+      ArrayList<String> serviceTypes = ServiceMap.getTypes(con, idService, null);
       if(serviceTypes.size()==0) {
         response.sendError(400, "no type found for "+idService);
       }

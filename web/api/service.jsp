@@ -41,18 +41,22 @@
   String idService = request.getParameter("serviceUri");
   String ip = ServiceMap.getClientIpAddress(request);
   String ua = request.getHeader("User-Agent");
-  //ServiceMap.println("MIC-----------------  "+idService);
-  ServiceMap.logAccess(request, null, null, null, idService, "ui-service-info", null, null, null, null, null, null, null);
+  String apikey = (String)request.getSession().getAttribute("apikey");
 
   String queryString = "";
   String filtroQuery = "";
   int i = 0;
   long s = System.nanoTime();
 
-  List<String> types = ServiceMap.getTypes(con, idService);
+  List<String> types = ServiceMap.getTypes(con, idService, apikey);
   //for(int x=0; x<types.size(); x++)
   //  ServiceMap.println(idService+" types: "+types.get(x));
+  if(types.size()==0) {
+    response.sendError(400, "no type found for "+idService);
+    return;
+  }
   
+  ServiceMap.logAccess(request, null, null, null, idService, "ui-service-info", null, null, null, null, null, null, null);
   try {
     //se esiste un mapping per un tipo associato al servizio usa le API altrimenti ritorna al vecchio codice
     ServiceMapping.MappingData serviceMapping = ServiceMapping.getInstance().getMappingForServiceType(1, types);

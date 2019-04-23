@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.ServiceMap"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
 <%@ page trimDirectiveWhitespaces="true" %>
 <%

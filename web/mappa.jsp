@@ -59,7 +59,7 @@
         <script src="${pageContext.request.contextPath}/js/wicket.js"></script>
         <script src="${pageContext.request.contextPath}/js/wicket-leaflet.js"></script>
         <!--  CARICAMENTO DEL FILE utility.js CON FUNZIONI NECESSARIE  -->
-        <script type="text/javascript" charset="utf-8" src="${pageContext.request.contextPath}/js/utility.js"></script>
+        <script type="text/javascript" charset="utf-8" src="${pageContext.request.contextPath}/js/utility.js?force=a"></script>
         <script type="text/javascript" src="${pageContext.request.contextPath}/js/pathsearch.js"></script>
         <script type="text/javascript" src="${pageContext.request.contextPath}/js/save_embed.js"></script>
 
@@ -146,6 +146,9 @@
             </div>
         </div>
         <%
+            if(request.getParameter("apikey")!=null) {
+              request.getSession().setAttribute("apikey",request.getParameter("apikey"));
+            }
             Connection conMySQL = null;
             Statement st = null;
             ResultSet rs = null;
@@ -472,7 +475,7 @@
                                 <option value="1">1 km</option>
                                 <option value="2">2 km</option>
                                 <option value="5">5 km</option>
-                                <option value="area">visible area</option>
+                                <option value="area" selected="selected">visible area</option>
                                 <option value="geo">specific area</option>
                                 <option value="inside">inside</option>
                             </select><br />
@@ -638,6 +641,8 @@
                                 <br/>
                                 <input type="checkbox" name="near-noise_level_sensor" value="Noise_level_sensor"  class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_Noise_level_sensor.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">Noise_level_sensor</span>
                                 <br/>
+                                <input type="checkbox" name="near-people_counter" value="People_counter"  class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_People_counter.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">People_counter</span>
+                                <br/>
                                 <input type="checkbox" name="near-smart-bench" value="Smart_bench"  class="macrocategory" id="Entertainment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Entertainment_Smart_bench.png' height='23' width='20' align='top'/> <span class="Entertainment macrocategory-label">Smart_bench</span>
                                 <br/>
                                 <input type="checkbox" name="near-first-aid" value="First_aid"  class="macrocategory" id="Emergency" /> <img src='${pageContext.request.contextPath}/img/mapicons/Emergency_First_aid.png' height='23' width='20' align='top'/> <span class="Emergency macrocategory-label">First_aid</span>
@@ -667,7 +672,7 @@
                                 <option value="1">1 km</option>
                                 <option value="2">2 km</option>
                                 <option value="5">5 km</option>
-                                <option value="area">visible areas</option>
+                                <option value="area" selected="selected">visible areas</option>
                             </select>
                             <hr />
                             <div class="menu" id="serviceSearch">

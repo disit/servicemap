@@ -525,7 +525,7 @@ public class TplLocation {
 		}
 		data.close();
     long se = System.nanoTime();
-    ServiceMap.println("tpllocation "+tripUri+" "+t+" q: "+(se-ss)/1000000+"ms");
+    ServiceMap.performance("tpllocation "+tripUri+" "+t+" q: "+(se-ss)/1000000+"ms");
 
 		// check arrival times
 		lstArrTime = checkArrTime(lstArrTime);

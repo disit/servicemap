@@ -31,6 +31,7 @@
     ServiceMap.logError(request, response, 400, "missing source or destination parameters");
     return;
   }
+  String apikey = request.getParameter("apikey");
   
   String routeType = request.getParameter("routeType");
   if(routeType!=null && !"foot_shortest".equals(routeType) && 
@@ -73,29 +74,34 @@
     response.addHeader("Access-Control-Allow-Origin", "*");
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
-    String srcLatLng[] = ServiceMap.parsePosition(source);
-    String dstLatLng[] = ServiceMap.parsePosition(destination);
+    String srcLatLng[] = ServiceMap.parsePosition(source, apikey);
+    String dstLatLng[] = ServiceMap.parsePosition(destination, apikey);
     //check if it could be an OSM node id
     if(srcLatLng==null || dstLatLng==null) {
-      Pattern pattern = Pattern.compile("(OS0*)?([1-9]+[0-9]*)(NO)?");
-      Matcher matcher = pattern.matcher(source);
-      if (matcher.find())
-      {
-        srcLatLng = new String[]{matcher.group(2)};
+      Pattern pattern = Pattern.compile("^(OS0*)?([1-9]+[0-9]*)(NO)?$");
+      if(srcLatLng == null) {
+        Matcher matcher = pattern.matcher(source);
+        if (matcher.find())
+        {
+          srcLatLng = new String[]{matcher.group(2)};
+        } else {
+          ServiceMap.logError(request, response, 400, "wrong source parameter");
+          return;
+        }
       }
-      matcher = pattern.matcher(destination);
-      if (matcher.find())
-      {
-        dstLatLng = new String[]{matcher.group(2)};
-      }
-
-      if(srcLatLng==null || dstLatLng==null) {
-        ServiceMap.logError(request, response, 400, "wrong source or destination parameters");
-        return;
+      if(dstLatLng == null) {
+        Matcher matcher = pattern.matcher(destination);
+        if (matcher.find())
+        {
+          dstLatLng = new String[]{matcher.group(2)};
+        } else {
+          ServiceMap.logError(request, response, 400, "wrong destination parameter");
+          return;
+        }
       }
     }
+    
     RepositoryConnection con = ServiceMap.getSparqlConnection();
-
     try {
       serviceMapApi.makeShortestPath(out, con, srcLatLng, dstLatLng, startDatetime, routeType, maxFeetKM);
     }catch(IllegalArgumentException e) {

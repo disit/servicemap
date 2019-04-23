@@ -21,5 +21,5 @@ package org.disit.servicemap.api;
  * @author bellini
  */
 public interface SparqlQuery {
-  String query(String type) throws Exception;
+  String query(String type, String geoMode) throws Exception;
 }
