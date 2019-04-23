@@ -48,12 +48,13 @@
     String textToSearch = request.getParameter("search");
     String limit = request.getParameter("limit");
     textToSearch = unescapeUri(textToSearch);
+    String apikey = (String) request.getSession().getAttribute("apikey");
     
    
     ServiceMap.logAccess(request, null, null, null, null, "ui-text-search", limit, null, null, textToSearch, null, null, null);
 
     try {
-        serviceMapApi.queryFulltext(out, con, textToSearch, null, null, limit, "it", false);
+        serviceMapApi.queryFulltext(out, con, textToSearch, null, null, limit, "it", false, apikey);
     } catch (Exception e) {
         out.println(e.getMessage());
     }finally{

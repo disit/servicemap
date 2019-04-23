@@ -809,11 +809,18 @@ function createContenutoPopup(feature, div, id) {
         if (feature.properties.tipo != "Road") {
             contenutoPopup = "<div class=\"description\"><h3>" + feature.properties.name + "</h3></div>";
         }
-        contenutoPopup = contenutoPopup + "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
+        var name = feature.properties.serviceUri.substring("http://www.disit.org/km4city/resource/".length);
+        contenutoPopup += "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
+        contenutoPopup += "<b><span name=\"lbl\" caption=\"name\">Name</span>:</b> " + name + "<br />";
         var tipologia = feature.properties.tipologia;
-        if(tipologia==undefined)
-          tipologia = feature.properties.serviceType.replace("_"," - ");
-        contenutoPopup = contenutoPopup + "<b><span name=\"lbl\" caption=\"tipology\">Tipology</span>:</b> " + tipologia + "<br />";
+        var serviceType = feature.properties.serviceType;
+        if(tipologia===undefined)
+          tipologia = serviceType.replace("_"," - ");
+        var nature = serviceType.substr(0, serviceType.indexOf('_'));
+        var subnature = serviceType.substr(serviceType.indexOf('_')+1);
+        //contenutoPopup = contenutoPopup + "<b><span name=\"lbl\" caption=\"tipology\">Tipology</span>:</b> " + tipologia + "<br />";
+        contenutoPopup += "<b><span name=\"lbl\" caption=\"nature\">Nature</span>:</b> " + nature + "<br />";
+        contenutoPopup += "<b><span name=\"lbl\" caption=\"subnature\">Subnature</span>:</b> " + subnature + "<br />";
         if (feature.properties.digitalLocation != "" && feature.properties.digitalLocation)
             contenutoPopup = contenutoPopup + "<span style='border:1px solid #E87530; padding:2px;'><b>Digital Location</b></span><br />";
         if (feature.properties.email != "" && feature.properties.email)
@@ -1198,8 +1205,7 @@ function showmarker(feature, latlng, mType) {
     }
     
     
-    if (serviceType != "bus_real_time") {
-        
+    if (serviceType != "bus_real_time") {        
         var icon = L.icon({
             iconUrl: ctx + '/img/mapicons/' + serviceIcon + '.png',
             iconRetinaUrl: ctx + '/img/mapicons/' + serviceIcon + '.png',
@@ -1235,7 +1241,7 @@ function showmarker(feature, latlng, mType) {
                 e.target.setIcon(defIcon)
             }
         });
-        
+        oms.addMarker(marker);
     }
     else {
         var icon = L.icon({
@@ -1248,7 +1254,6 @@ function showmarker(feature, latlng, mType) {
         });
         marker = L.marker(latlng, {icon: icon, title: serviceType + " - " + feature.properties.vehicleNum + " - " + feature.properties.line, riseOnHover: true});
     }
-    oms.addMarker(marker);
     return marker;
 }
 
@@ -1370,6 +1375,7 @@ function nascondiRisultati() {
 var circle = $('.leaflet-overlay-pane').children('path');
 //Function che mostra gli autobur RT
 var currentBusRT = null;
+var callingBusRT = false;
 function mostraAutobusRT(zoom, agency, line) {
     if (($('.leaflet-marker-icon.busRT.leaflet-zoom-animated.leaflet-clickable.selected').length) == 0) {
         $('#selezione').html("No selection");
@@ -1390,56 +1396,64 @@ function mostraAutobusRT(zoom, agency, line) {
     }
     if(currentBusRT!=null)
       clearTimeout(currentBusRT);
-    $.ajax({
-        url: ctx + "/ajax/json/get-autobusRT.jsp",
-        type: "GET",
-        async: true,
-        dataType: 'json',
-        data: {
-          agency: agency,
-          line: line
-        },
-        success: function (msg) {
-
-            $('#loading').hide();
-            //if(zoom!=undefined)
-              $('.leaflet-marker-icon.busRT').remove();
-            //else
-            //  $('.leaflet-marker-icon.busRT').not(".selected").remove();
-            if (msg.features.length > 0) {
-                servicesLayer = L.geoJson(msg, {
-                    pointToLayer: function (feature, latlng) {
-                        marker = showmarker(feature, latlng);
-                        return marker;
-                    },
-                    onEachFeature: function (feature, layer) {
-                        var contenutoPopup = "";
-                        contenutoPopup = contenutoPopup + "<div class=\"popup_autobusRT\" >";
-                        contenutoPopup = contenutoPopup + "<h3> TPL REAL TIME </h3>";
-                        if (feature.properties.vehicleNum != "" && feature.properties.vehicleNum)
-                            contenutoPopup = contenutoPopup + "<b>Vehicle Number: </b> " + feature.properties.vehicleNum + "<br />";
-                        if (feature.properties.line != "" && feature.properties.line)
-                            contenutoPopup = contenutoPopup + "<b>Line: </b> " + feature.properties.line + "<br />";
-                        if (feature.properties.direction != "" && feature.properties.direction)
-                            contenutoPopup = contenutoPopup + "<b>Direction: </b> " + feature.properties.direction + "<br />";
-                        if (feature.properties.agency != "" && feature.properties.agency)
-                            contenutoPopup = contenutoPopup + "<b>Agency: </b> " + feature.properties.agency + "<br />";
-                        if (feature.properties.detectionTime != "" && feature.properties.detectionTime)
-                            contenutoPopup = contenutoPopup + "<b>Info: </b> position acquired " + feature.properties.detectionTime + "min. ago.<br />";
-                        layer.bindPopup(contenutoPopup);
-                    },
-                    filter: function (feature, layer) {
-                        var coords = feature.geometry.coordinates;
-                        return (coords[0] != -1 || coords[1] != -1);
-                    }
-                });
-                servicesLayer.addTo(map);
-                if (zoom != undefined) {
-                    var confiniMappa = servicesLayer.getBounds();
-                    map.fitBounds(confiniMappa, {padding: [25, 25]});
-                }
-            }
-        }});
+    if(!callingBusRT) {
+      callingBusRT = true;
+      $.ajax({
+          url: ctx + "/ajax/json/get-autobusRT.jsp",
+          type: "GET",
+          async: true,
+          dataType: 'json',
+          data: {
+            agency: agency,
+            line: line
+          },
+          success: function (msg) {
+              callingBusRT = false;
+              $('#loading').hide();
+              //if(zoom!=undefined)
+                $('.leaflet-marker-icon.busRT').remove();
+              //else
+              //  $('.leaflet-marker-icon.busRT').not(".selected").remove();
+              if (msg.features.length > 0) {
+                  servicesLayer = L.geoJson(msg, {
+                      pointToLayer: function (feature, latlng) {
+                          marker = showmarker(feature, latlng);
+                          return marker;
+                      },
+                      onEachFeature: function (feature, layer) {
+                          var contenutoPopup = "";
+                          contenutoPopup = contenutoPopup + "<div class=\"popup_autobusRT\" >";
+                          contenutoPopup = contenutoPopup + "<h3> TPL REAL TIME </h3>";
+                          if (feature.properties.vehicleNum != "" && feature.properties.vehicleNum)
+                              contenutoPopup = contenutoPopup + "<b>Vehicle Number: </b> " + feature.properties.vehicleNum + "<br />";
+                          if (feature.properties.line != "" && feature.properties.line)
+                              contenutoPopup = contenutoPopup + "<b>Line: </b> " + feature.properties.line + "<br />";
+                          if (feature.properties.direction != "" && feature.properties.direction)
+                              contenutoPopup = contenutoPopup + "<b>Direction: </b> " + feature.properties.direction + "<br />";
+                          if (feature.properties.agency != "" && feature.properties.agency)
+                              contenutoPopup = contenutoPopup + "<b>Agency: </b> " + feature.properties.agency + "<br />";
+                          if (feature.properties.detectionTime != "" && feature.properties.detectionTime)
+                              contenutoPopup = contenutoPopup + "<b>Info: </b> position acquired " + feature.properties.detectionTime + "min. ago.<br />";
+                          layer.bindPopup(contenutoPopup);
+                      },
+                      filter: function (feature, layer) {
+                          var coords = feature.geometry.coordinates;
+                          return (coords[0] != -1 || coords[1] != -1);
+                      }
+                  });
+                  servicesLayer.addTo(map);
+                  if (zoom != undefined) {
+                      var confiniMappa = servicesLayer.getBounds();
+                      map.fitBounds(confiniMappa, {padding: [25, 25]});
+                  }
+              }
+          },
+          error: function(e) {
+            callingBusRT = false;
+            console.log(e);
+          }
+      });
+    }
     currentBusRT = setTimeout(function(){ mostraAutobusRT(undefined,agency,line)}, !line ? 60000 : 5000);
 }
 
@@ -2379,7 +2393,7 @@ function mostraRealTimeData(divInfo, realtime) {
   }
   html = "<div class=\"sensori\"><table>";
   if(realtime.results.bindings.length==1) {
-    html += "<tr><td><b>Property</b></td><td><b>Value</b></td></tr>";
+    html += "<tr><td><b>Property/Value Type</b></td><td><b>Value</b></td></tr>";
     $.each( realtime.results.bindings[0], function( key, v ) {
       if(key == "measuredTime" || key == "instantTime")
         time = v.value;

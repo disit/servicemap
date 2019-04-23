@@ -141,6 +141,7 @@ public class ServiceValuesServlet extends HttpServlet {
       ServiceMap.logError(request, response, 400, "invalid object: missing serviceUris array");
       return false;
     }
+    String apikey = request.getParameter("apikey");
     RepositoryConnection con = ServiceMap.getSparqlConnection();
     try {
       for (JsonElement s : serviceUris.getAsJsonArray()) {
@@ -148,7 +149,7 @@ public class ServiceValuesServlet extends HttpServlet {
           ServiceMap.logError(request, response, 400, "invalid object: serviceUri not valid");
           return false;
         }
-        ArrayList<String> types = ServiceMap.getTypes(con, s.getAsString());
+        ArrayList<String> types = ServiceMap.getTypes(con, s.getAsString(), apikey);
         if (types.isEmpty()) {
           ServiceMap.logError(request, response, 400, "invalid object: serviceUri not not found " + s);
           return false;
@@ -291,7 +292,7 @@ public class ServiceValuesServlet extends HttpServlet {
     RepositoryConnection con = ServiceMap.getSparqlConnection();
     SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
     try {
-      ArrayList<String> types = ServiceMap.getTypes(con, serviceUri.getAsString());
+      ArrayList<String> types = ServiceMap.getTypes(con, serviceUri.getAsString(), request.getParameter("apikey"));
       if (types.isEmpty()) {
         ServiceMap.logError(request, response, 400, "invalid object: serviceUri not not found " + serviceUri.getAsString());
         return false;
@@ -393,7 +394,7 @@ public class ServiceValuesServlet extends HttpServlet {
     }
     RepositoryConnection con = ServiceMap.getSparqlConnection();
     try {
-      ArrayList<String> types = ServiceMap.getTypes(con, serviceUri.getAsString());
+      ArrayList<String> types = ServiceMap.getTypes(con, serviceUri.getAsString(), request.getParameter("apikey"));
       if (types.isEmpty()) {
         ServiceMap.logError(request, response, 400, "invalid object: serviceUri not found " + serviceUri.getAsString());
         return false;
@@ -505,7 +506,7 @@ public class ServiceValuesServlet extends HttpServlet {
         else if(d[1].equals("minute"))
           n=n*60;
         java.util.Date from=new java.util.Date(new java.util.Date().getTime()-n*1000);
-        fromTime=ServiceMap.dateFormatter.format(from).replace(" ", "T");
+        fromTime=new SimpleDateFormat(ServiceMap.dateFormat).format(from).replace(" ", "T");
       }
       else if(!fromTime.matches("^\\d\\d\\d\\d-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d$")) {
         ServiceMap.logError(request, response, 400, "invalid 'fromTime' parameter, expected n-day,n-hour,n-minute or yyyy-mm-ddThh:mm:ss");
@@ -517,7 +518,7 @@ public class ServiceValuesServlet extends HttpServlet {
       RepositoryConnection con = ServiceMap.getSparqlConnection();
       try {
         //get type of service
-        ArrayList<String> types = ServiceMap.getTypes(con, serviceUri);
+        ArrayList<String> types = ServiceMap.getTypes(con, serviceUri, request.getParameter("apikey"));
         if(types.isEmpty()) {
           ServiceMap.logError(request, response, 400, "serviceUri not found");
           return;          
@@ -682,7 +683,7 @@ public class ServiceValuesServlet extends HttpServlet {
     if(limit!=null) {
       lmt = " LIMIT "+limit;
     }
-    String query = "SELECT \"value\",valueDate AS \"valueDate\",valueAcqDate AS \"valueAcqDate\" FROM ServiceDataValues WHERE serviceUri='"+serviceUri+"' AND valueName='"+valueName+"' "+fromToTime+" ORDER BY valueDate DESC "+lmt;
+    String query = "SELECT \"value\", convert_tz(valueDate,'UTC','CET') AS \"valueDate\", convert_tz(valueAcqDate,'UTC','CET') AS \"valueAcqDate\" FROM ServiceDataValues WHERE serviceUri='"+serviceUri+"' AND valueName='"+valueName+"' "+fromToTime+" ORDER BY valueDate DESC "+lmt;
     ServiceMap.println(query);
     ResultSet rs = s.executeQuery(query);
     int nCols = rs.getMetaData().getColumnCount();
@@ -701,7 +702,7 @@ public class ServiceValuesServlet extends HttpServlet {
             value = "";
           rt.addProperty(v, value);
         }
-      } else {
+      } else { //SPARQL
         JsonObject v = new JsonObject();
         v.addProperty("value", rs.getString(1));
         rt.add(valueName, v);
@@ -804,7 +805,7 @@ public class ServiceValuesServlet extends HttpServlet {
         }
       }
       rtCon.close();
-      ServiceMap.println("phoenix time realtime: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri+" from:"+fromTime);
+      ServiceMap.performance("phoenix time realtime: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri+" from:"+fromTime);
     } catch(Exception e) {
       ServiceMap.notifyException(e);
     }
@@ -889,7 +890,7 @@ public class ServiceValuesServlet extends HttpServlet {
         }
       }
       rtCon.close();
-      ServiceMap.println("phoenix time realtime: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri+" from:"+fromTime);
+      ServiceMap.performance("phoenix time realtime: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri+" from:"+fromTime);
     } catch(Exception e) {
       ServiceMap.notifyException(e);
     }

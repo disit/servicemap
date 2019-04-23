@@ -105,8 +105,9 @@
         
     ServiceMap.logAccess(request, null, centroRicerca, categorie, null, "ui-services-by-gps", numeroRisultatiServizi, raggioServizi, null, textFilter, null, null, null);
 
+    String apiKey = (String)request.getSession().getAttribute("apikey");
     try {
-      serviceMapApi.queryLatLngServices(out, con, coord, categorie, textFilter,raggioServizi,raggioServizi,raggioServizi,numeroRisultatiServizi,numeroRisultatiServizi,numeroRisultatiServizi,null, cat_servizi, false, inside, true, fullCount, value_type, graphUri);
+      serviceMapApi.queryLatLngServices(out, con, coord, categorie, textFilter,raggioServizi,raggioServizi,raggioServizi,numeroRisultatiServizi,numeroRisultatiServizi,numeroRisultatiServizi,null, cat_servizi, false, inside, true, fullCount, value_type, graphUri, apiKey);
     } catch (Exception e) {
         ServiceMap.notifyException(e, HttpUtils.getRequestURL(request).append("?").append(request.getQueryString()).toString());
     }finally{con.close() ;}

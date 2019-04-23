@@ -44,11 +44,12 @@
   String ip = ServiceMap.getClientIpAddress(request);
   String ua = request.getHeader("User-Agent");
   String reqFrom = request.getParameter("requestFrom");
+  String apikey = request.getParameter("apikey");
   if(! ServiceMap.checkIP(ip, "api")) {
     ServiceMap.logError(request, response, 403,"API calls daily limit reached");
     return;
   }      
 
-  serviceMapApi.queryLastContribution(out, n, lang);
+  serviceMapApi.queryLastContribution(out, n, lang, apikey);
   ServiceMap.logAccess(request, null, null, null, "", "api-last-feedback", null, null, null, "", null, uid, reqFrom);
 %>

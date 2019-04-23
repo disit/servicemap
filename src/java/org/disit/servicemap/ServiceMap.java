@@ -32,6 +32,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.sql.*;
 import java.text.DateFormat;
@@ -65,6 +66,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.http.HttpHost;
+import org.disit.servicemap.api.SparqlQuery;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -78,12 +80,16 @@ import org.elasticsearch.search.sort.SortOrder;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.openrdf.query.BindingSet;
+import org.openrdf.query.MalformedQueryException;
+import org.openrdf.query.QueryEvaluationException;
 import org.openrdf.query.QueryLanguage;
 import org.openrdf.query.TupleQuery;
 import org.openrdf.query.TupleQueryResult;
 import org.openrdf.repository.RepositoryConnection;
 import org.openrdf.repository.Repository;
+import org.openrdf.repository.RepositoryException;
 import org.openrdf.repository.sparql.SPARQLRepository;
+import virtuoso.jdbc4.VirtuosoException;
 import virtuoso.sesame2.driver.VirtuosoRepository;
 
 /**
@@ -95,18 +101,19 @@ public class ServiceMap {
   static private List<String> stopWords = null;
   
   static private Map<String,String> photosAvailable = null; 
+  static private long photoAvailableCacheExpiry = 0;
   
   static private BufferedWriter accessLog = null;
   static private BufferedWriter errorLog = null;
   
   static private Map<String,String> icons = null; 
 
-  static public DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-  
-  static public DateFormat dateFormatterTZ = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
-  static public DateFormat dateFormatterTZ2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX");
-  
-  static public DateFormat dateFormatterGMT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
+  static public String dateFormatT = "yyyy-MM-dd'T'HH:mm:ss";
+  static public String dateFormatTmin = "yyyy-MM-dd'T'HH:mm";
+  static public String dateFormat = "yyyy-MM-dd HH:mm:ss";
+  static public String dateFormatTZ = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
+  static public String dateFormatTZ2 = "yyyy-MM-dd'T'HH:mm:ssXXX";  
+  static public String dateFormatGMT = "yyyy-MM-dd'T'HH:mm:ssZ";
 
   static private Map<String,String> tplAgencies = null;
   
@@ -150,7 +157,7 @@ public class ServiceMap {
         BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
         bufferWritter.write(("#QUERYID|"+id+"|"+type+"|"+args+"|"+(time/1000000)+"|"+formattedDate+"|"+query+"\n#####################\n").replace("\n", "\r\n"));
         bufferWritter.close();
-        ServiceMap.println("#QUERYID:"+id+":"+type+":"+args+":"+(time/1000000));
+        ServiceMap.performance("#QUERYID:"+id+":"+type+":"+args+":"+(time/1000000));
         //ServiceMap.println(query);
       }
     }
@@ -222,7 +229,7 @@ public class ServiceMap {
         st.executeUpdate();
         st.close();
         conMySQL.close();
-        ServiceMap.println("mysql log time: " + (System.currentTimeMillis() - tss));
+        ServiceMap.performance("mysql log time: " + (System.currentTimeMillis() - tss));
       } catch (Exception e) {
         ServiceMap.notifyException(e);
       }
@@ -261,7 +268,7 @@ public class ServiceMap {
             stmt.close();
             con.commit();
             con.close();
-            ServiceMap.println("phoenix log time: " + (System.currentTimeMillis() - ts));
+            ServiceMap.performance("phoenix log time: " + (System.currentTimeMillis() - ts));
           } catch (Exception e) {
             ServiceMap.notifyException(e);
           }
@@ -405,21 +412,30 @@ public class ServiceMap {
     return "";
   }
   
-  static public ArrayList<String> getTypes(RepositoryConnection con, String uri) {
-    return ServiceMap.getTypes(con, uri, true);
+  static public ArrayList<String> getTypes(RepositoryConnection con, String uri, String apiKey) throws Exception {
+    return ServiceMap.getTypes(con, uri, true, apiKey);
   }
   
-  static public ArrayList<String> getTypes(RepositoryConnection con, String uri, boolean inference) {
+  static public ArrayList<String> getTypes(RepositoryConnection con, String uri, boolean inference, String apiKey) throws Exception {
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "");
+    
+    if(!uri.contains("%")) {
+      final String schema = uri.substring(0, uri.indexOf(':'));
+      URI suri = new URI(schema, uri.substring(schema.length()+1), null);
+      uri = suri.toASCIIString();
+    }
     
     String queryString
             = "PREFIX km4c:<http://www.disit.org/km4city/schema#>"
             + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>"
             + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>"
             + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>"
-            + "SELECT DISTINCT ?type WHERE{"
+            + "SELECT DISTINCT ?type\n"
+            + ServiceMap.graphAccessQueryFragment2(apiKey)
+            + "WHERE{"
             + " <" + uri + "> rdf:type ?type"+(sparqlType.equals("virtuoso") && inference ? " OPTION (inference \"urn:ontology\")":"")+".\n"
+            + ServiceMap.graphAccessQueryFragment("<"+uri+">", apiKey)
             + "}";
 
     ArrayList<String> types=new ArrayList<String>();
@@ -466,7 +482,7 @@ public class ServiceMap {
       String mCats[] = {"Accommodation", "Advertising", "AgricultureAndLivestock", "CivilAndEdilEngineering", "CulturalActivity", "EducationAndResearch", "Emergency", "Environment", "Entertainment", "FinancialService",
         "GovernmentOffice", "HealthCare", "IndustryAndManufacturing", "MiningAndQuarrying", "ShoppingAndService", "TourismService", "TransferServiceAndRenting", "UtilitiesAndSupply", "Wholesale", "WineAndFood","IoTDevice"};
       List<String> macroCats=Arrays.asList(mCats); //TODO prendere da query e fare caching
-      int n=0;
+      int n=0;      
       for(String c:listaCategorie) {
         //FIX temporaneo
         c = c.trim().replace(" ", "_");
@@ -603,6 +619,10 @@ public class ServiceMap {
   }
   
   static public String geoSearchQueryFragment(String subj, String[] coords, String dist) throws IOException, SQLException {
+    return geoSearchQueryFragment(subj, coords, dist, null);
+  }
+  
+  static public String geoSearchQueryFragment(String subj, String[] coords, String dist, String geoMode) throws IOException, SQLException {
     if (coords==null || (!coords[0].startsWith("wkt:") && !coords[0].startsWith("geo:") && coords.length!=2 && coords.length!=4) || dist == null ) {
       return "";
     }
@@ -637,14 +657,14 @@ public class ServiceMap {
     
     if(coords.length==2) {
       if(sparqlType.equals("virtuoso")) {
-        if(conf.get("geometrySearchType", "distance").equalsIgnoreCase("distance")) {
+        if((geoMode==null && conf.get("geometrySearchType", "distance").equalsIgnoreCase("distance")) || "distance".equals(geoMode)) {
           if(conf.get("forcePointCheck","false").equals("true")) //in alcuni casi fallisce st_distance
-          return //IF(bif:GeometryType(?geo)=\"POINT\",...,100)
+            return //IF(bif:GeometryType(?geo)=\"POINT\",...,100)
                " " + subj + " geo:geometry ?geo.  filter(IF(bif:GeometryType(?geo)=\"POINT\",bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")),100)<= " + dist + ")\n"
               //"  " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+dist+"))\n"
               + " BIND(IF(bif:GeometryType(?geo)=\"POINT\",bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")),100) AS ?dist)\n";
-        else
-          return " " + subj + " geo:geometry ?geo.  filter(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + "))<= " + dist + ")\n"
+          else
+            return " " + subj + " geo:geometry ?geo.  filter(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + "))<= " + dist + ")\n"
               //"  " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+dist+"))\n"
               + " BIND(bif:st_distance(?geo, bif:st_point (" + lng + "," + lat + ")) AS ?dist)\n";
         } else {          
@@ -658,7 +678,7 @@ public class ServiceMap {
     String lat2 = coords[2];
     String lng2 = coords[3];
     if(sparqlType.equals("virtuoso")) {
-      if(conf.get("geometrySearchType", "distance").equalsIgnoreCase("distance")) {
+      if((geoMode==null && conf.get("geometrySearchType", "distance").equalsIgnoreCase("distance")) || "distance".equals(geoMode)) {
         return " " + subj + " geo:geometry ?geo.  filter(bif:st_x(?geo)>=" + lng + " && bif:st_x(?geo)<=" + lng2 + " && bif:st_y(?geo)>=" + lat + " && bif:st_y(?geo)<=" + lat2 + ")\n"
             + " BIND(bif:st_distance(?geo, bif:st_point (" + (Float.parseFloat(lng)+Float.parseFloat(lng2))/2. + "," + (Float.parseFloat(lat)+Float.parseFloat(lat2))/2. + ")) AS ?dist)\n";
             //"  ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+dist+"))\n" :
@@ -739,9 +759,9 @@ public class ServiceMap {
         lastTime = last.get("instantTime").getAsString();
       
       try {
-        lastDate = ServiceMap.dateFormatterTZ.parse(lastTime);
+        lastDate = new SimpleDateFormat(ServiceMap.dateFormatTZ).parse(lastTime);
       } catch(ParseException e) {
-        lastDate = ServiceMap.dateFormatterTZ2.parse(lastTime);
+        lastDate = new SimpleDateFormat(ServiceMap.dateFormatTZ2).parse(lastTime);
       }
       ServiceMap.println("health: "+lastDate+" now: "+now+" diff:"+(lastDate!=null ? (now.getTime()-lastDate.getTime())/1000 : -1)+"s");
     } else {
@@ -765,6 +785,16 @@ public class ServiceMap {
       
       // check refresh_rate
       if(lastDate!=null) {
+        //check if it is a custom attribute and have an own datetime
+        JsonElement lastValue = last.get(name);
+        if(lastValue!=null && lastValue.isJsonObject() && lastValue.getAsJsonObject().get("valueAcqDate")!=null) {
+          String lastTime = lastValue.getAsJsonObject().get("valueAcqDate").getAsString();
+          try {
+            lastDate = new SimpleDateFormat(ServiceMap.dateFormatTZ).parse(lastTime);
+          } catch(ParseException ex) {
+            lastDate = new SimpleDateFormat(ServiceMap.dateFormatTZ2).parse(lastTime);
+          }
+        }
         long delay = (now.getTime()-lastDate.getTime())/1000;
         long defaultRefreshRate = Integer.parseInt(conf.get("defaultRefreshRate","-1"));
         h.addProperty("delay", delay);
@@ -778,10 +808,13 @@ public class ServiceMap {
           healthy = false;
           reason = "too old data "+delay+">="+refreshRate+" and delay>="+defaultRefreshRate;
         }
+      } else {
+        healthy = false;
+        reason = "NO RT data";
       }
       
       // check value bounds
-      if(last!=null && e.getValue().getAsJsonObject().get("value_bounds")!=null && !e.getValue().getAsJsonObject().get("value_bounds").isJsonNull()) {
+      if(healthy && last!=null && e.getValue().getAsJsonObject().get("value_bounds")!=null && !e.getValue().getAsJsonObject().get("value_bounds").isJsonNull()) {
         try {
           String[] valueBounds = e.getValue().getAsJsonObject().get("value_bounds").getAsString().split(";");
           if(valueBounds.length == 2) {
@@ -808,7 +841,7 @@ public class ServiceMap {
       }
       
       //check different values
-      if(last!=null && e.getValue().getAsJsonObject().get("different_values")!=null && !e.getValue().getAsJsonObject().get("different_values").isJsonNull()) {
+      if(healthy && last!=null && e.getValue().getAsJsonObject().get("different_values")!=null && !e.getValue().getAsJsonObject().get("different_values").isJsonNull()) {
         try {
           int nvalues = Integer.parseInt(e.getValue().getAsJsonObject().get("different_values").getAsString());
           if(nvalues>1 && nvalues <= rtData.size()) {
@@ -856,7 +889,20 @@ public class ServiceMap {
     TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
     long ts = System.currentTimeMillis();
     TupleQueryResult result = tupleQuery.evaluate();
-    ServiceMap.println("SPARQL count time:"+(System.currentTimeMillis()-ts));
+    ServiceMap.performance("SPARQL count time:"+(System.currentTimeMillis()-ts));
+    if(result.hasNext()) {
+      BindingSet binding = result.next();
+      String count = binding.getValue("count").stringValue();
+      return Integer.parseInt(count);
+    }
+    return 0;
+  }
+  
+  static public int countQuery(RepositoryConnection con, SparqlQuery query) throws Exception {
+    //return -1;
+    long ts = System.currentTimeMillis();
+    TupleQueryResult result = geoSparqlQuery(con, query, "count", null, null);
+    ServiceMap.performance("SPARQL count time:"+(System.currentTimeMillis()-ts));
     if(result.hasNext()) {
       BindingSet binding = result.next();
       String count = binding.getValue("count").stringValue();
@@ -866,25 +912,29 @@ public class ServiceMap {
   }
   
   static public boolean sendEmail(String dest, String subject, String msg, String mimeType) {
+    return sendEmail(dest, subject, msg, mimeType, "");
+  }
+  
+  static public boolean sendEmail(String dest, String subject, String msg, String mimeType, String smtpPrefix) {
     boolean emailSent;
     String to[] = dest.split(";");
     Properties properties = System.getProperties();
     Configuration conf=Configuration.getInstance();
-    properties.put("mail.smtp.host", conf.get("smtp", "musicnetwork.dsi.unifi.it"));
-    properties.put("mail.smtp.port", conf.get("portSmtp","25"));
-    String auth = conf.get("authSmtp","false");
+    properties.put("mail.smtp.host", conf.get(smtpPrefix+"smtp", "musicnetwork.dsi.unifi.it"));
+    properties.put("mail.smtp.port", conf.get(smtpPrefix+"portSmtp","25"));
+    String auth = conf.get(smtpPrefix+"authSmtp","false");
     if(auth.equals("true")) {
       properties.put("mail.smtp.auth", auth);
-      String authType = conf.get("authTypeSmtp","TLS");
+      String authType = conf.get(smtpPrefix+"authTypeSmtp","TLS");
       if(authType.equals("TLS"))
         properties.put("mail.smtp.starttls.enable", "true");
       else if(authType.equals("SSL")) {
-        properties.put("mail.smtp.socketFactory.port", conf.get("portSmtp","465"));
+        properties.put("mail.smtp.socketFactory.port", conf.get(smtpPrefix+"portSmtp","465"));
         properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
       }
     }
-    final String user = conf.get("userSmtp", null);
-    final String passwd = conf.get("passwdSmtp", "");
+    final String user = conf.get(smtpPrefix+"userSmtp", null);
+    final String passwd = conf.get(smtpPrefix+"passwdSmtp", "");
     Session mailSession = Session.getDefaultInstance(properties);
     if(user!=null && !user.trim().isEmpty()) {
       properties.setProperty("mail.user", user);
@@ -907,7 +957,7 @@ public class ServiceMap {
       Transport.send(message);
       emailSent = true;
     } catch (MessagingException mex) {
-      ServiceMap.notifyException(mex);
+      mex.printStackTrace();
       emailSent = false;
     }        
     return emailSent;
@@ -942,7 +992,7 @@ public class ServiceMap {
     return serviceId;
   }
   
-  static public Map<String,String> getServiceInfo(String idService, String lang) throws Exception {
+  static public Map<String,String> getServiceInfo(String idService, String lang, String apikey) throws Exception {
     Map<String,String> info = new HashMap<>();
     RepositoryConnection con = ServiceMap.getSparqlConnection();
     String queryService = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
@@ -954,7 +1004,9 @@ public class ServiceMap {
             + "PREFIX dcterms:<http://purl.org/dc/terms/>\n"
             + "PREFIX opengis:<http://www.opengis.net/ont/geosparql#>\n"
             + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>\n"
-            + "SELECT ?name ?lat ?long ?type ?category ?typeLabel ?ag ?agname WHERE{\n"
+            + "SELECT ?name ?lat ?long ?type ?category ?typeLabel ?ag ?agname\n"
+            + ServiceMap.graphAccessQueryFragment2(apikey)
+            + "WHERE{\n"
             + " {\n"
             + "  <" + idService + "> km4c:hasAccess ?entry.\n"
             + "  ?entry geo:lat ?lat.\n"
@@ -970,6 +1022,7 @@ public class ServiceMap {
             + " {<" + idService + "> schema:name ?name.}UNION{<" + idService + "> foaf:name ?name.}UNION{<" + idService + "> dcterms:identifier ?name.}\n"
             + " <" + idService + "> a ?type . FILTER(?type!=km4c:RegularService && ?type!=km4c:Service && ?type!=km4c:DigitalLocation)\n"
             + " ?type rdfs:label ?typeLabel. FILTER(LANG(?typeLabel) = \""+lang+"\")\n"
+            + ServiceMap.graphAccessQueryFragment("<" + idService + ">", apikey)
             + " OPTIONAL{?type rdfs:subClassOf ?category FILTER(STRSTARTS(STR(?category),\"http://www.disit.org/km4city/schema#\"))}.\n"
             + " OPTIONAL {\n"
             + "  {?st gtfs:stop <"+idService+">.}UNION{?st gtfs:stop [owl:sameAs <"+idService+">]}\n" 
@@ -1150,7 +1203,7 @@ public class ServiceMap {
 
   static public String getServicePhotos(String uri, String type) throws IOException,SQLException {
     synchronized(ServiceMap.class) {
-      if(photosAvailable == null) {
+      if(photosAvailable == null || photoAvailableCacheExpiry <= System.currentTimeMillis()) {
         photosAvailable = new HashMap<>();
         Connection connection = ConnectionPool.getConnection();
         PreparedStatement st = connection.prepareStatement("SELECT DISTINCT serviceUri FROM ServicePhoto WHERE status='validated'");
@@ -1160,6 +1213,7 @@ public class ServiceMap {
         }
         st.close();
         connection.close();
+        photoAvailableCacheExpiry = System.currentTimeMillis() + Integer.parseInt(Configuration.getInstance().get("photoCacheDurationMin", "10"))*1000*60;
       }
     }
     if(photosAvailable!= null && !photosAvailable.containsKey(uri)) {
@@ -1267,11 +1321,12 @@ public class ServiceMap {
     if (categorie != null && !"".equals(categorie)) {
       String[] arrayCategorie = categorie.split(";");
       categorie = "";
+      Pattern x = Pattern.compile("[a-zA-Z0-9_]+");
       for(int i=0; i<arrayCategorie.length; i++) {
         String v = arrayCategorie[i].trim();
         if(v.equals(""))
           arrayCategorie[i]=null;
-        else {
+        else if(x.matcher(v).matches()) {
           if(i!=0)
             categorie += ";"+v;
           else
@@ -1315,7 +1370,7 @@ public class ServiceMap {
     return request.getRemoteAddr();
   }
   
-  public static String[] parsePosition(String position) throws Exception {
+  public static String[] parsePosition(String position, String apikey) throws Exception {
     if(position==null)
       return null;
     String[] latLng = position.split(";");
@@ -1323,7 +1378,7 @@ public class ServiceMap {
       return latLng;
     if(position.startsWith("http://")) {
       latLng = new String[2];
-      Map<String,String> info = getServiceInfo(position,"en");
+      Map<String,String> info = getServiceInfo(position, "en", apikey);
       if(info.isEmpty())
         return null;
       latLng[0] = info.get("lat");
@@ -1525,7 +1580,7 @@ public class ServiceMap {
           exc.printStackTrace();
         if(details!=null)
           System.out.println(details);
-        sendEmail(notifyExceptionTo, subj+(exc!=null ? " Exception "+exc.getClass().getSimpleName() : " ERROR"), exceptionMessage(exc, details), "text/plain");
+        sendEmail(notifyExceptionTo, subj+(exc!=null ? " Exception "+exc.getClass().getSimpleName() : " ERROR"), exceptionMessage(exc, details), "text/plain", conf.get("notifySmtpPrefix", ""));
         return;
       }
     }
@@ -1632,6 +1687,16 @@ public class ServiceMap {
     if(conf.get("debug", "true").equalsIgnoreCase("true")){
       StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
       System.out.println("DEBUG "+new Date()+" ["+Thread.currentThread().getName()+":"+
+              stackTraceElements[2].getClassName()+"."+
+              stackTraceElements[2].getMethodName()+"()] "+msg);
+    }
+  }
+  
+  public static void performance(Object msg) {
+    Configuration conf = Configuration.getInstance();
+    if(conf.get("perfLog", "true").equalsIgnoreCase("true")){
+      StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+      System.out.println("PERF "+new Date()+" ["+Thread.currentThread().getName()+":"+
               stackTraceElements[2].getClassName()+"."+
               stackTraceElements[2].getMethodName()+"()] "+msg);
     }
@@ -1790,7 +1855,7 @@ public class ServiceMap {
         } else {
           throw new Exception("cannot extract WKT "+srcStopUri+" "+dstStopUri+" "+trip);
         }
-        ServiceMap.println("wkt time:"+(System.nanoTime()-start)/1000000.0);
+        ServiceMap.performance("wkt time:"+(System.nanoTime()-start)/1000000.0);
       }
     } else {
       ServiceMap.notifyException(null, "Trip not found: "+srcStopUri+","+dstStopUri+","+tripId+","+time+","+date);
@@ -1909,4 +1974,91 @@ public class ServiceMap {
       }
     }
   }
+  
+  static public TupleQueryResult geoSparqlQuery(RepositoryConnection con, SparqlQuery query, String type, String queryID, String args) throws Exception {
+    try {
+      String q = query.query(type, "intersects");
+      TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, q);
+      long ts = System.nanoTime();
+      TupleQueryResult result = tupleQuery.evaluate();
+      if(queryID!=null)
+        logQuery(q, queryID, "virtuoso", args, System.nanoTime() - ts);
+      return result;
+    } catch(VirtuosoException | QueryEvaluationException e) {
+      if(e.getMessage().contains("VECSL: Geo chekc ro id is to be a vec ssl.")) {
+        println("Exception VECSL: Geo chekc ro id is to be a vec ssl.");
+        String q = query.query(type, "distance");
+        TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, q);
+        long ts = System.nanoTime();
+        TupleQueryResult result = tupleQuery.evaluate();
+        if(queryID!=null)
+          logQuery(q, queryID+"-dist", "virtuoso", args, System.nanoTime() - ts);
+        return result;
+      } else
+        throw e;
+    }
+  }
+  
+  static public String graphAccessQueryFragment(String subject, String apikey) throws Exception {
+    Configuration conf=Configuration.getInstance();
+    if(conf.get("enableGraphAccessControl", "false").equals("true")) {
+      String graphCond = "";
+      if(apikey!=null) {
+        //validate apikey
+        //search graphs associated with apikey
+        Connection conMySQL = ConnectionPool.getConnection();
+        String query = "SELECT graphUri FROM ApiKey ak JOIN PrivateData pd ON ak.idApiKey=pd.idApiKey WHERE ak.key=? AND valid=1 AND dateFrom<=now() AND IF(dateTo,now()<=dateTo,1)";
+        PreparedStatement st = conMySQL.prepareStatement(query);
+        st.setString(1, apikey);
+
+        ResultSet r = st.executeQuery();
+        ArrayList<String> graphs = new ArrayList<>();
+        while(r.next()) {
+          String g = r.getString(1);
+          graphs.add(g);
+        }
+        st.close();
+        conMySQL.close();
+        ServiceMap.println("apikey: "+apikey+" provide access to: "+graphs);
+        if(!graphs.isEmpty()) {
+          graphCond = "|| ?GG in (<"+String.join(">,<", graphs)+">)";
+        }
+      } else {
+        ServiceMap.println("apikey: "+apikey+" provide access to public");
+      }
+      return "GRAPH ?GG { "+subject+" a [] } OPTIONAL {?GG km4c:isPrivate ?private } FILTER(!BOUND(?private) || ?private=\"false\" "+graphCond+")\n";
+    }
+    return "";
+  }
+
+  static public String graphAccessQueryFragment2(String apikey) throws Exception {
+    Configuration conf=Configuration.getInstance();
+    if(conf.get("enableGraphAccessControl2", "true").equals("true")) {
+      String graphCond = "";
+      if(apikey==null) 
+        apikey="";
+      //search graphs not associated with apikey (can be improved)
+      Connection conMySQL = ConnectionPool.getConnection();
+      String query = "SELECT  distinct graphUri FROM PrivateData pd WHERE \n" +
+        "graphUri NOT IN (\n" +
+        "SELECT graphUri FROM ApiKey ak \n" +
+        "JOIN PrivateData pd2 ON ak.idApiKey=pd2.idApiKey \n" +
+        "WHERE ak.key=? AND valid=1 AND dateFrom<=now() AND IF(dateTo,now()<=dateTo,1)\n" +
+        ")";
+      PreparedStatement st = conMySQL.prepareStatement(query);
+      st.setString(1, apikey);
+
+      ResultSet r = st.executeQuery();
+      ArrayList<String> graphs = new ArrayList<>();
+      while(r.next()) {
+        String g = r.getString(1);
+        graphs.add(g);
+      }
+      st.close();
+      conMySQL.close();
+      ServiceMap.println("apikey: "+apikey+" not provide access to: "+graphs);
+      return "NOT FROM <"+String.join(">\nNOT FROM <", graphs)+">\n";
+    }
+    return "";
+  }  
 }

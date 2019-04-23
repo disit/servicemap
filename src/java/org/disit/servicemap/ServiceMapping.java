@@ -39,12 +39,16 @@ import org.openrdf.repository.RepositoryConnection;
  * @author bellini
  */
 public class ServiceMapping {
-  static private ServiceMapping instance = null;
+  static private volatile ServiceMapping instance = null;
   
   static public ServiceMapping getInstance() throws Exception {
     if(instance==null) {
-      instance = new ServiceMapping();
-      instance.loadFromDB();
+      synchronized(ServiceMapping.class) {
+        if(instance==null) {
+          instance = new ServiceMapping();
+          instance.loadFromDB();
+        }
+      }
     }
     return instance;
   }

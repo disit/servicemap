@@ -1,3 +1,4 @@
+<%@page import="java.text.SimpleDateFormat"%>
 <%@page import="java.text.ParseException"%>
 <%@page import="org.disit.servicemap.ServiceMapping"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
@@ -51,6 +52,8 @@ if(uid!=null && !ServiceMap.validateUID(uid)) {
   return;
 }
 String idService = request.getParameter("serviceUri");
+if(idService!=null)
+  idService = idService.trim();
 String selection = request.getParameter("selection");
 String queryId = request.getParameter("queryId");
 String search = request.getParameter("search");
@@ -58,6 +61,7 @@ String showBusPosition = request.getParameter("showBusPosition");
 String value_type = request.getParameter("value_type");
 String graphUri = request.getParameter("graphUri");
 String valueName = request.getParameter("valueName");
+String apikey = request.getParameter("apikey");
         
 if(idService==null && selection==null && queryId==null && search==null && showBusPosition==null) {
     ServiceMap.logError(request, response, 400, "please specify 'selection', 'search', 'serviceUri' or 'queryId' parameters");
@@ -96,6 +100,11 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     if (raggi == null) {
       raggi = request.getParameter("raggi");
     }
+    try {
+      Double.parseDouble(raggi);
+    } catch(Exception e) {
+      raggi = "";
+    }
     if (raggi != null) {
       arrayRaggi = raggi.split(";");
       if (arrayRaggi.length > 0) {
@@ -116,6 +125,11 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     risultati = request.getParameter("maxResults");
     if (risultati == null) {
       risultati = request.getParameter("risultati");
+    }
+    try {
+      Integer.parseInt(risultati);
+    } catch(Exception e) {
+      risultati = "100";
     }
 
     String[] arrayRisultati = null;
@@ -201,6 +215,13 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     if (raggi == null) {
       raggi = request.getParameter("raggio");
     }
+    try {
+      if(raggi!=null)
+        Double.parseDouble(raggi);
+    } catch(Exception e) {
+      raggi = null;
+    }
+    
     String[] arrayRaggi = null;
     String raggioServizi = "";
     String raggioSensori = "";
@@ -228,6 +249,12 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     if (risultati == null) {
       risultati = request.getParameter("risultati");
     }
+    try {
+      if(risultati!=null)
+        Integer.parseInt(risultati);
+    } catch(Exception e) {
+      risultati = null;
+    }
     if (risultati == null) {
       risultati = "100;100;100";
     }
@@ -254,12 +281,19 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       //textToSearch = new String(textToSearch.getBytes("iso-8859-1"), "UTF-8"); //workaround! when utf8 data is sent via GET
     }
     String limit = request.getParameter("limit");
+    try {
+      if(limit!=null)
+        Integer.parseInt(limit);
+    } catch(Exception e) {
+      limit=null;
+    }
     if(limit==null)
       limit=risultatiServizi;
     
     String lang = request.getParameter("lang");
     if(lang==null || (!lang.equals("it") && !lang.equals("en")))
       lang = "en";
+    
     String geometry = request.getParameter("geometry");
     boolean getGeometry = "true".equalsIgnoreCase(geometry);
     boolean findInside = "inside".equalsIgnoreCase(raggi);
@@ -284,17 +318,18 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         else if(d[1].equals("minute"))
           n=n*60;
         Date now = new Date();
+        SimpleDateFormat dateFormatter=new SimpleDateFormat(ServiceMap.dateFormat);
         if(toTime!=null) {
           //parse toTime and store as now
           try {
-            now = ServiceMap.dateFormatter.parse(toTime.replace("T", " "));
+            now = dateFormatter.parse(toTime.replace("T", " "));
           } catch(ParseException e) {
             ServiceMap.logError(request, response, 400, "invalid toTime "+toTime);
             return;
           }
         }          
         Date from=new Date(now.getTime()-n*1000);
-        fromTime=ServiceMap.dateFormatter.format(from).replace(" ", "T");
+        fromTime=dateFormatter.format(from).replace(" ", "T");
       }
       else if(!fromTime.matches("^\\d\\d\\d\\d-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d$")) {
         ServiceMap.logError(request, response, 400, "invalid 'fromTime' parameter, expected n-day,n-hour,n-minute or yyyy-mm-ddThh:mm:ss");
@@ -371,7 +406,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     if (idService != null) {
       //get data of a single service
       int i = 0;
-      ArrayList<String> serviceTypes = ServiceMap.getTypes(con, idService);
+      ArrayList<String> serviceTypes = ServiceMap.getTypes(con, idService, apikey);
       if(serviceTypes.size()==0) {
         ServiceMap.logError(request, response, 400, "no type found for "+idService);
         con.close();
@@ -427,7 +462,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
           if (textToSearch != null && !"".equals(textToSearch)) {
             //String limit=request.getParameter("limit");
             //search=unescapeUri(search);
-            serviceMapApi.queryFulltext(out, con, textToSearch, selection, raggioServizi, limit, lang, getGeometry);
+            serviceMapApi.queryFulltext(out, con, textToSearch, selection, raggioServizi, limit, lang, getGeometry, apikey);
             ServiceMap.logAccess(request, null, selection, null, null, "api-text-search", null, raggioServizi, queryId, textToSearch, "json", uid, reqFrom);
             ServiceMap.updateResultsPerIP(ip, requestType, 1);
           }
@@ -474,7 +509,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
           }
           // get services by lat/long
           if(coords!=null && (coords.length==2 || coords.length==4 || (coords.length==1 && (coords[0].startsWith("wkt:") || selection.startsWith("geo:") || selection.startsWith("graph:"))))) {
-            int results = serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, true, fullCount, value_type, graphUri);
+            int results = serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, true, fullCount, value_type, graphUri, apikey);
             ServiceMap.updateResultsPerIP(ip, requestType, results);
             ServiceMap.logAccess(request, null, selection, categorie, null, "api-services-by-gps", risultati, raggi, queryId, textToSearch, "json", uid, reqFrom);
           }

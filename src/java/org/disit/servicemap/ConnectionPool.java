@@ -132,10 +132,14 @@ public class ConnectionPool {
       Configuration conf = Configuration.getInstance();
       String url = conf.get("urlMySqlDB", "")+conf.get("dbMySql", "ServiceMap")+"?useUnicode=true&characterEncoding=utf-8";
       int maxConnections = Integer.parseInt(conf.get("maxConnectionsMySql", "10"));
-      connPool = new ConnectionPool(url, conf.get("userMySql", ""), conf.get("passMySql", ""),maxConnections);
-      System.out.println("connected "+url+" maxConnections: "+maxConnections);
-      if (dataSource == null) {
-        dataSource = connPool.setUp();
+      synchronized(ConnectionPool.class) {
+        if(connPool==null) {
+          connPool = new ConnectionPool(url, conf.get("userMySql", ""), conf.get("passMySql", ""),maxConnections);
+          System.out.println("connected "+url+" maxConnections: "+maxConnections);
+        }
+        if (dataSource == null) {
+          dataSource = connPool.setUp();
+        }        
       }
     }
     else {

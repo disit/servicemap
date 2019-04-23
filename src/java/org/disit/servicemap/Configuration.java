@@ -33,10 +33,14 @@ import java.util.logging.Logger;
  */
 public class Configuration {
   static final private String PROP = "/servicemap/servicemap.properties";
-  static private Configuration  conf=null;
+  static private volatile Configuration  conf=null;
   static public Configuration getInstance() {
-    if(conf==null)
-      conf= new Configuration();
+    if(conf==null) {
+      synchronized(Configuration.class) {
+        if(conf==null)
+          conf= new Configuration();
+      }
+    }
     return conf;
   }
 
