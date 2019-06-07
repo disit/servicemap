@@ -34,6 +34,7 @@
   <body>
     <h1>Realtime check</h1>
     <%
+      /*
       RepositoryConnection con = ServiceMap.getSparqlConnection();
       int nn=0;
       Date d = new Date();
@@ -124,6 +125,7 @@
         }        
       }
       ServiceMap.println("end check realtime");
+      */
       %>
   </body>
 </html>

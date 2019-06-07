@@ -2034,21 +2034,33 @@ public class ServiceMapApi {
         obj = new JSONObject();
         BindingSet binding = results.next();
         String valueOfVia = binding.getValue("via").stringValue();
-        String valueOfNumero = binding.getValue("numero").stringValue();
+        String valueOfNumero = null;
+        if(binding.getValue("numero")!=null)
+          valueOfNumero = binding.getValue("numero").stringValue();
         String valueOfComune = binding.getValue("comune").stringValue();
         String valueOfUriComune = binding.getValue("uriComune").stringValue();
-        String valueOfUriCivico = binding.getValue("uriCivico").stringValue();
-        String valueOfProvincia = binding.getValue("provincia").stringValue();
-        String valueOfUriProvincia = binding.getValue("uriProvincia").stringValue();
+        String valueOfUriCivico = null;
+        if(binding.getValue("uriCivico")!=null)
+          valueOfUriCivico = binding.getValue("uriCivico").stringValue();
+        String valueOfProvincia = null;
+        if(binding.getValue("provincia") != null)
+          valueOfProvincia = binding.getValue("provincia").stringValue();
+        String valueOfUriProvincia = null;
+        if(binding.getValue("uriProvincia") != null)
+          valueOfUriProvincia = binding.getValue("uriProvincia").stringValue();
         String valueOfUriStrada = binding.getValue("uriStrada").stringValue();
         obj.put("address", valueOfVia);
-        obj.put("number", valueOfNumero);
+        if(valueOfNumero!=null)
+          obj.put("number", valueOfNumero);
         obj.put("addressUri", valueOfUriCivico);
         obj.put("municipality", valueOfComune);
         obj.put("municipalityUri", valueOfUriComune);
-        obj.put("province", valueOfProvincia);
-        obj.put("provinceUri", valueOfUriProvincia);
-        obj.put("roadUri", valueOfUriStrada);
+        if(valueOfProvincia != null)
+          obj.put("province", valueOfProvincia);
+        if(valueOfUriProvincia != null)
+          obj.put("provinceUri", valueOfUriProvincia);        
+        if(valueOfUriStrada!=null)
+          obj.put("roadUri", valueOfUriStrada);
       }
       if(obj == null) {
         query = ServiceMap.latLngToMunicipalityQuery(lat, lng, sparqlType);

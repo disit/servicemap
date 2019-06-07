@@ -209,9 +209,9 @@ public class ServiceMapping {
     String html = "";
     html+="<table border=\"1\" cellspacing=\"0\">";
     html += "<tr><th>Class</th><th>Attributes</th><th>details</th><th>RT SOLR</th><th>RT SPARQL</th><th>RT SQL</th></tr>";
-    for(String key:maps.get(0).keySet()) {
-      MappingData md=maps.get(0).get(key);
-      html += "<tr><td>"+key+
+    for(Map.Entry<String,MappingData> e:maps.get(0).entrySet()) {
+      MappingData md=e.getValue();
+      html += "<tr><td>"+e.getKey()+
               "</td><td>"+md.attributesQuery+
               "</td><td>"+md.detailsQuery+
               "</td><td>"+md.realTimeSolrQuery+

@@ -66,7 +66,7 @@
             serviceMapping.realTimeSolrQuery!=null)) {
       ServiceMapApiV1 api = new ServiceMapApiV1();
       api.queryService(out, con, idService, "en", "true", null, null, null, "false", null, types);
-    } else if ((types.contains("BusStop") || types.contains("Tram_stops") || types.contains("Train_station") || types.contains("Ferry_stop")) && !types.contains("DigitalLocation")) {
+    } else if (types.contains("http://vocab.gtfs.org/terms#Stop") && (types.contains("BusStop") || types.contains("Tram_stops") || types.contains("Train_station") || types.contains("Ferry_stop") || types.contains("Subway_station")) && !types.contains("DigitalLocation")) {
       String nomeFermata = "";
       String queryStringBusStop = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
               + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"

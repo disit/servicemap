@@ -615,6 +615,8 @@
                                 <br />
                                 <input type="checkbox" name="near-tram-stops" value="Tram_stops" class="macrocategory" id="Tram" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Tram_stops.png' height='23' width='20' align='top'/> <span class="public-transport-line macrocategory-label">Tram_stops</span>
                                 <br/>
+                                <input type="checkbox" name="near-subway-station" value="Subway_station" class="macrocategory" id="Subway" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Subway_station.png' height='23' width='20' align='top'/> <span class="public-transport-line macrocategory-label">Subway_station</span>
+                                <br/>
                                 <input type="checkbox" name="near-train-station" value="Train_station" class="macrocategory" id="Train" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Train_station.png' height='23' width='20' align='top'/> <span class="public-transport-line macrocategory-label">Train_station</span>
                                 <br/>
                                 <input type="checkbox" name="near-ferry-stops" value="Ferry_stop" class="macrocategory" id="Ferry" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Ferry_stop.png' height='23' width='20' align='top'/> <span class="public-transport-line macrocategory-label">Ferry_stop</span>
@@ -628,6 +630,8 @@
                                 <input type="checkbox" name="near-rtz" value="Fuel_station" class="macrocategory" id="DigitaLocation" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Fuel_station.png' height='23' width='20' align='top'/> <span class="TransferServiceAndRenting macrocategory-label">Fuel_station</span>
                                 <br/>
                                 <input type="checkbox" name="near-rtz" value="Charging_stations" class="macrocategory" id="TransferServiceAndRenting" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Charging_stations.png' height='23' width='20' align='top'/> <span class="TransferServiceAndRenting macrocategory-label">Charging_stations</span>
+                                <br/>
+                                <input type="checkbox" name="near-underpass" value="Underpass " class="macrocategory" id="TransferServiceAndRenting" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Underpass.png' height='23' width='20' align='top'/> <span class="TransferServiceAndRenting macrocategory-label">Underpass</span>
                                 <br/>
                                 <input type="checkbox" name="near-air-quality-stations" value="Air_quality_monitoring_station" class="macrocategory" id="Environment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Environment_Air_quality_monitoring_station.png' height='23' width='20' align='top'/> <span class="Environment macrocategory-label">Air_quality_monitoring_station</span>
                                 <br/>
@@ -646,6 +650,8 @@
                                 <input type="checkbox" name="near-smart-bench" value="Smart_bench"  class="macrocategory" id="Entertainment" /> <img src='${pageContext.request.contextPath}/img/mapicons/Entertainment_Smart_bench.png' height='23' width='20' align='top'/> <span class="Entertainment macrocategory-label">Smart_bench</span>
                                 <br/>
                                 <input type="checkbox" name="near-first-aid" value="First_aid"  class="macrocategory" id="Emergency" /> <img src='${pageContext.request.contextPath}/img/mapicons/Emergency_First_aid.png' height='23' width='20' align='top'/> <span class="Emergency macrocategory-label">First_aid</span>
+                                <br/>
+                                <input type="checkbox" name="near-police" value="Police_headquarters "  class="macrocategory" id="GovernmentOffice" /> <img src='${pageContext.request.contextPath}/img/mapicons/GovernmentOffice_Police_headquarters.png' height='23' width='20' align='top'/> <span class="GovernmentOffice  macrocategory-label">Police_headquarters</span>
                             </div>                            
                             <br />
                             <span name="lbl" caption="Filter_Results_dx_T">Filter</span>:

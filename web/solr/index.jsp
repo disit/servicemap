@@ -102,13 +102,13 @@ if(request.getParameter("reset")!=null) {
     String queryText = "select distinct ?s ?sType ?sCategory ?name ?city (IF(BOUND(?elat2),?elat2,?elat1) as ?lat) (IF(BOUND(?elong2),?elong2,?elong1) as ?long) {\n"
       + "?s a km4c:Service OPTION(inference \"urn:ontology\").\n"
       + "?s a ?sType. FILTER(?sType!=km4c:RegularService && ?sType!=km4c:Service && ?sType!=km4c:DigitalLocation && ?sType!=km4c:TransverseService && ?sType!=km4c:BusStop && ?sType!=km4c:SensorSite)\n"
-      + "?sType rdfs:subClassOf* ?sCategory. FILTER(?sCategory != <http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing>)\n"
+      + "?sType rdfs:subClassOf ?sCategory. FILTER(?sCategory != <http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing>)\n"
       + "?sCategory rdfs:subClassOf km4c:Service.\n"
       + "?s schema:name ?name.\n"
       //+ "?s schema:streetAddress ?address.\n"
       //+ "?s km4c:houseNumber ?number.\n"
       //+ "?s schema:addressRegion ?prov.\n"
-      + "?s schema:addressLocality ?city.\n"
+      + "OPTIONAL {?s schema:addressLocality ?city.}\n"
       + "OPTIONAL{\n"
       + "?s km4c:hasAccess ?entry.\n"
       + "?entry geo:lat ?elat1.\n"
@@ -133,7 +133,9 @@ if(request.getParameter("reset")!=null) {
         sCategory = sCategory.substring(sCategory.lastIndexOf("#")+1);
         String serviceType = sCategory + " " + sType;
         String name = bindingSet.getValue("name").stringValue().replace("_"," ");
-        String city = bindingSet.getValue("city").stringValue();
+        String city = null;
+        if(bindingSet.getValue("city")!=null)
+          city = bindingSet.getValue("city").stringValue();
         String lat = bindingSet.getValue("lat").stringValue().replace("'", "").replace(",",".");
         String lng = bindingSet.getValue("long").stringValue().replace("'", "").replace(",",".");
 
@@ -145,7 +147,8 @@ if(request.getParameter("reset")!=null) {
         doc.setField("id", s);
         doc.setField("entityType_s", serviceType);
         doc.setField("name_s_lower", name, boost);
-        doc.setField("municipalityName_s_lower", city);
+        if(city!=null)
+          doc.setField("municipalityName_s_lower", city);
         doc.setField("geo_coordinate_p", lat+","+lng);
         //doc.setField("snn", snn);
         try {
@@ -206,6 +209,7 @@ if(request.getParameter("reset")!=null) {
   long start = System.currentTimeMillis();
   
   ServiceMapApiV1 api=new ServiceMapApiV1();
+  /*
   File file =new File("tpl-stop-municipality.n3");
   if(!file.exists()){
     file.createNewFile();
@@ -213,6 +217,7 @@ if(request.getParameter("reset")!=null) {
 
   FileWriter fileWriter = new FileWriter(file.getAbsolutePath());
   BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
+          */
   int size = 1000;
   System.out.println("START");
   do {
@@ -257,8 +262,8 @@ if(request.getParameter("reset")!=null) {
           JSONObject json=api.queryLocation(con, lat, lng, "false",0.0);
           city = (json!=null ? (String)json.get("municipality") : "");
           cityUri = (json!=null ? (String)json.get("municipalityUri") : "");
-          if(!cityUri.isEmpty())
-            bufferWriter.write("<"+s+"> <http://www.disit.org/km4city/schema#isInMunicipality> <"+cityUri+">\r\n");
+          /*if(!cityUri.isEmpty())
+            bufferWriter.write("<"+s+"> <http://www.disit.org/km4city/schema#isInMunicipality> <"+cityUri+">\r\n");*/
         }
         
         SolrInputDocument doc=new SolrInputDocument();
@@ -283,7 +288,7 @@ if(request.getParameter("reset")!=null) {
     offset += size;
     System.out.println("offset: "+offset+" time: "+(System.currentTimeMillis()-start)/1000);
   } while(n==size);
-  bufferWriter.close();
+  //bufferWriter.close();
   out.println("END!");
   System.out.println("END!");
 } else if(request.getParameter("search")!=null) {

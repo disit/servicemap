@@ -31,8 +31,8 @@
   String ip = ServiceMap.getClientIpAddress(request);
   String ua = request.getHeader("User-Agent");
   
-  String srcLatLng[] = ServiceMap.parsePosition(source);
-  String dstLatLng[] = ServiceMap.parsePosition(destination);
+  String srcLatLng[] = ServiceMap.parsePosition(source, null);
+  String dstLatLng[] = ServiceMap.parsePosition(destination, null);
 
   if(srcLatLng==null || dstLatLng==null) {
     response.sendError(404, "wrong source or destination parameters");

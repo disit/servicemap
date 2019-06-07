@@ -417,21 +417,25 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       if(md!=null && (md.realTimeSqlQuery!=null || md.realTimeSparqlQuery!=null || md.realTimeSolrQuery!=null )) {
         types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, toTime, checkHealthiness, uid, serviceTypes);        
       } 
-      else if (serviceTypes.contains("BusStop")|| serviceTypes.contains("NearBusStops")) {
+      else if (serviceTypes.contains("http://vocab.gtfs.org/terms#Stop") && (serviceTypes.contains("BusStop")|| serviceTypes.contains("NearBusStops"))) {
         serviceMapApi.queryTplStop(out, con, idService, "BusStop", lang, realtime, uid);
         types = "TransferServiceAndRenting;BusStop";
       }
-      else if (serviceTypes.contains("Tram_stops")) {
+      else if (serviceTypes.contains("http://vocab.gtfs.org/terms#Stop") && serviceTypes.contains("Tram_stops")) {
         serviceMapApi.queryTplStop(out, con, idService, "Tram_stops", lang, realtime, uid);
         types = "TransferServiceAndRenting;Tram_stops";
       }
-      else if (serviceTypes.contains("Train_station")) {
+      else if (serviceTypes.contains("http://vocab.gtfs.org/terms#Stop") && serviceTypes.contains("Train_station")) {
         serviceMapApi.queryTplStop(out, con, idService, "Train_station", lang, realtime, uid);
         types = "TransferServiceAndRenting;Train_station";
       }
-      else if (serviceTypes.contains("Ferry_stop")) {
+      else if (serviceTypes.contains("http://vocab.gtfs.org/terms#Stop") && serviceTypes.contains("Ferry_stop")) {
         serviceMapApi.queryTplStop(out, con, idService, "Ferry_stop", lang, realtime, uid);
         types = "TransferServiceAndRenting;Ferry_station";
+      }
+      else if (serviceTypes.contains("http://vocab.gtfs.org/terms#Stop") && serviceTypes.contains("Subway_station")) {
+        serviceMapApi.queryTplStop(out, con, idService, "Subway_station", lang, realtime, uid);
+        types = "TransferServiceAndRenting;Subway_station";
       }
       else if (serviceTypes.contains("WeatherReport") || serviceTypes.contains("Municipality")) {
         serviceMapApi.queryMeteo(out, con, idService, lang);

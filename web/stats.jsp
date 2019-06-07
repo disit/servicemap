@@ -26,7 +26,7 @@
   <body>
     <h1>Realtime statistics</h1>
     <%
-      RepositoryConnection con = ServiceMap.getSparqlConnection();
+      /*RepositoryConnection con = ServiceMap.getSparqlConnection();
       int nn=0;
 
       String queryLastAVM = "PREFIX dcterms:<http://purl.org/dc/terms/>"
@@ -102,6 +102,7 @@
               + "}  group by ?dd order by desc(?dd)";
       nn+=formatStat(out, con, queryLastSensor, querySensor, "Sensor status", "sensor");
       out.println("<div style='clear:both;padding-top:20px;'><b>total records: </b>"+nn+"</div>");
+      */
       %>
   </body>
 </html>
