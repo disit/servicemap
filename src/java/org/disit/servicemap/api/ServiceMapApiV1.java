@@ -1,4 +1,4 @@
-/* ServiceMap.
+﻿/* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
    This program is free software: you can redistribute it and/or modify
@@ -62,6 +62,7 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
@@ -84,6 +85,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.ToXContent;
@@ -135,7 +137,7 @@ public class ServiceMapApiV1 extends ServiceMapApi {
       else if(tplclass.equals("Train_station"))
         type = "Stazione treno";
     }
-    
+    idService = ServiceMap.urlEncode(idService);
     String queryStringStop = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
             + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
             + "PREFIX schema:<http://schema.org/#>\n"
@@ -526,9 +528,9 @@ public class ServiceMapApiV1 extends ServiceMapApi {
         "prefix gtfs:<http://vocab.gtfs.org/terms#>\n" +
         "select distinct ?at ?dt ?routeName ?lineName ?lineDesc ?trip ?d where {\n" +
         "{\n" +
-        "?st gtfs:stop [owl:sameAs <"+stopUri+">]\n" +
+        "?st gtfs:stop [owl:sameAs <"+ServiceMap.urlEncode(stopUri)+">]\n" +
         "} UNION {\n" +
-        "?st gtfs:stop <"+stopUri+">\n" +
+        "?st gtfs:stop <"+ServiceMap.urlEncode(stopUri)+">\n" +
         "}\n" +
         "?st gtfs:trip ?trip.\n" +
         "?trip gtfs:service ?sd.\n" +
@@ -692,7 +694,7 @@ public class ServiceMapApiV1 extends ServiceMapApi {
     String queryString = "prefix dcterms:<http://purl.org/dc/terms/>\n" +
         "prefix gtfs:<http://vocab.gtfs.org/terms#>\n" +
         "select distinct ?agencyUri ?agencyName ?timeZone ?fareUrl where {\n" +
-        " <"+stopUri+"> gtfs:agency ?agencyUri.\n" +
+        " <"+ServiceMap.urlEncode(stopUri)+"> gtfs:agency ?agencyUri.\n" +
         " ?agencyUri foaf:name ?agencyName. \n"+
         " optional { ?agencyUri gtfs:timeZone ?timeZone. }\n"+
         " optional { ?agencyUri gtfs:fareUrl ?fareUrl.} \n" +
@@ -748,7 +750,7 @@ public class ServiceMapApiV1 extends ServiceMapApi {
     String stopFilter = "";
     if(stopName!=null) {
       if(stopName.startsWith("http://")) {
-        stopFilter = "{?stx gtfs:stop <"+stopName+">}UNION{?stx gtfs:stop [ owl:sameAs <"+stopName+">]}.\n";
+        stopFilter = "{?stx gtfs:stop <"+ServiceMap.urlEncode(stopName)+">}UNION{?stx gtfs:stop [ owl:sameAs <"+ServiceMap.urlEncode(stopName)+">]}.\n";
       } else {
         stopFilter = "?stx gtfs:stop/foaf:name \""+stopName+"\".\n";
       }
@@ -757,7 +759,7 @@ public class ServiceMapApiV1 extends ServiceMapApi {
     String lineFilter = "";
     if(line != null) {
       if(line.startsWith("http://"))
-        lineFilter = "?trip gtfs:route <"+line+">.\n";
+        lineFilter = "?trip gtfs:route <"+ServiceMap.urlEncode(line)+">.\n";
       else {
         lineFilter =
               "?ln gtfs:shortName \""+line+"\".\n" +
@@ -765,7 +767,7 @@ public class ServiceMapApiV1 extends ServiceMapApi {
         if(agency==null)
           agency = "Ataf&Linea";
         if(agency.startsWith("http://"))
-          lineFilter += "?ln gtfs:agency <"+agency+">.";
+          lineFilter += "?ln gtfs:agency <"+ServiceMap.urlEncode(agency)+">.";
         else
           lineFilter += "?ln gtfs:agency/foaf:name \""+agency+"\".";
       }
@@ -775,7 +777,7 @@ public class ServiceMapApiV1 extends ServiceMapApi {
         if(agency==null)
           agency = "Ataf&Linea";
         if(agency.startsWith("http://"))
-          lineFilter += "?ln gtfs:agency <"+agency+">.";
+          lineFilter += "?ln gtfs:agency <"+ServiceMap.urlEncode(agency)+">.";
         else
           lineFilter += "?ln gtfs:agency/foaf:name \""+agency+"\".";
     }
@@ -850,7 +852,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     String queryForLines;
     queryForLines = "SELECT DISTINCT ?sname ?lname ?r WHERE {\n"
               + " ?r rdf:type gtfs:Route.\n"
-              + " ?r gtfs:agency <"+agency+">.\n"
+              + " ?r gtfs:agency <"+ServiceMap.urlEncode(agency)+">.\n"
               + " OPTIONAL {?r gtfs:shortName ?sname.}\n"
               + " ?r gtfs:longName ?lname.\n"
               + " BIND (xsd:integer(?sname) as ?line)\n"
@@ -2010,10 +2012,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             + "PREFIX time:<http://www.w3.org/2006/time#> "
             + "SELECT ?nomeComune WHERE {"
             + " {"
-            + "  <" + idService + "> km4c:refersToMunicipality ?mun."
+            + "  <" + ServiceMap.urlEncode(idService) + "> km4c:refersToMunicipality ?mun."
             + "  ?mun foaf:name ?nomeComune."
             + " }UNION{"
-            + "  <" + idService + "> rdf:type km4c:Municipality;"
+            + "  <" + ServiceMap.urlEncode(idService) + "> rdf:type km4c:Municipality;"
             + "   foaf:name ?nomeComune."
             + " }"
             + "}";
@@ -2073,7 +2075,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + "PREFIX omgeo:<http://www.ontotext.com/owlim/geo#> "
               + "PREFIX time:<http://www.w3.org/2006/time#> "
               + "SELECT distinct ?giorno ?descrizione ?minTemp ?maxTemp ?instantDateTime ?wPred WHERE{"
-              + " <" + valueOfWRep + "> km4c:hasPrediction ?wPred."
+              + " <" + ServiceMap.urlEncode(valueOfWRep) + "> km4c:hasPrediction ?wPred."
               + " ?wPred dcterms:description ?descrizione."
               + " ?wPred km4c:day ?giorno."
               + " ?wPred km4c:hour ?g. FILTER(STR(?g)=\"giorno\")\n"
@@ -2180,7 +2182,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>"
             + "PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#> "
             + "select distinct ?idSensore ?lat ?long ?address ?nomeComune ?period where{"
-            + " <" + idService + "> rdf:type km4c:SensorSite;"
+            + " <" + ServiceMap.urlEncode(idService) + "> rdf:type km4c:SensorSite;"
             + "  geo:lat ?lat;"
             + "  geo:long ?long;"
             + "  dcterms:identifier ?idSensore;"
@@ -2272,7 +2274,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>"
               + "PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#> "
               + "select distinct ?avgDistance ?avgTime ?occupancy ?concentration ?vehicleFlow ?averageSpeed ?thresholdPerc ?speedPercentile ?timeInstant where{"
-              + " <" + idService + "> rdf:type km4c:SensorSite;"
+              + " <" + ServiceMap.urlEncode(idService) + "> rdf:type km4c:SensorSite;"
               //+ "  dcterms:identifier \"" + nomeSensore + "\"^^xsd:string;"
               + "  km4c:hasObservation ?obs."
               + " ?obs dcterms:date ?timeInstant."
@@ -2450,7 +2452,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + "PREFIX opengis:<http://www.opengis.net/ont/geosparql#>\n"
               + "SELECT ?serAddress ?serNumber ?elat ?elong (IF(?sName1,?sName1,?sName2) as ?sName) ?sType ?type ?sCategory ?sTypeIta ?email ?note ?multimedia ?description1 ?description2 ?phone ?fax ?website ?prov ?city ?cap ?coordList WHERE{\n"
               + " {\n"
-              + "  <" + serviceUri + "> km4c:hasAccess ?entry.\n"
+              + "  <" + ServiceMap.urlEncode(serviceUri) + "> km4c:hasAccess ?entry.\n"
               + "  ?entry geo:lat ?elat.\n"
               + "  ?entry geo:long ?elong.\n"
               //+ " }UNION{\n"
@@ -2698,7 +2700,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 + "{\"type\": \"FeatureCollection\",\n"
                 + "\"features\": [\n");
 
-        detailsQuery = detailsQuery.replace("%SERVICE_URI",serviceUri);
+        detailsQuery = detailsQuery.replace("%SERVICE_URI",ServiceMap.urlEncode(serviceUri));
         detailsQuery = detailsQuery.replace("%LANG",lang);
         ServiceMap.println(detailsQuery);
         TupleQuery tupleQueryDetails = con.prepareTupleQuery(QueryLanguage.SPARQL, detailsQuery);
@@ -3099,14 +3101,24 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
 
   private void realTimeElasticSearchQuery(Configuration conf, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, String toTime, int limit, JspWriter out, JsonArray rtData) throws Exception {
     //get RT data from SOLR
-    String[] hosts = conf.get("elasticSearchHosts", "192.168.1.53,192.168.1.54,192.168.1.56,192.168.1.57").split(",");
+    String[] hosts = conf.get("elasticSearchHosts", "localhost").split(",");
     int port = Integer.parseInt(conf.get("elasticSearchPort", "9200"));
-    String index = conf.get("elasticSearchIndex", "sensorinew");
+    String[] index = conf.get("elasticSearchIndex", "sensorindex").split(";");
     
     HttpHost[] httpHosts = new HttpHost[hosts.length];
     for(int i=0; i<hosts.length; i++)
       httpHosts[i] = new HttpHost(hosts[i],port, "http");
-    RestHighLevelClient client = new RestHighLevelClient(RestClient.builder(httpHosts));
+    final int timeout = Integer.parseInt(conf.get("elasticSearchTimeout", "30000"));
+    RestClientBuilder restClientBuilder = RestClient.builder(httpHosts);
+    restClientBuilder.setRequestConfigCallback(
+        new RestClientBuilder.RequestConfigCallback() {
+            @Override
+            public RequestConfig.Builder customizeRequestConfig(
+                    RequestConfig.Builder requestConfigBuilder) {
+                return requestConfigBuilder.setSocketTimeout(timeout);
+            }});
+    RestHighLevelClient client = new RestHighLevelClient(restClientBuilder);
+
     
     String q = "serviceUri:\""+serviceUri+"\"";
     
@@ -3149,7 +3161,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             QueryBuilders.queryStringQuery(q)
     )).sort("date_time", SortOrder.DESC)
       .sort("value_name.keyword", SortOrder.ASC)
-      .size(fromTime == null ? (rtAttributes.entrySet().size()+1) * limit : Integer.parseInt(conf.get("elasticSearchMaxSize", "10000")));
+      .size(fromTime == null ? (rtAttributes.entrySet().size()+10) * limit : Integer.parseInt(conf.get("elasticSearchMaxSize", "10000")));
     if(valueName==null) {
       searchSourceBuilder.aggregation(AggregationBuilders.terms("value_name").field("value_name.keyword").size(100).order(BucketOrder.key(true)));
     }
@@ -3202,6 +3214,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       Date cdt = null;
       JsonObject rt = new JsonObject();
       DateFormat dateFormatterTZ = new SimpleDateFormat(ServiceMap.dateFormatTZ);
+      DateFormat dateFormatterTZ2 = new SimpleDateFormat(ServiceMap.dateFormatTZ2);
       if(!fromAggregation) {
         for(SearchHit h:hits) { 
           Map<String, Object> d = h.getSourceAsMap();
@@ -3212,16 +3225,24 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           //ServiceMap.println("value:"+value);
           if(value==null) {
             value = d.get("value_str");
-            //ServiceMap.println("value_str:"+value);
+            if(value!=null)
+              value = JSONObject.escape(value.toString());
+            else
+              value = "";
           }
+          //ServiceMap.println(dts+" "+vn+":"+value);
 
           //su solr l'ora è memorizzata come se fosse GMT quindi va tolto l'offset da GMT
           Date dt;
           try {
             dt = dateFormatterTZ.parse(dts);
-          } catch(Exception e) {
-            ServiceMap.notifyException(e, "date: "+dts+" suri:"+serviceUri);
-            throw e;
+          } catch(Exception x) {
+            try {
+              dt = dateFormatterTZ2.parse(dts);
+            } catch(Exception e) {
+              ServiceMap.notifyException(e, "date: "+dts+" suri:"+serviceUri);
+              throw e;
+            }
           }
 
           /*int offset=TimeZone.getDefault().getOffset(dt.getTime());
@@ -3303,7 +3324,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
   private Connection timeTrendQuery(ServiceMapping.MappingData md, String serviceUri, JspWriter out, Connection rtCon, Configuration conf) throws NumberFormatException, Exception, IOException, SQLException {
     long ts = System.currentTimeMillis();
     String query = md.trendSqlQuery;
-    query = query.replace("%SERVICE_URI", serviceUri);
+    query = query.replace("%SERVICE_URI", ServiceMap.urlEncode(serviceUri));
     ServiceMap.println("trend query: "+query);
     out.println(", \"trends\": [");
     if(rtCon==null)
@@ -3333,7 +3354,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
   private Connection predictionQuery(ServiceMapping.MappingData md, String serviceUri, JspWriter out, Connection rtCon, Configuration conf) throws IOException, SQLException, Exception, NumberFormatException {
     long ts = System.currentTimeMillis();
     String query = md.predictionSqlQuery;
-    query = query.replace("%SERVICE_URI", serviceUri);
+    query = query.replace("%SERVICE_URI", ServiceMap.urlEncode(serviceUri));
     ServiceMap.println("prediction query: "+query);
     out.println(", \"predictions\": [");
     rtCon = ServiceMap.getRTConnection();
@@ -3362,7 +3383,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
   private void realTimeSparqlQuery(ServiceMapping.MappingData md, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, int limit, Configuration conf, RepositoryConnection con, String sparqlType, JspWriter out, JsonArray rtData) throws RepositoryException, QueryEvaluationException, MalformedQueryException, IOException, NumberFormatException {
     //get RT data from SPARQL
     String query = md.realTimeSparqlQuery;
-    query = query.replace("%SERVICE_URI",serviceUri);
+    query = query.replace("%SERVICE_URI", ServiceMap.urlEncode(serviceUri));
     String frmTime = "";
     if(fromTime!=null) {
       frmTime = " FILTER(?measuredTime>=\""+fromTime+ServiceMap.getCurrentTimezoneOffset()+"\"^^xsd:dateTime) ";
@@ -3432,7 +3453,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     boolean isWeatherSensor = false;
     String query = md.realTimeSqlQuery;
     long ts = System.currentTimeMillis();
-    query = query.replace("%SERVICE_URI", serviceUri);
+    query = query.replace("%SERVICE_URI", ServiceMap.urlEncode(serviceUri));
     String serviceId = serviceUri.substring(serviceUri.lastIndexOf("/")+1);
     query = query.replace("%SERVICE_ID", serviceId);
     String frmTime = "";
@@ -3595,6 +3616,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "virtuoso");
     String km4cVersion = conf.get("km4cVersion", "new");
+    idService = ServiceMap.urlEncode(idService);
     int i = 0;
     String queryService = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
             + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>"
@@ -4549,10 +4571,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               "?x2 a gtfs:StopTime.\n" +
               "?x2 gtfs:arrivalTime ?at2.\n" +
               "?x2 gtfs:trip ?trip.\n" +              
-              (agencyUri!=null ? "?trip gtfs:route ?r.\n?r gtfs:agency <"+agencyUri+">.\n" : "")+
+              (agencyUri!=null ? "?trip gtfs:route ?r.\n?r gtfs:agency <"+ServiceMap.urlEncode(agencyUri)+">.\n" : "")+
               (agency!=null ? "?trip gtfs:route ?r.\n?r gtfs:agency/foaf:name \""+agency+"\".\n" : "")+
               ((agencyUri!=null || agency!=null) && line!=null ? "?r gtfs:shortName \""+line+"\".\n" : "")+
-              (lineUri!=null ? "?trip gtfs:route <"+lineUri+">.\n" : "")+
+              (lineUri!=null ? "?trip gtfs:route <"+ServiceMap.urlEncode(lineUri)+">.\n" : "")+
               "?trip gtfs:service/dcterms:date ?d.\n" +
               "filter(?d=SUBSTR(STR(xsd:date(now())),1,10) && str(?at1)>str(xsd:time(now())) && str(?at2)<str(xsd:time(now())))\n" +
               "} group by ?trip\n" +
@@ -4960,15 +4982,15 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     out.println("]}");
   }
 
-  public TupleQueryResult queryBusLines(String busStop, RepositoryConnection con){
+  public TupleQueryResult queryBusLines(String busStop, RepositoryConnection con) {
       String queryForLine = "";
       if(busStop!=null && busStop.startsWith("http://"))
        queryForLine = "PREFIX km4c:<http://www.disit.org/km4city/schema#>"
               + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>"
               + "select distinct ?id ?line ?desc ?ag ?agname where {\n"
-              + "{?st gtfs:stop [owl:sameAs <"+busStop+">]\n"
+              + "{?st gtfs:stop [owl:sameAs <"+ServiceMap.urlEncode(busStop)+">]\n"
               + "} UNION {\n"
-              + "?st gtfs:stop <"+busStop+">\n"
+              + "?st gtfs:stop <"+ServiceMap.urlEncode(busStop)+">\n"
               + "}\n"
               + "?st gtfs:trip ?trip.\n"
               + "?trip gtfs:route ?line.\n"
@@ -5006,6 +5028,27 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     final String sparqlType = conf.get("sparqlType", "virtuoso");
     final String km4cVersion = conf.get("km4cVersion", "new");
 
+    String areas = conf.get("tplAgenciesAreas", null);
+    if(areas!=null && selection!=null) {
+      String[] aa = areas.trim().split(",");
+      String[] latLng = selection.split(";");
+      double lat = Double.parseDouble(latLng[0]);
+      double lng = Double.parseDouble(latLng[1]);
+
+      for(String a: aa) {
+        String[] coords = a.trim().split(";");
+        if(coords.length>=4) {
+          double lat1=Double.parseDouble(coords[0]);
+          double lng1=Double.parseDouble(coords[1]);
+          double lat2=Double.parseDouble(coords[2]);
+          double lng2=Double.parseDouble(coords[3]);
+          if(lat>=lat1 && lat<=lat2 && lng>=lng1 && lng<=lng2) {
+            selection=null; //return all agencies on the store
+            break;
+          }
+        }
+      }
+    }
     String queryForAgencies;
     if(selection == null)
       queryForAgencies= "SELECT DISTINCT ?ag ?name WHERE {"
@@ -5243,6 +5286,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     String urlString = conf.get("solrKm4cIndexUrl", "http://192.168.0.207:8983/solr/km4c-index");
     String fuzzyMatch = conf.get("solrFuzzyValue", "0.7");
     String exactMatch = conf.get("solrExactMatch", "0");
+    String prefixMatch = conf.get("solrPrefixMatch", "1");
     SolrClient solr = new HttpSolrClient(urlString);
     String tilde = "~";
     String[] s=search.split("[^0-9A-Za-z']+");
@@ -5263,6 +5307,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       else*/
         if(!exactMatch.equals("0"))
           ss+="("+x+"^"+exactMatch+" OR "+x+tilde+fuzzyMatch+")";
+        else if(!prefixMatch.equals("0"))
+          ss+="("+x+"*^"+prefixMatch+" OR "+x+tilde+fuzzyMatch+")";
         else
           ss+="("+x+tilde+fuzzyMatch+")";
       ss+=" ";
@@ -5332,6 +5378,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         name = escapeJSON((String)d.getFieldValue("name_s_lower"));
         municipalityName = (String)d.getFieldValue("municipalityName_s_lower");
       }
+      if(municipalityName==null)
+        municipalityName = "";
       Object score = d.getFieldValue("score");
       out.println("{  \"geometry\": {\n" +
           "     \"type\": \"Point\",\n" +
