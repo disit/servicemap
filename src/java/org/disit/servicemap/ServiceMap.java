@@ -30,6 +30,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URI;
@@ -363,7 +364,9 @@ public class ServiceMap {
   }
   
   static public String latLngToAddressQuery(String lat, String lng, String sparqlType) {
-    return prefixes
+    Configuration conf = Configuration.getInstance();
+    if(conf.get("locationUseNodes","true").equals("false"))
+      return prefixes
             + "SELECT DISTINCT ?via ?numero ?comune	(?nc as ?uriCivico) ?uriComune ?provincia ?uriProvincia (?road as ?uriStrada) WHERE {\n"
             + " ?entry rdf:type km4c:Entry.\n"
             + " ?nc km4c:hasExternalAccess ?entry.\n"
@@ -374,8 +377,8 @@ public class ServiceMap {
             + " ?entry geo:long ?elong.\n"
             + " ?road km4c:inMunicipalityOf ?uriComune.\n"
             + " ?uriComune foaf:name ?comune.\n"
-            + " ?uriComune km4c:isPartOfProvince ?uriProvincia.\n"
-            + " ?uriProvincia foaf:name ?provincia.\n"
+            + " optional { ?uriComune km4c:isPartOfProvince ?uriProvincia.\n"
+            + " ?uriProvincia foaf:name ?provincia.}\n"
             + (sparqlType.equals("virtuoso") ? 
                //" ?ser geo:geometry ?geo.  filter(bif:st_distance(?geo, bif:st_point ("+longitudine+","+latitudine+"))<= "+raggioBus+")" :
                  " ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), 0.3))\n" 
@@ -384,6 +387,50 @@ public class ServiceMap {
                + " BIND( omgeo:distance(?elat, ?elong, " + lat + ", " + lng + ") AS ?dist)\n")
             + "} ORDER BY ?dist "
             + "LIMIT 1";
+    return "SELECT * {\n" +
+      "{\n" +
+      "SELECT DISTINCT ?via ?comune ?uriComune ?provincia ?uriProvincia (?road as ?uriStrada) ?dist WHERE {\n" +
+      " ?n a km4c:Node.\n" +
+      " ?n geo:geometry ?g.\n" +
+      " filter(bif:st_intersects(?g,bif:st_point("+lng+","+lat+"),0.3))\n" +
+      " bind (bif:st_distance(?g,bif:st_point("+lng+","+lat+")) as ?dist)\n" +
+      "{\n" +
+      " ?e km4c:startsAtNode ?n.\n" +
+      " ?e km4c:endsAtNode ?n1.\n" +
+      " ?n1 geo:geometry ?g1.\n" +
+      " FILTER(bif:st_intersects(bif:st_linestring(bif:st_point(bif:st_x(?g),bif:st_y(?g)),bif:st_point(bif:st_x(?g1),bif:st_y(?g1))),bif:st_point("+lng+","+lat+"),0.01))\n" +
+      "} UNION {\n" +
+      " ?e km4c:endsAtNode ?n.\n" +
+      " ?e km4c:startsAtNode ?n1.\n" +
+      " ?n1 geo:geometry ?g1.\n" +
+      " FILTER(bif:st_intersects(bif:st_linestring(bif:st_point(bif:st_x(?g),bif:st_y(?g)),bif:st_point(bif:st_x(?g1),bif:st_y(?g1))),bif:st_point("+lng+","+lat+"),0.01))\n" +
+      "}" +
+      " ?road km4c:containsElement ?e.\n" +
+      " ?road km4c:extendName ?via.\n" +
+      " ?road km4c:inMunicipalityOf ?uriComune.\n" +
+      " ?uriComune foaf:name ?comune.\n" +
+      " optional { ?uriComune km4c:isPartOfProvince ?uriProvincia.\n" +
+      " ?uriProvincia foaf:name ?provincia.}\n" +
+      "} order by asc(?dist) LIMIT 1\n" +
+      "} UNION {\n" +
+      "SELECT DISTINCT ?via ?numero ?comune	(?nc as ?uriCivico) ?uriComune ?provincia ?uriProvincia (?road as ?uriStrada) ?dist WHERE {\n" +
+      " ?entry rdf:type km4c:Entry.\n" +
+      " ?nc km4c:hasExternalAccess ?entry.\n" +
+      " ?nc km4c:extendNumber ?numero.\n" +
+      " ?nc km4c:belongToRoad ?road.\n" +
+      " ?road km4c:extendName ?via.\n" +
+      " ?entry geo:lat ?elat.\n" +
+      " ?entry geo:long ?elong.\n" +
+      " ?road km4c:inMunicipalityOf ?uriComune.\n" +
+      " ?uriComune foaf:name ?comune.\n" +
+      " optional { ?uriComune km4c:isPartOfProvince ?uriProvincia.\n" +
+      " ?uriProvincia foaf:name ?provincia.}\n" +
+      " ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), 0.3)) \n" +
+      " BIND( bif:st_distance(?geo, bif:st_point("+lng+","+lat+")) AS ?dist)\n" +
+      "} ORDER BY ?dist\n" +
+      "LIMIT 1\n" +
+      "}\n" +
+      "} ORDER BY ?dist LIMIT 1";
   }
   
   static public String latLngToMunicipalityQuery(String lat, String lng, String sparqlType) {
@@ -918,24 +965,29 @@ public class ServiceMap {
   static public boolean sendEmail(String dest, String subject, String msg, String mimeType, String smtpPrefix) {
     boolean emailSent;
     String to[] = dest.split(";");
-    Properties properties = System.getProperties();
+    Properties properties = new Properties();//System.getProperties();
     Configuration conf=Configuration.getInstance();
-    properties.put("mail.smtp.host", conf.get(smtpPrefix+"smtp", "musicnetwork.dsi.unifi.it"));
-    properties.put("mail.smtp.port", conf.get(smtpPrefix+"portSmtp","25"));
+    String host = conf.get(smtpPrefix+"smtp", "musicnetwork.dsi.unifi.it");
+    String port = conf.get(smtpPrefix+"portSmtp","25");
+    properties.put("mail.smtp.host", host);
+    properties.put("mail.smtp.port", port);
     String auth = conf.get(smtpPrefix+"authSmtp","false");
+    String authType = "";
     if(auth.equals("true")) {
       properties.put("mail.smtp.auth", auth);
-      String authType = conf.get(smtpPrefix+"authTypeSmtp","TLS");
+      authType = conf.get(smtpPrefix+"authTypeSmtp","TLS");
       if(authType.equals("TLS"))
         properties.put("mail.smtp.starttls.enable", "true");
       else if(authType.equals("SSL")) {
         properties.put("mail.smtp.socketFactory.port", conf.get(smtpPrefix+"portSmtp","465"));
         properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
       }
+    } else {
+      
     }
     final String user = conf.get(smtpPrefix+"userSmtp", null);
     final String passwd = conf.get(smtpPrefix+"passwdSmtp", "");
-    Session mailSession = Session.getDefaultInstance(properties);
+    Session mailSession = null;
     if(user!=null && !user.trim().isEmpty()) {
       properties.setProperty("mail.user", user);
       properties.setProperty("mail.password", passwd);
@@ -945,7 +997,10 @@ public class ServiceMap {
           return new PasswordAuthentication(user, passwd);
         }
         });
+    } else {
+      mailSession = Session.getInstance(properties);
     }
+    //System.out.println(properties);
     try {
       MimeMessage message = new MimeMessage(mailSession);
       message.setFrom(new InternetAddress(conf.get("mailFrom","info@disit.org")));
@@ -957,6 +1012,7 @@ public class ServiceMap {
       Transport.send(message);
       emailSent = true;
     } catch (MessagingException mex) {
+      System.out.println("FAILD send email using: ("+smtpPrefix+") host="+host+":"+port+" auth="+auth+" authtype="+authType+" u="+user+" p="+passwd);
       mex.printStackTrace();
       emailSent = false;
     }        
@@ -1572,6 +1628,8 @@ public class ServiceMap {
         System.out.println(new Date()+" notifyException disabled");
         if(exc!=null)
           exc.printStackTrace();
+        if(details!=null)
+          System.out.println(details);
         return;
       } else {
         System.out.println(new Date()+" notifyExceptionTo "+notifyExceptionTo);
@@ -1739,6 +1797,11 @@ public class ServiceMap {
   
   public static JSONObject getStopsFromTo(RepositoryConnection con, String srcStopUri, String dstStopUri, String tripId, String time, String date) throws Exception {
     boolean addChecks = Configuration.getInstance().get("shortestPathsTplChecks","true").equals("true");
+    String gtfsTripFixUriPrefix = Configuration.getInstance().get("gtfsTripFixUriPrefix", "http://www.disit.org/km4city/resource/Bus_hsl_zip_ST");
+    if(gtfsTripFixUriPrefix!=null && srcStopUri.startsWith(gtfsTripFixUriPrefix)) {
+      //used for helsinki remove the date from tripId eg 1018_20190422_Ke_2_1406 --> 1018_Ke_2_1406
+      tripId = tripId.substring(0, tripId.indexOf("_")) + tripId.substring(tripId.indexOf("_", 1 + tripId.indexOf("_")));
+    }
     JSONArray stops = new JSONArray();
     String wkt = "";
     String query="select distinct ?s ?name ?lat ?lon ?class ?mclass ?agency ?agencyName ?time ?ss ?trip ?x {\n" +
@@ -1894,10 +1957,13 @@ public class ServiceMap {
         "filter(bif:st_intersects(?g, bif:st_point("+lon+","+lat+"),0.5))\n" +
         "bind(bif:st_distance(?g,bif:st_point("+lon+","+lat+")) as ?d)\n" +
         "?e km4c:startAtNode | km4c:endsAtNode ?n.\n" +
+        "?e km4c:highwayType ?htype.\n" +
         "?road km4c:containsElement ?e.\n" +
+        "optional {\n" +
         "?rs km4c:where ?road.\n" +
         "?rs km4c:who ?type.\n" +
-        "filter(?type not in (\"foot\",\"horse\",\"bicycle\",\"psv\",\"emergency\",\"taxi\",\"bus\"))\n" +
+        "}\n" +
+        "filter(?type not in (\"foot\",\"horse\",\"bicycle\",\"psv\",\"emergency\",\"taxi\",\"bus\") && ?htype not in (\"footway\",\"path\",\"steps\",\"cycleway\",\"pedestrian\",\"track\"))\n" +
         "} order by ?d limit 1";      
     } else {
       query = "select ?n {\n" +
@@ -1910,7 +1976,7 @@ public class ServiceMap {
     TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
     long start = System.nanoTime();
     TupleQueryResult result = tq.evaluate();
-    ServiceMap.logQuery(query, "API-shortest-path-find-osmnode", "virtuoso", "", System.nanoTime()-start);
+    ServiceMap.logQuery(query, "API-shortest-path-find-osmnode-"+transport, "virtuoso", lat+";"+lon, System.nanoTime()-start);
     String nodeid = null;
     if(result.hasNext()) {
       BindingSet binding = result.next();
@@ -2060,5 +2126,15 @@ public class ServiceMap {
       return "NOT FROM <"+String.join(">\nNOT FROM <", graphs)+">\n";
     }
     return "";
-  }  
+  } 
+  
+  public static String urlEncode(String url){
+    if(!url.contains("%"))
+      return url.replace(" ", "%20").replace("\t", "%09");
+    return url;
+  }
+  
+  public static String stringEncode(String str) {
+    return str.replace("\"", "\\\"");
+  }
 }
