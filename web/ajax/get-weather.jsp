@@ -51,7 +51,7 @@
 		"PREFIX time:<http://www.w3.org/2006/time#>\n" +                    
 		"SELECT distinct ?wRep ?instantDateTime WHERE {\n" + 
 		" ?comune rdf:type km4c:Municipality.\n" + 
-		" ?comune foaf:name \""+nomeComune+"\"^^xsd:string.\n" +
+		" ?comune foaf:name \""+ServiceMap.stringEncode(nomeComune)+"\"^^xsd:string.\n" +
 		" ?comune km4c:hasWeatherReport ?wRep.\n" + 
 		" ?wRep km4c:updateTime ?instant.\n" + 
 		" ?instant <http://schema.org/value> ?instantDateTime.\n" + 
@@ -226,8 +226,6 @@
       out.println("<div id=\""+divSavePin+"\" class=\"savePin\" onclick=save_handler('weather','"+valueOfWRep+"','meteo"+nomeComune+"')></div>");
       out.println("</div>");
     }
-    catch (Exception e){			
-      out.println(e.getMessage());
-    }finally{con.close();}
+    finally{con.close();}
   }
 %>

@@ -44,6 +44,8 @@ public class ConnectionPool {
    *
    */
   public int connections;
+  public int maxWait;
+  public String type;
 
   private GenericObjectPool connectionPool = null;
 
@@ -57,11 +59,13 @@ public class ConnectionPool {
    * @param password
    * @throws IOException
    */
-  public ConnectionPool(String url, String username, String password, int maxConnections) throws IOException {
+  public ConnectionPool(String url, String username, String password, int maxConnections, String type, int maxWait) throws IOException {
     URL = url;
     USERNAME = username;
     PASSWORD = password;
     connections = maxConnections;
+    this.maxWait = maxWait;
+    this.type = type;
   }
 
   /**
@@ -90,8 +94,13 @@ public class ConnectionPool {
     // set the max number of connections
     connectionPool.setMaxActive(connections);
     // if the pool is exhausted (i.e., the maximum number of active objects has been reached), the borrowObject() method should simply create a new object anyway
-    connectionPool.setWhenExhaustedAction(GenericObjectPool.WHEN_EXHAUSTED_GROW);
-
+    if("block".equals(type))
+      connectionPool.setWhenExhaustedAction(GenericObjectPool.WHEN_EXHAUSTED_BLOCK);
+    else if("fail".equals(type))
+      connectionPool.setWhenExhaustedAction(GenericObjectPool.WHEN_EXHAUSTED_FAIL);
+    else
+      connectionPool.setWhenExhaustedAction(GenericObjectPool.WHEN_EXHAUSTED_GROW);
+    connectionPool.setMaxWait(maxWait);
     /**
      * Creates a connection factory object which will be use by the pool to
      * create the connection object. We passes the JDBC url info, username and
@@ -126,20 +135,30 @@ public class ConnectionPool {
             + "Active: " + getConnectionPool().getNumActive() + "; "
             + "Idle  : " + getConnectionPool().getNumIdle());
   }
+  
+  public static String getStatus() {
+    GenericObjectPool cp = connPool.getConnectionPool();
+    
+    return "Max: " + cp.getMaxActive() + "; "
+            + "Active: " + cp.getNumActive() + "; "
+            + "Idle: " + cp.getNumIdle();
+  }
 
   public static Connection getConnection() throws IOException, SQLException {
     if (connPool == null) {
       Configuration conf = Configuration.getInstance();
       String url = conf.get("urlMySqlDB", "")+conf.get("dbMySql", "ServiceMap")+"?useUnicode=true&characterEncoding=utf-8";
       int maxConnections = Integer.parseInt(conf.get("maxConnectionsMySql", "10"));
+      int maxWait = Integer.parseInt(conf.get("maxWaitMySql", "1000"));
+      String poolType = conf.get("poolTypeMySql", "block");
       synchronized(ConnectionPool.class) {
         if(connPool==null) {
-          connPool = new ConnectionPool(url, conf.get("userMySql", ""), conf.get("passMySql", ""),maxConnections);
+          connPool = new ConnectionPool(url, conf.get("userMySql", ""), conf.get("passMySql", ""),maxConnections, poolType, maxWait);
           System.out.println("connected "+url+" maxConnections: "+maxConnections);
         }
         if (dataSource == null) {
           dataSource = connPool.setUp();
-        }        
+        }
       }
     }
     else {

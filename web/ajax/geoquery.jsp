@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.Configuration"%>
 <%@page import="org.openrdf.model.Literal"%>
 <%@page import="org.openrdf.model.Value"%>
 <%@page import="org.openrdf.query.BindingSet"%>
@@ -23,8 +24,16 @@
    You should have received a copy of the GNU Affero General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
   
+  
+  String ipAddress = ServiceMap.getClientIpAddress(request);  
+  
+  Configuration conf = Configuration.getInstance();
+  if(!ipAddress.startsWith(conf.get("internalNetworkIpPrefix", "192.168.0.")) && !ipAddress.equals("127.0.0.1")) {
+    response.sendError(403, "unaccessible from "+ipAddress);
+    return;
+  }
+  
   RepositoryConnection con = ServiceMap.getSparqlConnection();
-
 
   String query = request.getParameter("query");
   TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);

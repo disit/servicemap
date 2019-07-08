@@ -45,7 +45,7 @@
             + "SELECT distinct  ?situationRecord ?instantDateTime ?occupancy ?free ?occupied ?cpStatus ?capacity WHERE {\n"
             + "	?park rdf:type km4c:Car_park.\n"
             //+ "	?park schema:name \"" + nomeParcheggio + "\" ^^xsd:string .  "
-            + "	{?park schema:name \"" + nomeParcheggio + "\".} union { ?park schema:name \"" + nomeParcheggio + "\" ^^xsd:string.}\n"
+            + "	{?park schema:name \"" + ServiceMap.stringEncode(nomeParcheggio) + "\".} union { ?park schema:name \"" + ServiceMap.stringEncode(nomeParcheggio) + "\" ^^xsd:string.}\n"
             + "	?cps km4c:observeCarPark ?park.\n"
             + "	?cps km4c:capacity ?capacity.\n"
             + "	?situationRecord km4c:relatedToSensor ?cps.\n"

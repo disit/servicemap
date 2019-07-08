@@ -118,9 +118,10 @@
         out.println("</tr>");
       }
       st.close();
-      connection.close();
     } catch (SQLException ex) {
       ServiceMap.notifyException(ex);
+    } finally {
+      connection.close();      
     }%>
     </table>
     </div>

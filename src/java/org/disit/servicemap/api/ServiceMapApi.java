@@ -2002,9 +2002,9 @@ public class ServiceMapApi {
                 + " ?route km4c:hasSection ?rs."
                 + " ?rs km4c:endsAtStop ?bs1."
                 + " ?rs km4c:startsAtStop ?bs2."
-                + " { ?bs1 foaf:name \"" + nameBusStop + "\"."
+                + " { ?bs1 foaf:name \"" + ServiceMap.stringEncode(nameBusStop) + "\"."
                 + " }UNION "
-                + " {?bs2 foaf:name \"" + nameBusStop + "\" . "
+                + " {?bs2 foaf:name \"" + ServiceMap.stringEncode(nameBusStop) + "\" . "
                 + " } "
                 + "} ORDER BY ?id ";
 
@@ -2024,6 +2024,10 @@ public class ServiceMapApi {
     public JSONObject queryLocation(RepositoryConnection con, String lat, String lng, String findGeometry, Double wktDist) throws Exception {
       String sparqlType=Configuration.getInstance().get("sparqlType", "virtuoso");
       JSONObject obj = null;
+      if(CheckParameters.checkLatLng(lat+";"+lng)!=null) {
+        throw new IllegalArgumentException("invalid lat lng coordinates");
+      }
+              
       String query = ServiceMap.latLngToAddressQuery(lat, lng, sparqlType);
       TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
       long ts = System.nanoTime();

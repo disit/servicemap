@@ -61,27 +61,31 @@
       return;
     }      
 
-    if(position == null && search==null) {
-      ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"missing 'position' or 'search' parameters");
-    }
-    else {
-      if(search!=null) {
-        int results = serviceMapApi.queryLocationSearch(out, search, searchMode, position, maxDists, excludePOI.equalsIgnoreCase("true"), categories, maxResults, sortByDist.equalsIgnoreCase("true"));
-        ServiceMap.updateResultsPerIP(ip, "api", results);
-        ServiceMap.logAccess(request, null, excludePOI+";"+position, null, null, "api-location-search", null, null, null, search, "json", uid, reqFrom);
-      } else {
-        String c[] = position.split(";");
-        if(c.length>=2) {
-          String lat=c[0];
-          String lng=c[1];
-          RepositoryConnection con = ServiceMap.getSparqlConnection();
-          int results = serviceMapApi.queryLocation(out, con, lat, lng, intersectGeom, wktDist);
-          ServiceMap.updateResultsPerIP(ip, "api", results);
-          ServiceMap.logAccess(request, null, position, null, null, "api-location", null, null, null, null, "json", uid, reqFrom);
-          con.close();
-        }
-        else
-          ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"invalid 'position' parameter (missing lat;long)");
+    try {
+      if(position == null && search==null) {
+        ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"missing 'position' or 'search' parameters");
       }
+      else {
+        if(search!=null) {
+          int results = serviceMapApi.queryLocationSearch(out, search, searchMode, position, maxDists, excludePOI.equalsIgnoreCase("true"), categories, maxResults, sortByDist.equalsIgnoreCase("true"));
+          ServiceMap.updateResultsPerIP(ip, "api", results);
+          ServiceMap.logAccess(request, null, excludePOI+";"+position, null, null, "api-location-search", null, null, null, search, "json", uid, reqFrom);
+        } else {
+          String c[] = position.split(";");
+          if(c.length>=2) {
+            String lat=c[0];
+            String lng=c[1];
+            RepositoryConnection con = ServiceMap.getSparqlConnection();
+            int results = serviceMapApi.queryLocation(out, con, lat, lng, intersectGeom, wktDist);
+            ServiceMap.updateResultsPerIP(ip, "api", results);
+            ServiceMap.logAccess(request, null, position, null, null, "api-location", null, null, null, null, "json", uid, reqFrom);
+            con.close();
+          }
+          else
+            ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST,"invalid 'position' parameter (missing lat;long)");
+        }
+      }
+    } catch(IllegalArgumentException e) {
+      ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
     }
 %>

@@ -72,7 +72,7 @@
             filtroLocalita += " }\n";
         }
         else if (nomeComune.equals("all")) {
-            filtroLocalita += "?prov foaf:name \"" + nomeProvincia + "\"^^xsd:string.\n";
+            filtroLocalita += "?prov foaf:name \"" + ServiceMap.stringEncode(nomeProvincia) + "\"^^xsd:string.\n";
             filtroLocalita += "?mun km4c:isPartOfProvince ?prov.\n";
         } else {
             filtroLocalita += " { ?ser km4c:hasAccess ?entry.\n";
@@ -81,13 +81,13 @@
             filtroLocalita += "  ?nc km4c:hasExternalAccess ?entry.\n";
             filtroLocalita += "  ?nc km4c:belongToRoad ?road.\n";
             filtroLocalita += "  ?road km4c:inMunicipalityOf ?mun.\n";
-            filtroLocalita += "  ?mun foaf:name \"" + nomeComune + "\"^^xsd:string.\n";
+            filtroLocalita += "  ?mun foaf:name \"" + ServiceMap.stringEncode(nomeComune) + "\"^^xsd:string.\n";
             filtroLocalita += " } UNION {\n";
             filtroLocalita += "  ?ser km4c:isInRoad ?road .\n";
             filtroLocalita += "  ?ser geo:lat ?elat.\n";
             filtroLocalita += "  ?ser geo:long ?elong.\n";
             filtroLocalita += "  ?road km4c:inMunicipalityOf ?mun.\n";
-            filtroLocalita += "  ?mun foaf:name \"" + nomeComune + "\"^^xsd:string.\n";
+            filtroLocalita += "  ?mun foaf:name \"" + ServiceMap.stringEncode(nomeComune) + "\"^^xsd:string.\n";
             filtroLocalita += " }\n";
         }
 
@@ -119,7 +119,7 @@
                     + " ?bs geo:lat ?bslt.\n"
                     + " ?bs geo:long ?bslg.\n"
                     + " ?bs km4c:isInMunicipality ?com.\n"
-                    + " ?com foaf:name \"" + nomeComune + "\"^^xsd:string.\n"
+                    + " ?com foaf:name \"" + ServiceMap.stringEncode(nomeComune) + "\"^^xsd:string.\n"
                     + "}";
             if (!numeroRisultatiServizi.equals("0")) {
                     limitBusStop = ((Integer.parseInt(numeroRisultatiServizi))/10*3);
@@ -175,7 +175,7 @@
                     + " ?sensor dcterms:identifier ?idSensore.\n"
                     + " ?sensor km4c:placedOnRoad ?road.\n"
                     + " ?road km4c:inMunicipalityOf ?mun.\n"
-                    + " ?mun foaf:name \"" + nomeComune + "\"^^xsd:string.\n"
+                    + " ?mun foaf:name \"" + ServiceMap.stringEncode(nomeComune) + "\"^^xsd:string.\n"
                     + " ?sensor schema:streetAddress ?address.\n"
                     + ServiceMap.textSearchQueryFragment("?sensor", "?p", textFilter)
                     + "}";

@@ -68,11 +68,11 @@
       String queryForCoordinates = "PREFIX km4c:<http://www.disit.org/km4city/schema#>"
         + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>"
         + "SELECT ?lat ?long {{"
-        + " <" + centroRicerca + "> km4c:hasAccess ?entry."
+        + " <" + ServiceMap.urlEncode(centroRicerca) + "> km4c:hasAccess ?entry."
         + " ?entry geo:lat ?lat."
         + " ?entry geo:long ?long."
         + "}UNION{"
-        + " <" + centroRicerca + "> geo:lat ?lat;"
+        + " <" + ServiceMap.urlEncode(centroRicerca) + "> geo:lat ?lat;"
         + "  geo:long ?long."
         + "} "
         + "}LIMIT 1";
@@ -108,6 +108,8 @@
     String apiKey = (String)request.getSession().getAttribute("apikey");
     try {
       serviceMapApi.queryLatLngServices(out, con, coord, categorie, textFilter,raggioServizi,raggioServizi,raggioServizi,numeroRisultatiServizi,numeroRisultatiServizi,numeroRisultatiServizi,null, cat_servizi, false, inside, true, fullCount, value_type, graphUri, apiKey);
+    } catch(IllegalArgumentException e) {
+      response.sendError(400);
     } catch (Exception e) {
         ServiceMap.notifyException(e, HttpUtils.getRequestURL(request).append("?").append(request.getQueryString()).toString());
     }finally{con.close() ;}

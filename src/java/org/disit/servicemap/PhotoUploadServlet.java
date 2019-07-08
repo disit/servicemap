@@ -157,16 +157,20 @@ public class PhotoUploadServlet extends HttpServlet {
       String reqFrom = request.getParameter("requestFrom");
       
       Connection conMySQL = ConnectionPool.getConnection();
-      String query = "INSERT INTO ServicePhoto(serviceUri,serviceName,uid,file,ip,userAgent) VALUES(?,?,?,?,?,?)";
-      PreparedStatement st = conMySQL.prepareStatement(query);
-      st.setString(1, serviceUri);
-      st.setString(2, serviceName);
-      st.setString(3, uid);
-      st.setString(4, file.getName());
-      st.setString(5, ip);
-      st.setString(6, ua);
+      try {
+        String query = "INSERT INTO ServicePhoto(serviceUri,serviceName,uid,file,ip,userAgent) VALUES(?,?,?,?,?,?)";
+        PreparedStatement st = conMySQL.prepareStatement(query);
+        st.setString(1, serviceUri);
+        st.setString(2, serviceName);
+        st.setString(3, uid);
+        st.setString(4, file.getName());
+        st.setString(5, ip);
+        st.setString(6, ua);
 
-      st.execute();
+        st.execute();
+      } finally {
+        conMySQL.close();
+      }
       response.addHeader("Access-Control-Allow-Origin", "*");
       response.addHeader("Access-Control-Allow-Methods", "POST");
       response.setHeader("Location", request.getRequestURI()+"/"+file.getName());

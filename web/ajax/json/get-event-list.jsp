@@ -57,6 +57,8 @@
 
     try {
         serviceMapApi.queryEventList(out, con, range, coord, raggio, numEv, textFilter, null, true);
+    } catch(IllegalArgumentException e) {
+        response.sendError(400);
     } catch (Exception e) {
         ServiceMap.notifyException(e);
     }finally{

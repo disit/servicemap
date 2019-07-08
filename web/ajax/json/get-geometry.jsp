@@ -18,14 +18,18 @@
 
   String label = request.getParameter("label");
   Connection con = ConnectionPool.getConnection();
-  Statement st = con.createStatement();
-  ResultSet rs = st.executeQuery("SELECT wkt FROM Geometry WHERE label='"+label+"'");
-  if (rs.next()) {
-      String wkt = rs.getString("wkt");
-      out.println("{ "
-                + "\"wkt\": \"" + wkt + "\" "
-                + "}");
+  try {
+    PreparedStatement st = con.prepareStatement("SELECT wkt FROM Geometry WHERE label=?");
+    st.setString(1, label);
+    ResultSet rs = st.executeQuery();
+    if (rs.next()) {
+        String wkt = rs.getString("wkt");
+        out.println("{ "
+                  + "\"wkt\": \"" + wkt + "\" "
+                  + "}");
+    }
+    st.close();
+  } finally {
+    con.close();
   }
-  st.close();
-  con.close();
 %>

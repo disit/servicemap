@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.api.CheckParameters"%>
 <%@page import="java.io.IOException"%>
 <%@page import="org.openrdf.model.Value"%>
 <%@ page import="java.util.*"%>
@@ -36,6 +37,9 @@
 
     RepositoryConnection con = ServiceMap.getSparqlConnection();
     String selection = request.getParameter("serviceUri");
+    if(CheckParameters.checkUri(selection)!=null) {
+      return;
+    }
     String latitudine = "";
     String longitudine = "";
     String queryForCoordinates = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"

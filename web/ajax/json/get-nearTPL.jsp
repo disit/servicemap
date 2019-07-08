@@ -55,9 +55,11 @@
 
     try {
         serviceMapApi.queryTplLatLng(out, con, coord, raggio, null, numLinee, true);
+    } catch(IllegalArgumentException e) {
+      response.sendError(400);
     } catch (Exception e) {
         ServiceMap.notifyException(e);
-    }finally{
+    } finally{
       con.close() ;
     }
 %>

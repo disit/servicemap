@@ -55,7 +55,7 @@
           + "SELECT ?ride  (MAX(?avmr) AS ?avmrNew)\n"
           + "WHERE{\n"
           + " ?bs rdf:type km4c:BusStop.\n"
-          + " ?bs foaf:name \"" + nomeFermata.replace("\"", "\\\"") + "\".\n"
+          + " ?bs foaf:name \"" + ServiceMap.stringEncode(nomeFermata) + "\".\n"
           + " ?bs km4c:hasForecast ?bsf.\n"
           + " ?avmr km4c:includeForecast ?bsf.\n"
           + " OPTIONAL {?rs km4c:endsAtStop ?bs}.\n"
@@ -109,7 +109,7 @@
           + "PREFIX opengis:<http://www.opengis.net/ont/geosparql#>\n"
           + "SELECT DISTINCT ?arrivoPrevistoIstante ?route ?linea ?stato ?idRide ?bsLast ?rName ?bsFirst WHERE {\n"
           + "	?fermata rdf:type km4c:BusStop.\n"
-          + "	?fermata foaf:name \"" + nomeFermata.replace("\"", "\\\"") + "\".\n"
+          + "	?fermata foaf:name \"" + ServiceMap.stringEncode(nomeFermata) + "\".\n"
           + "	?fermata km4c:hasForecast ?previsione.\n"
           + filtroSecondaQuery
           + "	?previsione km4c:hasExpectedTime ?arrivoPrevisto.\n"

@@ -381,52 +381,55 @@
                             <div id="categorie">
                                 
                                 <%
-                                   conMySQL = ConnectionPool.getConnection(); //DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
+                                   conMySQL = ConnectionPool.getConnection();
+                                   try {
                                     String query = "SELECT distinct MacroClass FROM ServiceCategory_menu_NEW where TypeOfService not like 'T_Service' AND Visible = '1' order by MacroClass";
 
-                                    // create the java statement
-                                    st = conMySQL.createStatement();
-                                    // execute the query, and get a java resultset
-                                    rs = st.executeQuery(query);
-                                    
-                                    // iterate through the java resultset
-                                    while (rs.next()) {
-                                        
-                                        String macroClass = rs.getString("MacroClass");
-                                        out.println("<input type='checkbox' name='" + macroClass + "' value='" + macroClass + "' class='macrocategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + macroClass + ".png' height='23' width='20' align='top'> <span class='" + macroClass + " macrocategory-label'>" + macroClass + "</span> <span class='toggle-subcategory' title='Mostra sottocategorie'>+</span>");
-                                        out.println("<div class='subcategory-content'>");
-                                        
-                                        String query2 = "SELECT distinct SubClass,icon FROM ServiceCategory_menu_NEW WHERE MacroClass = '" + macroClass + "' AND TypeOfService not like 'T_Service' AND Visible = '1' ORDER BY SubClass ASC";
-                                        // create the java statement
-                                        st2 = conMySQL.createStatement();
-                                        // execute the query, and get a java resultset
-                                        rs2 = st2.executeQuery(query2);
-                                        // iterate through the java resultset
-                                        
-                                        while (rs2.next()) {
-                                            
-                                            //String sub_nome = rs2.getString("Ita");
-                                            String subClass = rs2.getString("SubClass");
-                                            String subClass_ico = rs2.getString("icon");
-                                            if(subClass_ico == null)
-                                              subClass_ico = macroClass + "_" + subClass;
-                                            
-                                            out.println("<input type='checkbox' name='" + subClass + "' value='" + subClass + "' class='sub_" + macroClass + " subcategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + subClass_ico + ".png' height='19' width='16' align='top'>");
-                                            // modifica per RTZgate
-                                            //if (sub_en_name.equals("rTZgate")) {
-                                            //sub_en_name = "RTZgate";
-                                            //}
-                                            out.println("<span class='" + macroClass + " subcategory-label'>" + subClass + "</span>");
-                                            out.println("<br />");
-                                        }
-                                        
-                                        out.println("</div>");
-                                        out.println("<br />");
-                                        st2.close();
-                                        //conMySQL2.close();
-                                    }
-                                    st.close();
-                                    conMySQL.close();
+                                     // create the java statement
+                                     st = conMySQL.createStatement();
+                                     // execute the query, and get a java resultset
+                                     rs = st.executeQuery(query);
+
+                                     // iterate through the java resultset
+                                     while (rs.next()) {
+
+                                         String macroClass = rs.getString("MacroClass");
+                                         out.println("<input type='checkbox' name='" + macroClass + "' value='" + macroClass + "' class='macrocategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + macroClass + ".png' height='23' width='20' align='top'> <span class='" + macroClass + " macrocategory-label'>" + macroClass + "</span> <span class='toggle-subcategory' title='Mostra sottocategorie'>+</span>");
+                                         out.println("<div class='subcategory-content'>");
+
+                                         String query2 = "SELECT distinct SubClass,icon FROM ServiceCategory_menu_NEW WHERE MacroClass = '" + macroClass + "' AND TypeOfService not like 'T_Service' AND Visible = '1' ORDER BY SubClass ASC";
+                                         // create the java statement
+                                         st2 = conMySQL.createStatement();
+                                         // execute the query, and get a java resultset
+                                         rs2 = st2.executeQuery(query2);
+                                         // iterate through the java resultset
+
+                                         while (rs2.next()) {
+
+                                             //String sub_nome = rs2.getString("Ita");
+                                             String subClass = rs2.getString("SubClass");
+                                             String subClass_ico = rs2.getString("icon");
+                                             if(subClass_ico == null)
+                                               subClass_ico = macroClass + "_" + subClass;
+
+                                             out.println("<input type='checkbox' name='" + subClass + "' value='" + subClass + "' class='sub_" + macroClass + " subcategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + subClass_ico + ".png' height='19' width='16' align='top'>");
+                                             // modifica per RTZgate
+                                             //if (sub_en_name.equals("rTZgate")) {
+                                             //sub_en_name = "RTZgate";
+                                             //}
+                                             out.println("<span class='" + macroClass + " subcategory-label'>" + subClass + "</span>");
+                                             out.println("<br />");
+                                         }
+
+                                         out.println("</div>");
+                                         out.println("<br />");
+                                         st2.close();
+                                         //conMySQL2.close();
+                                     }
+                                     st.close();
+                                   } finally {
+                                     conMySQL.close();
+                                   }
                                 %>
                                 <br />
                             </div>
@@ -483,21 +486,24 @@
                             <select id="geosearch" name="geosearch" disabled="disabled">
                               <option value='select'>select...</option>
                               <%                              
-                                    conMySQL = ConnectionPool.getConnection(); //DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
-                                    String queryLabel = "SELECT label FROM Geometry ORDER by label";
+                                    conMySQL = ConnectionPool.getConnection();
+                                    try {
+                                      String queryLabel = "SELECT label FROM Geometry ORDER by label";
 
-                                    // create the java statement
-                                    st = conMySQL.createStatement();
-                                    // execute the query, and get a java resultset
-                                    rs = st.executeQuery(queryLabel);
+                                      // create the java statement
+                                      st = conMySQL.createStatement();
+                                      // execute the query, and get a java resultset
+                                      rs = st.executeQuery(queryLabel);
 
-                                    // iterate through the java resultset
-                                    while (rs.next()) {
-                                        String label = rs.getString("label");
-                                        out.println("<option value='" + label + "'>"+label+"</option>");
+                                      // iterate through the java resultset
+                                      while (rs.next()) {
+                                          String label = rs.getString("label");
+                                          out.println("<option value='" + label + "'>"+label+"</option>");
+                                      }
+                                      st.close();
+                                    } finally {
+                                      conMySQL.close();
                                     }
-                                    st.close();
-                                    conMySQL.close();
                                 %>    
                             </select>
                             <hr />
@@ -533,77 +539,76 @@
                             <input type="checkbox" name="macro-select-all_t" id="macro-select-all_t" value="Select All" /> <span name="lbl" caption="Select_All_T">De/Select All</span>
                             <div id="categorie_t">
                                 
-                                <%                                    //Class.forName("com.mysql.jdbc.Driver");
-                                    conMySQL = ConnectionPool.getConnection(); //DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
+                                <% 
+                                    conMySQL = ConnectionPool.getConnection();
+                                    try {
+                                      String query_T = "SELECT distinct MacroClass FROM ServiceCategory_menu_NEW where TypeOfService not like 'Service' AND Visible = '1' order by MacroClass";
+                                      // create the java statement
+                                      st = conMySQL.createStatement();
 
-                                    String query_T = "SELECT distinct MacroClass FROM ServiceCategory_menu_NEW where TypeOfService not like 'Service' AND Visible = '1' order by MacroClass";
+                                      // execute the query, and get a java resultset
+                                      rs = st.executeQuery(query_T);
 
-                                    // create the java statement
-                                    st = conMySQL.createStatement();
+                                      // iterate through the java resultset
+                                      while (rs.next()) {
+                                          String classe = rs.getString("MacroClass");
+                                          //String iniziale = classe.substring(0, 1).toLowerCase();
+                                          //String classe_ico = iniziale.concat(classe.substring(1, classe.length()));
+                                          out.println("<input type='checkbox' name='" + classe + "' value='" + classe + "' class='macrocategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + classe + ".png' height='23' width='20' align='top'> <span class='" + classe + " macrocategory-label'>" + classe + "</span> <span class='toggle-subcategory' title='Mostra sottocategorie'>+</span>");
+                                          out.println("<div class='subcategory-content'>");
+                                          //conMySQL2 = DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
+                                          String query2 = "SELECT distinct labelITA, SubClass FROM ServiceCategory_menu_NEW WHERE MacroClass = '" + classe + "' AND Visible = '1' ORDER BY SubClass ASC";
+                                          // create the java statement
+                                          st2 = conMySQL.createStatement();
+                                          // execute the query, and get a java resultset
+                                          rs2 = st2.executeQuery(query2);
+                                          // iterate through the java resultset
+                                          while (rs2.next()) {
+                                              //String sub_nome = rs2.getString("Ita");
+                                              String sub_en_name = rs2.getString("SubClass");
+                                              //String subclasse_ico = classe_ico + "_" + sub_en_name;
 
-                                    // execute the query, and get a java resultset
-                                    rs = st.executeQuery(query_T);
+                                              //conMySQL3 = DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
+                                              if (sub_en_name.equals("Event")) {
+                                                  String subclasse_ico = "HappeningNow_" + sub_en_name;
+                                                  out.println("<input type='checkbox' name='" + sub_en_name + "' value='" + sub_en_name + "' class='sub_" + classe + " subcategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + subclasse_ico + ".png' height='19' width='16' align='top'>");
+                                                  out.println("<span class='" + classe + " subcategory-label'>" + sub_en_name + "</span>");
+                                                  out.println("<br />");
+                                              } else {
+                                                  String query3 = "SELECT distinct MacroClass FROM ServiceCategory_menu_NEW WHERE SubClass = '" + sub_en_name + "' AND TypeOfService not like 'T_Service'";
+                                                  st3 = conMySQL.createStatement();
+                                                  rs3 = st3.executeQuery(query3);
+                                                  while (rs3.next()) {
+                                                      String macro_cat = rs3.getString("MacroClass");
 
-                                    // iterate through the java resultset
-                                    while (rs.next()) {
-                                        String classe = rs.getString("MacroClass");
-                                        //String iniziale = classe.substring(0, 1).toLowerCase();
-                                        //String classe_ico = iniziale.concat(classe.substring(1, classe.length()));
-                                        out.println("<input type='checkbox' name='" + classe + "' value='" + classe + "' class='macrocategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + classe + ".png' height='23' width='20' align='top'> <span class='" + classe + " macrocategory-label'>" + classe + "</span> <span class='toggle-subcategory' title='Mostra sottocategorie'>+</span>");
-                                        out.println("<div class='subcategory-content'>");
-                                        //conMySQL2 = DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
-                                        String query2 = "SELECT distinct labelITA, SubClass FROM ServiceCategory_menu_NEW WHERE MacroClass = '" + classe + "' AND Visible = '1' ORDER BY SubClass ASC";
-                                        // create the java statement
-                                        st2 = conMySQL.createStatement();
-                                        // execute the query, and get a java resultset
-                                        rs2 = st2.executeQuery(query2);
-                                        // iterate through the java resultset
-                                        while (rs2.next()) {
-                                            //String sub_nome = rs2.getString("Ita");
-                                            String sub_en_name = rs2.getString("SubClass");
-                                            //String subclasse_ico = classe_ico + "_" + sub_en_name;
+                                                      //String subclasse_ico = (macro_cat.substring(0, 1).toLowerCase()).concat(macro_cat.substring(1, macro_cat.length())) + "_" + sub_en_name;
+                                                      String subclasse_ico = macro_cat + "_" + sub_en_name;
 
-                                            //conMySQL3 = DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
-                                            if (sub_en_name.equals("Event")) {
-                                                String subclasse_ico = "HappeningNow_" + sub_en_name;
-                                                out.println("<input type='checkbox' name='" + sub_en_name + "' value='" + sub_en_name + "' class='sub_" + classe + " subcategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + subclasse_ico + ".png' height='19' width='16' align='top'>");
-                                                out.println("<span class='" + classe + " subcategory-label'>" + sub_en_name + "</span>");
-                                                out.println("<br />");
-                                            } else {
-                                                String query3 = "SELECT distinct MacroClass FROM ServiceCategory_menu_NEW WHERE SubClass = '" + sub_en_name + "' AND TypeOfService not like 'T_Service'";
-                                                st3 = conMySQL.createStatement();
-                                                rs3 = st3.executeQuery(query3);
-                                                while (rs3.next()) {
-                                                    String macro_cat = rs3.getString("MacroClass");
+                                                      out.println("<input type='checkbox' name='" + sub_en_name + "' value='" + sub_en_name + "' class='sub_" + classe + " subcategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + subclasse_ico + ".png' height='19' width='16' align='top'>");
+                                                      out.println("<span class='" + classe + " subcategory-label'>" + sub_en_name + "</span>");
+                                                      out.println("<br />");
+                                                  }
+                                              }
+                                              //String macro_cat = rs3.getString("SubClasse");
+                                              //ServiceMap.println("res3_macrocat:" + macro_cat);
+                                              //String subclasse_ico = (macro_cat.substring(0, 1).toLowerCase()).concat(macro_cat.substring(1, classe.length()))+ "_" + sub_en_name;
+                                              //String sub_numero = rs2.getString("NUMERO");
+                                              //out.println("<input type='checkbox' name='" + sub_en_name + "' value='" + sub_en_name + "' class='sub_" + classe + " subcategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + subclasse_ico + ".png' height='19' width='16' align='top'>");
+                                              //out.println("<span class='" + classe + " subcategory-label'>" + sub_en_name + "</span>");
+                                              //out.println("<br />");
 
-                                                    //String subclasse_ico = (macro_cat.substring(0, 1).toLowerCase()).concat(macro_cat.substring(1, macro_cat.length())) + "_" + sub_en_name;
-                                                    String subclasse_ico = macro_cat + "_" + sub_en_name;
+                                              st3.close();
+                                          }
 
-                                                    out.println("<input type='checkbox' name='" + sub_en_name + "' value='" + sub_en_name + "' class='sub_" + classe + " subcategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + subclasse_ico + ".png' height='19' width='16' align='top'>");
-                                                    out.println("<span class='" + classe + " subcategory-label'>" + sub_en_name + "</span>");
-                                                    out.println("<br />");
-                                                }
-                                            }
-                                            //String macro_cat = rs3.getString("SubClasse");
-                                            //ServiceMap.println("res3_macrocat:" + macro_cat);
-                                            //String subclasse_ico = (macro_cat.substring(0, 1).toLowerCase()).concat(macro_cat.substring(1, classe.length()))+ "_" + sub_en_name;
-                                            //String sub_numero = rs2.getString("NUMERO");
-                                            //out.println("<input type='checkbox' name='" + sub_en_name + "' value='" + sub_en_name + "' class='sub_" + classe + " subcategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + subclasse_ico + ".png' height='19' width='16' align='top'>");
-                                            //out.println("<span class='" + classe + " subcategory-label'>" + sub_en_name + "</span>");
-                                            //out.println("<br />");
+                                          out.println("</div>");
+                                          out.println("<br />");
 
-                                            st3.close();
-                                            //conMySQL3.close();
-                                        }
-
-                                        out.println("</div>");
-                                        out.println("<br />");
-
-                                        st2.close();
-                                        //conMySQL2.close();
+                                          st2.close();
+                                      }
+                                      st.close();
+                                    } finally {
+                                      conMySQL.close();
                                     }
-                                    st.close();
-                                    conMySQL.close();
                                 %>
                                 <input type="checkbox" name="fresh-place" value="Fresh_place" id="FreshPlace" class="macrocategory" /> <img src='${pageContext.request.contextPath}/img/mapicons/TourismService_Fresh_place.png' height='23' width='20' align='top'/> <span class="fresh-place macrocategory-label">Fresh Place</span>
                                 <br/>
