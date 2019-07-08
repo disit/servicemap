@@ -66,18 +66,8 @@ import javax.mail.internet.MimeMessage;
 import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.http.HttpHost;
+import org.disit.servicemap.api.CheckParameters;
 import org.disit.servicemap.api.SparqlQuery;
-import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.document.DocumentField;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.builder.SearchSourceBuilder;
-import org.elasticsearch.search.sort.SortOrder;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.openrdf.query.BindingSet;
@@ -90,9 +80,9 @@ import org.openrdf.repository.RepositoryConnection;
 import org.openrdf.repository.Repository;
 import org.openrdf.repository.RepositoryException;
 import org.openrdf.repository.sparql.SPARQLRepository;
+import org.springframework.web.util.HtmlUtils;
 import virtuoso.jdbc4.VirtuosoException;
 import virtuoso.sesame2.driver.VirtuosoRepository;
-
 /**
  *
  * @author bellini
@@ -119,6 +109,9 @@ public class ServiceMap {
   static private Map<String,String> tplAgencies = null;
   
   static public ExecutorService executor = Executors.newFixedThreadPool(10);
+  
+  static private long lastNotification = 0;
+  static private int skippedNotifications = 0;
 
   static public void initLogging() {
   }
@@ -205,31 +198,33 @@ public class ServiceMap {
           ((ConnectionPool) ConnectionPool.getConnection()).printStatus();
           return;
         }
-        // DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);;
-        String query = "INSERT IGNORE INTO AccessLog(mode,ip,userAgent,serviceUri,email,selection,categories,maxResults,maxDistance,queryId,text,format,uid,reqfrom,referer,site) VALUES "
-                + "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-        //ServiceMap.println(query);
-        PreparedStatement st = conMySQL.prepareStatement(query);
-        st.setString(1, mode);
-        st.setString(2, ip);
-        st.setString(3, UA);
-        st.setString(4, serviceUri);
-        st.setString(5, email);
-        st.setString(6, sel);
-        st.setString(7, categorie);
-        st.setString(8, numeroRisultati);
-        st.setString(9, raggio);
-        st.setString(10, queryId);
-        st.setString(11, text);
-        st.setString(12, format);
-        st.setString(13, uid);
-        st.setString(14, reqFrom);
-        st.setString(15, referer);
-        st.setString(16, site);
+        try {
+          String query = "INSERT IGNORE INTO AccessLog(mode,ip,userAgent,serviceUri,email,selection,categories,maxResults,maxDistance,queryId,text,format,uid,reqfrom,referer,site) VALUES "
+                  + "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+          //ServiceMap.println(query);
+          PreparedStatement st = conMySQL.prepareStatement(query);
+          st.setString(1, mode);
+          st.setString(2, ip);
+          st.setString(3, UA);
+          st.setString(4, serviceUri);
+          st.setString(5, email);
+          st.setString(6, sel);
+          st.setString(7, categorie);
+          st.setString(8, numeroRisultati);
+          st.setString(9, raggio);
+          st.setString(10, queryId);
+          st.setString(11, text);
+          st.setString(12, format);
+          st.setString(13, uid);
+          st.setString(14, reqFrom);
+          st.setString(15, referer);
+          st.setString(16, site);
 
-        st.executeUpdate();
-        st.close();
-        conMySQL.close();
+          st.executeUpdate();
+          st.close();
+        } finally {
+          conMySQL.close();
+        }
         ServiceMap.performance("mysql log time: " + (System.currentTimeMillis() - tss));
       } catch (Exception e) {
         ServiceMap.notifyException(e);
@@ -467,6 +462,10 @@ public class ServiceMap {
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "");
     
+    if(CheckParameters.checkUri(uri)!=null) {
+      throw new IllegalArgumentException("invalid URI "+uri);
+    }
+    
     if(!uri.contains("%")) {
       final String schema = uri.substring(0, uri.indexOf(':'));
       URI suri = new URI(schema, uri.substring(schema.length()+1), null);
@@ -561,37 +560,39 @@ public class ServiceMap {
 
     //Class.forName("com.mysql.jdbc.Driver");
     conMySQL = ConnectionPool.getConnection(); //DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);;
+    try {
+      String query = "SELECT distinct Ita, Eng FROM SiiMobility.ServiceCategory ORDER BY SubClasse";
 
-    String query = "SELECT distinct Ita, Eng FROM SiiMobility.ServiceCategory ORDER BY SubClasse";
+      // create the java statement
+      st = conMySQL.createStatement();
 
-    // create the java statement
-    st = conMySQL.createStatement();
+      // execute the query, and get a java resultset
+      rs = st.executeQuery(query);
+      int categorieInserite = 0;
+      while (rs.next()) {
+          //String id = rs.getString("ID");
+          String nomeEng = rs.getString("Eng");
+          String nomeIta = rs.getString("Ita");
+          String NomeIta = Character.toUpperCase(nomeIta.charAt(0)) + nomeIta.substring(1);
+          NomeIta = NomeIta.replace("_", " ");
 
-    // execute the query, and get a java resultset
-    rs = st.executeQuery(query);
-    int categorieInserite = 0;
-    while (rs.next()) {
-        //String id = rs.getString("ID");
-        String nomeEng = rs.getString("Eng");
-        String nomeIta = rs.getString("Ita");
-        String NomeIta = Character.toUpperCase(nomeIta.charAt(0)) + nomeIta.substring(1);
-        NomeIta = NomeIta.replace("_", " ");
-
-        if (listaCategorie.contains(nomeEng) || listaCategorie.contains(nomeIta)) {
-            if (categorieInserite == 0) {
-                filtroQuery += " { ?ser km4c:hasServiceCategory <http://www.disit.org/km4city/resource/" + nomeEng + ">.\n";
-                filtroQuery += " BIND (\"" + nomeEng + "\"^^xsd:string AS ?sType).\n";
-                filtroQuery += " BIND (\"" + NomeIta + "\"^^xsd:string AS ?sTypeIta) }\n";
-            } else {
-                filtroQuery += " UNION {?ser km4c:hasServiceCategory <http://www.disit.org/km4city/resource/" + nomeEng + ">.\n";
-                filtroQuery += " BIND (\"" + nomeEng + "\"^^xsd:string AS ?sType).\n";
-                filtroQuery += " BIND (\"" + NomeIta + "\"^^xsd:string AS ?sTypeIta)}\n";
-            }
-            categorieInserite++;
-        }
+          if (listaCategorie.contains(nomeEng) || listaCategorie.contains(nomeIta)) {
+              if (categorieInserite == 0) {
+                  filtroQuery += " { ?ser km4c:hasServiceCategory <http://www.disit.org/km4city/resource/" + nomeEng + ">.\n";
+                  filtroQuery += " BIND (\"" + nomeEng + "\"^^xsd:string AS ?sType).\n";
+                  filtroQuery += " BIND (\"" + NomeIta + "\"^^xsd:string AS ?sTypeIta) }\n";
+              } else {
+                  filtroQuery += " UNION {?ser km4c:hasServiceCategory <http://www.disit.org/km4city/resource/" + nomeEng + ">.\n";
+                  filtroQuery += " BIND (\"" + nomeEng + "\"^^xsd:string AS ?sType).\n";
+                  filtroQuery += " BIND (\"" + NomeIta + "\"^^xsd:string AS ?sTypeIta)}\n";
+              }
+              categorieInserite++;
+          }
+      }
+      st.close();
+    } finally {
+      conMySQL.close();
     }
-    st.close();
-    conMySQL.close();
     return filtroQuery;
   }
   
@@ -682,17 +683,21 @@ public class ServiceMap {
       if(coords[0].startsWith("geo:")) {
         //cerca su tabella la geometria dove fare ricerca
         Connection conMySQL = ConnectionPool.getConnection();
-        Statement st = conMySQL.createStatement();
-        ResultSet rs = st.executeQuery("SELECT wkt FROM Geometry WHERE label='"+geom+"'");
-        if (rs.next()) {
-          geom = rs.getString("wkt");
+        try {
+          PreparedStatement st = conMySQL.prepareStatement("SELECT wkt FROM Geometry WHERE label=?");
+          st.setString(1, geom);
+          ResultSet rs = st.executeQuery();
+          if (rs.next()) {
+            geom = rs.getString("wkt");
+          }
+          else 
+            throw new IOException("geometry "+geom+" not found");
+          st.close();
+        } finally {
+          conMySQL.close();
         }
-        else 
-          throw new IOException("geometry "+geom+" not found");
-        st.close();
-        conMySQL.close();
       }
-      return  " " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_geomfromtext(\""+geom+"\"), 0.0005))\n"
+      return  " " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_geomfromtext(\""+ServiceMap.stringEncode(geom)+"\"), 0.0005))\n"
               + " BIND( 1.0 AS ?dist)\n";
     }
 
@@ -1262,13 +1267,16 @@ public class ServiceMap {
       if(photosAvailable == null || photoAvailableCacheExpiry <= System.currentTimeMillis()) {
         photosAvailable = new HashMap<>();
         Connection connection = ConnectionPool.getConnection();
-        PreparedStatement st = connection.prepareStatement("SELECT DISTINCT serviceUri FROM ServicePhoto WHERE status='validated'");
-        ResultSet rs = st.executeQuery();
-        while(rs.next()) {
-          photosAvailable.put(rs.getString("serviceUri"),"");
+        try {
+          PreparedStatement st = connection.prepareStatement("SELECT DISTINCT serviceUri FROM ServicePhoto WHERE status='validated'");
+          ResultSet rs = st.executeQuery();
+          while(rs.next()) {
+            photosAvailable.put(rs.getString("serviceUri"),"");
+          }
+          st.close();
+        } finally {
+          connection.close();
         }
-        st.close();
-        connection.close();
         photoAvailableCacheExpiry = System.currentTimeMillis() + Integer.parseInt(Configuration.getInstance().get("photoCacheDurationMin", "10"))*1000*60;
       }
     }
@@ -1293,9 +1301,10 @@ public class ServiceMap {
       }
       json +="]";
       st.close();
-      connection.close();
     } catch (SQLException ex) {
       ServiceMap.notifyException(ex);
+    } finally {
+      connection.close();
     }
     return json;
   }
@@ -1314,9 +1323,10 @@ public class ServiceMap {
         r[1] = rs.getInt("count");
       }
       st.close();
-      connection.close();
     } catch (SQLException ex) {
       ServiceMap.notifyException(ex);
+    } finally {
+      connection.close();      
     }
     return r;
   }
@@ -1333,9 +1343,10 @@ public class ServiceMap {
         stars = rs.getInt("stars");
       }
       st.close();
-      connection.close();
     } catch (SQLException ex) {
       ServiceMap.notifyException(ex);
+    } finally {
+      connection.close();
     }
     return stars;
   }
@@ -1355,9 +1366,10 @@ public class ServiceMap {
       }
       json +="]";
       st.close();
-      connection.close();
     } catch (SQLException ex) {
       ServiceMap.notifyException(ex);
+    } finally {
+      connection.close();      
     }
     return json;
   }
@@ -1523,7 +1535,6 @@ public class ServiceMap {
   }
   
   public static boolean checkIP(String IPAddr, String requestType) throws Exception {
-    Connection connection = ConnectionPool.getConnection();
     Configuration conf = Configuration.getInstance();
     boolean ret=false;
     String ipNetworks = conf.get("ipNetworkPrefixes", null);
@@ -1553,6 +1564,7 @@ public class ServiceMap {
     }
     int maxRequests = Integer.parseInt(maxReqs);
     int maxResults = Integer.parseInt(maxRslts);
+    Connection connection = ConnectionPool.getConnection();
     try {
       PreparedStatement st = connection.prepareStatement("SELECT doneCount,resultsCount FROM ServiceLimit WHERE ipaddr=? AND date=current_date() AND requestType=?");
       st.setString(1, IPAddr);
@@ -1587,11 +1599,12 @@ public class ServiceMap {
         }
       }
       st.close();
-      connection.close();
     } catch (SQLException ex) {
       connection.close();
       ServiceMap.notifyException(ex);
       ret=true;
+    } finally {
+      connection.close();      
     }
     return ret;
   }
@@ -1607,10 +1620,10 @@ public class ServiceMap {
         insert.close();
       }
       update.close();
-      connection.close();
     } catch (SQLException ex) {
-      connection.close();
       ServiceMap.notifyException(ex);
+    } finally {
+      connection.close();      
     }
   }
 
@@ -1638,6 +1651,18 @@ public class ServiceMap {
           exc.printStackTrace();
         if(details!=null)
           System.out.println(details);
+        long notifyMaxRate = Long.parseLong(conf.get("notifyMaxRate", "60000"));
+        synchronized(ServiceMap.class) {
+          long now = System.currentTimeMillis();
+          if(now-lastNotification < notifyMaxRate ) {
+            skippedNotifications++;
+            return;
+          }
+          lastNotification = now;
+          if(skippedNotifications>0)
+            subj += " skp "+skippedNotifications+" ";
+          skippedNotifications = 0;
+        }
         sendEmail(notifyExceptionTo, subj+(exc!=null ? " Exception "+exc.getClass().getSimpleName() : " ERROR"), exceptionMessage(exc, details), "text/plain", conf.get("notifySmtpPrefix", ""));
         return;
       }
@@ -1947,6 +1972,9 @@ public class ServiceMap {
     if(!conf.get("experimentalOsmTransport","true").equals("true"))
       transport = "any";
     
+    Double.parseDouble(lon);
+    Double.parseDouble(lat);
+    
     repo.initialize();
     con = repo.getConnection();
     String query = null;
@@ -2073,18 +2101,21 @@ public class ServiceMap {
         //validate apikey
         //search graphs associated with apikey
         Connection conMySQL = ConnectionPool.getConnection();
-        String query = "SELECT graphUri FROM ApiKey ak JOIN PrivateData pd ON ak.idApiKey=pd.idApiKey WHERE ak.key=? AND valid=1 AND dateFrom<=now() AND IF(dateTo,now()<=dateTo,1)";
-        PreparedStatement st = conMySQL.prepareStatement(query);
-        st.setString(1, apikey);
-
-        ResultSet r = st.executeQuery();
         ArrayList<String> graphs = new ArrayList<>();
-        while(r.next()) {
-          String g = r.getString(1);
-          graphs.add(g);
+        try {
+          String query = "SELECT graphUri FROM ApiKey ak JOIN PrivateData pd ON ak.idApiKey=pd.idApiKey WHERE ak.key=? AND valid=1 AND dateFrom<=now() AND IF(dateTo,now()<=dateTo,1)";
+          PreparedStatement st = conMySQL.prepareStatement(query);
+          st.setString(1, apikey);
+
+          ResultSet r = st.executeQuery();
+          while(r.next()) {
+            String g = r.getString(1);
+            graphs.add(g);
+          }
+          st.close();
+        } finally {
+          conMySQL.close();
         }
-        st.close();
-        conMySQL.close();
         ServiceMap.println("apikey: "+apikey+" provide access to: "+graphs);
         if(!graphs.isEmpty()) {
           graphCond = "|| ?GG in (<"+String.join(">,<", graphs)+">)";
@@ -2105,23 +2136,26 @@ public class ServiceMap {
         apikey="";
       //search graphs not associated with apikey (can be improved)
       Connection conMySQL = ConnectionPool.getConnection();
-      String query = "SELECT  distinct graphUri FROM PrivateData pd WHERE \n" +
-        "graphUri NOT IN (\n" +
-        "SELECT graphUri FROM ApiKey ak \n" +
-        "JOIN PrivateData pd2 ON ak.idApiKey=pd2.idApiKey \n" +
-        "WHERE ak.key=? AND valid=1 AND dateFrom<=now() AND IF(dateTo,now()<=dateTo,1)\n" +
-        ")";
-      PreparedStatement st = conMySQL.prepareStatement(query);
-      st.setString(1, apikey);
-
-      ResultSet r = st.executeQuery();
       ArrayList<String> graphs = new ArrayList<>();
-      while(r.next()) {
-        String g = r.getString(1);
-        graphs.add(g);
+      try {
+        String query = "SELECT  distinct graphUri FROM PrivateData pd WHERE \n" +
+          "graphUri NOT IN (\n" +
+          "SELECT graphUri FROM ApiKey ak \n" +
+          "JOIN PrivateData pd2 ON ak.idApiKey=pd2.idApiKey \n" +
+          "WHERE ak.key=? AND valid=1 AND dateFrom<=now() AND IF(dateTo,now()<=dateTo,1)\n" +
+          ")";
+        PreparedStatement st = conMySQL.prepareStatement(query);
+        st.setString(1, apikey);
+
+        ResultSet r = st.executeQuery();
+        while(r.next()) {
+          String g = r.getString(1);
+          graphs.add(g);
+        }
+        st.close();
+      } finally {
+        conMySQL.close();
       }
-      st.close();
-      conMySQL.close();
       ServiceMap.println("apikey: "+apikey+" not provide access to: "+graphs);
       return "NOT FROM <"+String.join(">\nNOT FROM <", graphs)+">\n";
     }
@@ -2129,12 +2163,20 @@ public class ServiceMap {
   } 
   
   public static String urlEncode(String url){
+    if(url==null)
+      return null;
     if(!url.contains("%"))
       return url.replace(" ", "%20").replace("\t", "%09");
     return url;
   }
   
   public static String stringEncode(String str) {
-    return str.replace("\"", "\\\"");
+    if(str==null)
+      return null;
+    return str.replace("\"", "\\\"").replace("\\","\\\\").replace("\n", "\\n").replace("\r","\\r");
+  }
+  
+  public static String htmlEncode(String html) {
+    return HtmlUtils.htmlEscape(html);
   }
 }

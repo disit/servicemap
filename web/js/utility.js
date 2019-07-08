@@ -2397,8 +2397,12 @@ function mostraRealTimeData(divInfo, realtime) {
     $.each( realtime.results.bindings[0], function( key, v ) {
       if(key == "measuredTime" || key == "instantTime")
         time = v.value;
-      else
-        html +="<tr><td>"+key+"</td><td>"+v.value+(v.valueDate? " <small>@"+v.valueDate+"</small>": "")+"</td></tr>";
+      else {
+        var value = v.value;
+        if(typeof value === 'object')
+          value = JSON.stringify(value);
+        html +="<tr><td>"+key+"</td><td>"+value+(v.valueDate? " <small>@"+v.valueDate+"</small>": "")+"</td></tr>";
+      }
     });
   } else {
     html += "<tr>";

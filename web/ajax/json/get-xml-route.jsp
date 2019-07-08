@@ -44,6 +44,8 @@
  
  try {
   api.queryBusStopsOfLine(out, conn, null, route, true);
+ } catch(IllegalArgumentException e) {
+      response.sendError(400);
  } finally {
   conn.close();
  }

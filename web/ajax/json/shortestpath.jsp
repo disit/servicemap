@@ -51,5 +51,4 @@
   } finally {
     con.close();
   }
-  
 %>

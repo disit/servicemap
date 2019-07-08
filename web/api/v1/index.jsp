@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.JwtUtil.User"%>
 <%@page import="java.text.SimpleDateFormat"%>
 <%@page import="java.text.ParseException"%>
 <%@page import="org.disit.servicemap.ServiceMapping"%>
@@ -45,6 +46,13 @@
 
    You should have received a copy of the GNU Affero General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
+
+User u = org.disit.servicemap.JwtUtil.getUserFromRequest(request);
+if(u!=null) {
+  ServiceMap.println("user:"+u.username+" role:"+u.role);
+} else {
+  ServiceMap.println("nouser");
+}
 
 String uid = request.getParameter("uid");
 if(uid!=null && !ServiceMap.validateUID(uid)) {
@@ -344,53 +352,55 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       PreparedStatement st = null;
       ResultSet rs = null;
       conMySQL = ConnectionPool.getConnection();
-      st = conMySQL.prepareStatement("select * from Queries where id=? or idRW=?");
-      st.setString(1, queryId);
-      st.setString(2, queryId);
-      rs = st.executeQuery();
-      String typeOfSaving = "";
-      if (rs.next()) {
-        typeOfSaving = rs.getString("typeSaving");
-        if ("service".equals(typeOfSaving)) {
-          idService = rs.getString("idService");
-        }
-        else {
-          //nota: se alcuni parametri sono passati nella url vengono usati quelli invece di quelli specificati dal queryId
-          if(request.getParameter("categories")==null) {
-            categorie = rs.getString("categorie");
-            categorie = categorie.replace("[", "");
-            categorie = categorie.replace("]", "");
-            categorie = categorie.replace(",", ";");
-            categorie = categorie.replaceAll("\\s+", "");
+      try {
+        st = conMySQL.prepareStatement("select * from Queries where id=? or idRW=?");
+        st.setString(1, queryId);
+        st.setString(2, queryId);
+        rs = st.executeQuery();
+        String typeOfSaving = "";
+        if (rs.next()) {
+          typeOfSaving = rs.getString("typeSaving");
+          if ("service".equals(typeOfSaving)) {
+            idService = rs.getString("idService");
           }
-          if(request.getParameter("maxResults")==null) {
-            risultatiServizi = rs.getString("numeroRisultatiServizi");
-            risultatiSensori = rs.getString("numeroRisultatiSensori");
-            risultatiBus = rs.getString("numeroRisultatiBus");
-          }
-          if(request.getParameter("text")==null)
-            textToSearch = rs.getString("text");
-          if(request.getParameter("selection")==null) {
-            if (rs.getString("actualSelection").indexOf("COMUNE di") != -1) {
-              selection = rs.getString("actualSelection");
-            } else {
-              selection = URLDecoder.decode(rs.getString("coordinateSelezione"));
+          else {
+            //nota: se alcuni parametri sono passati nella url vengono usati quelli invece di quelli specificati dal queryId
+            if(request.getParameter("categories")==null) {
+              categorie = rs.getString("categorie");
+              categorie = categorie.replace("[", "");
+              categorie = categorie.replace("]", "");
+              categorie = categorie.replace(",", ";");
+              categorie = categorie.replaceAll("\\s+", "");
+            }
+            if(request.getParameter("maxResults")==null) {
+              risultatiServizi = rs.getString("numeroRisultatiServizi");
+              risultatiSensori = rs.getString("numeroRisultatiSensori");
+              risultatiBus = rs.getString("numeroRisultatiBus");
+            }
+            if(request.getParameter("text")==null)
+              textToSearch = rs.getString("text");
+            if(request.getParameter("selection")==null) {
+              if (rs.getString("actualSelection").indexOf("COMUNE di") != -1) {
+                selection = rs.getString("actualSelection");
+              } else {
+                selection = URLDecoder.decode(rs.getString("coordinateSelezione"));
+              }
+            }
+            if(request.getParameter("maxDists")==null) {
+              raggioServizi = rs.getString("raggioServizi");
+              raggioSensori = rs.getString("raggioSensori");
+              raggioBus = rs.getString("raggioBus");
             }
           }
-          if(request.getParameter("maxDists")==null) {
-            raggioServizi = rs.getString("raggioServizi");
-            raggioSensori = rs.getString("raggioSensori");
-            raggioBus = rs.getString("raggioBus");
-          }
         }
-      }
-      else {
-        ServiceMap.logError(request, response, 400, "'queryId' not found");
+        else {
+          ServiceMap.logError(request, response, 400, "'queryId' not found");
+          return;
+        }
+        st.close();
+      } finally {
         conMySQL.close();
-        return;
       }
-      st.close();
-      conMySQL.close();
     }
     String ip = ServiceMap.getClientIpAddress(request);
     String ua = request.getHeader("User-Agent");

@@ -16,6 +16,7 @@
 
 package org.disit.servicemap.api;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -90,6 +91,7 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.Aggregation;
@@ -137,6 +139,9 @@ public class ServiceMapApiV1 extends ServiceMapApi {
       else if(tplclass.equals("Train_station"))
         type = "Stazione treno";
     }
+    if(CheckParameters.checkUri(idService)!=null)
+      throw new IllegalArgumentException("invalid URI");
+    
     idService = ServiceMap.urlEncode(idService);
     String queryStringStop = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
             + "PREFIX km4cr:<http://www.disit.org/km4city/resource#>\n"
@@ -457,6 +462,9 @@ public class ServiceMapApiV1 extends ServiceMapApi {
     Map<String,String> rtPassages = ServiceMap.getTplRealPassageTimes(agencyName, code);
     Configuration conf=Configuration.getInstance();
     
+    if(CheckParameters.checkUri(stopUri)!=null)
+      throw new IllegalArgumentException("invalid URI "+stopUri);
+    
     String s = "\"timetable\":";
     
     Date now = new Date();
@@ -691,6 +699,9 @@ public class ServiceMapApiV1 extends ServiceMapApi {
   }
   
   public JsonObject getTplAgencyOfStop(RepositoryConnection con, String stopUri) throws Exception {
+    if(CheckParameters.checkUri(stopUri)!=null)
+      throw new IllegalArgumentException("invalid URI "+stopUri);
+
     String queryString = "prefix dcterms:<http://purl.org/dc/terms/>\n" +
         "prefix gtfs:<http://vocab.gtfs.org/terms#>\n" +
         "select distinct ?agencyUri ?agencyName ?timeZone ?fareUrl where {\n" +
@@ -750,36 +761,44 @@ public class ServiceMapApiV1 extends ServiceMapApi {
     String stopFilter = "";
     if(stopName!=null) {
       if(stopName.startsWith("http://")) {
+        if(CheckParameters.checkUri(stopName)!=null)
+          throw new IllegalArgumentException("invalid URI "+stopName);
         stopFilter = "{?stx gtfs:stop <"+ServiceMap.urlEncode(stopName)+">}UNION{?stx gtfs:stop [ owl:sameAs <"+ServiceMap.urlEncode(stopName)+">]}.\n";
       } else {
-        stopFilter = "?stx gtfs:stop/foaf:name \""+stopName+"\".\n";
+        stopFilter = "?stx gtfs:stop/foaf:name \""+ServiceMap.stringEncode(stopName)+"\".\n";
       }
       stopFilter += "?stx gtfs:trip ?trip.";
     }
     String lineFilter = "";
     if(line != null) {
-      if(line.startsWith("http://"))
+      if(line.startsWith("http://")) {
+        if(CheckParameters.checkUri(line)!=null)
+          throw new IllegalArgumentException("invalid URI "+line);
         lineFilter = "?trip gtfs:route <"+ServiceMap.urlEncode(line)+">.\n";
-      else {
+      } else {
         lineFilter =
-              "?ln gtfs:shortName \""+line+"\".\n" +
+              "?ln gtfs:shortName \""+ServiceMap.stringEncode(line)+"\".\n" +
               "?trip gtfs:route ?ln.\n";
         if(agency==null)
           agency = "Ataf&Linea";
-        if(agency.startsWith("http://"))
+        if(agency.startsWith("http://")) {
+          if(CheckParameters.checkUri(agency)!=null)
+            throw new IllegalArgumentException("invalid URI "+agency);
           lineFilter += "?ln gtfs:agency <"+ServiceMap.urlEncode(agency)+">.";
-        else
-          lineFilter += "?ln gtfs:agency/foaf:name \""+agency+"\".";
+        } else
+          lineFilter += "?ln gtfs:agency/foaf:name \""+ServiceMap.stringEncode(agency)+"\".";
       }
     } else if(stopName==null) {
         lineFilter =
               "?trip gtfs:route ?ln.\n";
         if(agency==null)
           agency = "Ataf&Linea";
-        if(agency.startsWith("http://"))
+        if(agency.startsWith("http://")) {
+          if(CheckParameters.checkUri(agency)!=null)
+            throw new IllegalArgumentException("invalid URI");
           lineFilter += "?ln gtfs:agency <"+ServiceMap.urlEncode(agency)+">.";
-        else
-          lineFilter += "?ln gtfs:agency/foaf:name \""+agency+"\".";
+        } else
+          lineFilter += "?ln gtfs:agency/foaf:name \""+ServiceMap.stringEncode(agency)+"\".";
     }
               
     String queryForLine = 
@@ -849,6 +868,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     final String sparqlType = conf.get("sparqlType", "virtuoso");
     final String km4cVersion = conf.get("km4cVersion", "new");
 
+    if(CheckParameters.checkUri(agency)!=null)
+      throw new IllegalArgumentException("invalid URI "+agency);
+    
     String queryForLines;
     queryForLines = "SELECT DISTINCT ?sname ?lname ?r WHERE {\n"
               + " ?r rdf:type gtfs:Route.\n"
@@ -1508,7 +1530,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     String queryText = query.query(null, null);
     //ServiceMap.println(queryText);
     if (!"0".equals(limit)) {
-      queryText += " LIMIT " + limit;
+      queryText += " LIMIT " + Integer.parseInt(limit);
       fullCount = ServiceMap.countQuery(con, query.query("count", null));
     } else {
       fullCount = ServiceMap.countQuery(con, query.query("count", null));
@@ -1728,7 +1750,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + " ?com foaf:name \"" + nomeComune + "\"^^xsd:string.\n"
               + "}";
       if (!risultatiBus.equals("0")) {
-        queryString += " LIMIT " + risultatiBus;
+        queryString += " LIMIT " + Integer.parseInt(risultatiBus);
       }
       TupleQuery tupleQueryBusStop = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString, km4cVersion));
       long ts = System.nanoTime();
@@ -1806,7 +1828,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + "?mun foaf:name \"" + nomeComune + "\"^^xsd:string ."
               + "}";
       if (!risultatiSensori.equals("0")) {
-        queryStringSensori += " LIMIT " + risultatiSensori;
+        queryStringSensori += " LIMIT " + Integer.parseInt(risultatiSensori);
       }
       TupleQuery tupleQuerySensori = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryStringSensori, km4cVersion));
       long ts = System.nanoTime();
@@ -1902,7 +1924,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + (getGeometry ? " OPTIONAL {?ser opengis:hasGeometry [opengis:asWKT ?wktGeometry].}\n" : "")
               + "}";
       if (!risultatiServizi.equals("0")) {
-        queryStringServices += " LIMIT " + risultatiServizi;
+        queryStringServices += " LIMIT " + Integer.parseInt(risultatiServizi);
       }
       TupleQuery tupleQueryServices = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryStringServices, km4cVersion));
       long ts = System.nanoTime();
@@ -2438,6 +2460,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     String NOS = "";
     String r = "";
     JsonObject rtAttributes = null;
+    serviceUri = ServiceMap.urlEncode(serviceUri);
     int i = 0;
     ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, serviceTypes);
     if(md==null || (md.detailsQuery==null)) {
@@ -2452,7 +2475,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + "PREFIX opengis:<http://www.opengis.net/ont/geosparql#>\n"
               + "SELECT ?serAddress ?serNumber ?elat ?elong (IF(?sName1,?sName1,?sName2) as ?sName) ?sType ?type ?sCategory ?sTypeIta ?email ?note ?multimedia ?description1 ?description2 ?phone ?fax ?website ?prov ?city ?cap ?coordList WHERE{\n"
               + " {\n"
-              + "  <" + ServiceMap.urlEncode(serviceUri) + "> km4c:hasAccess ?entry.\n"
+              + "  <" + serviceUri + "> km4c:hasAccess ?entry.\n"
               + "  ?entry geo:lat ?elat.\n"
               + "  ?entry geo:long ?elong.\n"
               //+ " }UNION{\n"
@@ -2965,7 +2988,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         if(md!=null && md.realTimeSqlQuery!=null && md.realTimeSolrQuery==null) {
           realTimeSqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, fromTime, toTime, limit, conf, serviceTypes, out, rtData);
         } else if(md!=null && md.realTimeSparqlQuery!=null && md.realTimeSolrQuery==null) {
-          realTimeSparqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, fromTime, limit, conf, con, sparqlType, out, rtData);
+          realTimeSparqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, fromTime, toTime, limit, conf, con, sparqlType, out, rtData);
         } else if(md!=null && md.realTimeSolrQuery!=null) {
           if(md.realTimeSolrQuery.equals("true") || md.realTimeSolrQuery.equals("solr"))
             realTimeSolrQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, toTime, limit, out, rtData);
@@ -3154,25 +3177,30 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     if(valueName!=null) {
       q += " AND value_name:\"" + valueName + "\"";
     }
-    
+    int resultSize = Integer.parseInt(conf.get("elasticSearchMaxSize", "10000"));
+    if(fromTime == null) {
+      if(rtAttributes!=null)
+        resultSize = (rtAttributes.entrySet().size()+10) * limit;
+      else
+        resultSize = 10 * limit;
+    }
     SearchRequest sr = new SearchRequest();
     SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder(); 
     searchSourceBuilder.query(QueryBuilders.boolQuery().must(
             QueryBuilders.queryStringQuery(q)
     )).sort("date_time", SortOrder.DESC)
       .sort("value_name.keyword", SortOrder.ASC)
-      .size(fromTime == null ? (rtAttributes.entrySet().size()+10) * limit : Integer.parseInt(conf.get("elasticSearchMaxSize", "10000")));
+      .size(resultSize);
     if(valueName==null) {
       searchSourceBuilder.aggregation(AggregationBuilders.terms("value_name").field("value_name.keyword").size(100).order(BucketOrder.key(true)));
     }
     boolean fromAggregation = false;
-    System.out.println("toTime:"+toTime+" from "+fromTime);
     if(valueName!=null && fromTime!=null && (tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays", "20"))*24*60*60L) {
       searchSourceBuilder.aggregation(
               AggregationBuilders.dateHistogram("date_time")
-                      .field("date_time")
+                      .field(conf.get("elasticSearchAggField", "date_time"))
                       .dateHistogramInterval(DateHistogramInterval.minutes(Integer.parseInt(conf.get("elasticSearchAvgMins", "15"))))
-                      .subAggregation(AggregationBuilders.avg("avg").field("value")));
+                      .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
       fromAggregation = true;
     }
       
@@ -3183,7 +3211,16 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
     SearchHit[] hits = r.getHits().getHits();
     long nfound=r.getHits().getTotalHits();
-    ServiceMap.performance("elasticsearch query "+serviceUri+" from:"+fromTime+" to:"+toTime+" : "+(System.currentTimeMillis()-ts)+"ms");
+    String jsonQuery = "NA";
+    if(conf.get("elasticSearchDebugQuery", "false").equals("true")) {
+      try {
+        jsonQuery = searchSourceBuilder.toString();
+      } catch(Exception e) {
+        e.printStackTrace();
+      }
+    }
+    ServiceMap.performance("elasticsearch query "+serviceUri+" from:"+fromTime+" to:"+toTime+" : "+(System.currentTimeMillis()-ts)+"ms "+fromAggregation+" "+jsonQuery);
+    
     
     out.println(",\"realtime\": ");
     if(nfound==0) {
@@ -3215,6 +3252,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       JsonObject rt = new JsonObject();
       DateFormat dateFormatterTZ = new SimpleDateFormat(ServiceMap.dateFormatTZ);
       DateFormat dateFormatterTZ2 = new SimpleDateFormat(ServiceMap.dateFormatTZ2);
+      Gson gson = new Gson();                
       if(!fromAggregation) {
         for(SearchHit h:hits) { 
           Map<String, Object> d = h.getSourceAsMap();
@@ -3226,9 +3264,17 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           if(value==null) {
             value = d.get("value_str");
             if(value!=null)
-              value = JSONObject.escape(value.toString());
-            else
-              value = "";
+              value = "\""+JSONObject.escape(value.toString())+"\"";
+            else {
+              value = d.get("value_obj");
+              if(value!=null) {
+                value = gson.toJson(value);
+              }
+              else
+                value = "\"\"";
+            }
+          } else {
+            value = "\""+value+"\"";
           }
           //ServiceMap.println(dts+" "+vn+":"+value);
 
@@ -3270,7 +3316,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             rt.addProperty("measuredTime", measuredTime);
             c=1;
           }
-          out.print("  \""+vn+"\":{\"value\":\""+value+"\"}");
+          out.print("  \""+vn+"\":{\"value\":"+value+"}");
           rt.addProperty(vn.toString(),value.toString());
         }
         rtData.add(rt);
@@ -3380,18 +3426,22 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     return rtCon;
   }
 
-  private void realTimeSparqlQuery(ServiceMapping.MappingData md, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, int limit, Configuration conf, RepositoryConnection con, String sparqlType, JspWriter out, JsonArray rtData) throws RepositoryException, QueryEvaluationException, MalformedQueryException, IOException, NumberFormatException {
+  private void realTimeSparqlQuery(ServiceMapping.MappingData md, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, String toTime, int limit, Configuration conf, RepositoryConnection con, String sparqlType, JspWriter out, JsonArray rtData) throws RepositoryException, QueryEvaluationException, MalformedQueryException, IOException, NumberFormatException {
     //get RT data from SPARQL
     String query = md.realTimeSparqlQuery;
     query = query.replace("%SERVICE_URI", ServiceMap.urlEncode(serviceUri));
-    String frmTime = "";
+    String frmTime = "", tTime = "";
+    if(toTime!=null) {
+      tTime = " FILTER(?measuredTime<=\""+toTime+ServiceMap.getCurrentTimezoneOffset()+"\"^^xsd:dateTime) ";
+    }
     if(fromTime!=null) {
       frmTime = " FILTER(?measuredTime>=\""+fromTime+ServiceMap.getCurrentTimezoneOffset()+"\"^^xsd:dateTime) ";
       limit = Integer.parseInt(conf.get("fromTimeLimit","1500"));
     }
-    query = query.replace("%FROM_TIME", frmTime).replace("%LIMIT", ""+limit);
+    query = query.replace("%FROM_TIME", frmTime+tTime).replace("%LIMIT", ""+limit);
     TupleQuery tupleQueryRT = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
     long ts = System.nanoTime();
+    long tss = System.currentTimeMillis();
     TupleQueryResult resultStatus = tupleQueryRT.evaluate();
     logQuery(query, "API-service-rt-info", sparqlType, serviceUri, System.nanoTime() - ts);
     //ServiceMap.println(query);
@@ -3433,7 +3483,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             }
             if(c!=0)
               out.println(",");
-            out.print("  \""+v+"\":{\"value\":\""+value+"\"}");
+            out.print("  \""+v+"\":{\"value\":\""+JSONObject.escape(value)+"\"}");
             rt.addProperty(v,value);
             c++;
           }
@@ -3446,6 +3496,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     }
     else
       out.println("{}");
+    ServiceMap.performance("sparql time realtime: "+(System.currentTimeMillis()-tss)+"ms "+serviceUri+" from:"+fromTime+" to:"+toTime);
   }
 
   private void realTimeSqlQuery(ServiceMapping.MappingData md, JsonObject rtAttributes, ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, String toTime, int limit, Configuration conf, List<String> serviceTypes, JspWriter out, JsonArray rtData) throws NumberFormatException, IOException {    
@@ -3529,7 +3580,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               //ServiceMap.println("v:"+v+" -->"+value);
               if(cc!=0)
                 out.println(",");
-              out.print("  \""+v+"\":{\"value\":\""+value+"\"}");
+              out.print("  \""+v+"\":{\"value\":\""+JSONObject.escape(value)+"\"}");
               rt.addProperty(v, value);
               cc++;
             }
@@ -3589,7 +3640,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               String value=row[c-1];
               if(value==null)
                 value="";
-              out.print("  \""+v+"\":{\"value\":\""+value+"\"}");
+              out.print("  \""+v+"\":{\"value\":\""+JSONObject.escape(value)+"\"}");
               rt.addProperty(v,value);
               cc++;
             }
@@ -3605,7 +3656,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         out.println("{}");
       rtCon.close();
       //rtCon2.close();
-      ServiceMap.performance("phoenix time realtime: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri+" from:"+fromTime);
+      ServiceMap.performance("phoenix time realtime: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri+" from:"+fromTime+" to:"+toTime);
     } catch(Exception e) {
       out.println("{}");
       ServiceMap.notifyException(e);
@@ -3828,10 +3879,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       lang = conf.get("eventsLang", "it");
     if(lang.equals("any"))
       lang = null;
-    final String flang = lang;
+    final String flang = ServiceMap.stringEncode(lang);
     final String limit;
-    if (numEventi != null && !numEventi.equals("0")) {
-      limit = " LIMIT " + numEventi;
+    if (numEventi != null && !numEventi.equals("0")) {      
+      limit = " LIMIT " + Integer.parseInt(numEventi);
     } else {
       limit = "";
     }
@@ -4098,7 +4149,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             "} group by ?line ?shape ?bss ?bse ?polyline ?ag ?agname order by ?agname ?bss ?bse";
 
     if (numLinee != null && !numLinee.equals("0")) {
-      queryNearTPL += " LIMIT " + numLinee;
+      queryNearTPL += " LIMIT " + Integer.parseInt(numLinee);
     }
     //ServiceMap.println(queryNearTPL);
     out.println("{ \"PublicTransportLine\":"
@@ -4184,6 +4235,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
   public int queryBusStopsOfLine(JspWriter out, RepositoryConnection con, String nomeLinea, String codRoute, boolean getGeometry) throws Exception {
     int i=0;
     if (codRoute != null && codRoute.startsWith("http://")) {
+      if(CheckParameters.checkUri(codRoute)!=null)
+        throw new IllegalArgumentException("invalid URI");
       out.println("{");
       String routeQuery = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
               + "PREFIX schema:<http://schema.org/#>\n"
@@ -4194,7 +4247,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + "PREFIX opengis:<http://www.opengis.net/ont/geosparql#>\n"
               + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>\n"
               + "SELECT DISTINCT ?line ?polyline ?nomeLinea ?ag ?agname WHERE {\n"
-              + " <" + codRoute + "> opengis:hasGeometry ?shape;\n"
+              + " <" + ServiceMap.urlEncode(codRoute) + "> opengis:hasGeometry ?shape;\n"
               + " gtfs:route ?r.\n"
               + " OPTIONAL {?r gtfs:shortName ?line.}\n"
               + " ?r gtfs:longName ?nomeLinea;\n"
@@ -4241,7 +4294,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
               + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>\n"
               + "SELECT DISTINCT ?bs ?bslat ?bslong ?nomeFermata ?type ?x WHERE {\n"
-              + " ?st gtfs:trip <" + codRoute + ">.\n"
+              + " ?st gtfs:trip <" + ServiceMap.urlEncode(codRoute) + ">.\n"
               + " ?st gtfs:stop ?bs.\n"
               + " ?bs a ?type. FILTER(?type!=gtfs:Stop)"
               + " ?st gtfs:stopSequence ?ss.\n"
@@ -4300,8 +4353,6 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       out.println("]}}");
       return i;
     } else {
-      //throw new IllegalArgumentException("codRoute needed");
-
       if (codRoute == null || "vuoto".equals(codRoute) || "".equals(codRoute)) {
         if (!"all".equals(nomeLinea)) {
           String queryString = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
@@ -4314,7 +4365,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                   + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
                   + "SELECT DISTINCT ?bs ?bslat ?bslong ?nomeFermata ?x WHERE {\n"
                   + " ?tpll rdf:type km4c:PublicTransportLine.\n"
-                  + " ?tpll dcterms:identifier \"" + nomeLinea + "\".\n"
+                  + " ?tpll dcterms:identifier \"" + ServiceMap.stringEncode(nomeLinea) + "\".\n"
                   + " ?tpll km4c:hasRoute ?route.\n"
                   + " ?route km4c:hasSection ?rs.\n"
                   + " ?rs km4c:startsAtStop ?bs.\n"
@@ -4440,7 +4491,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 + " ?tpll rdf:type km4c:PublicTransportLine.\n"
                 + " ?tpll dcterms:identifier ?line.\n"
                 + " ?tpll km4c:hasRoute ?route.\n"
-                + " ?route dcterms:identifier \"" + codRoute + "\".\n"
+                + " ?route dcterms:identifier \"" + ServiceMap.stringEncode(codRoute) + "\".\n"
                 + " ?route foaf:name ?nomeLinea. \n"
                 + (getGeometry ? " ?route opengis:hasGeometry [opengis:asWKT ?polyline].\n" : "")
                 + "} LIMIT 1";
@@ -4473,7 +4524,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 + "PREFIX dcterms:<http://purl.org/dc/terms/>\n"
                 + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
                 + "SELECT DISTINCT ?bs ?bslat ?bslong ?nomeFermata ?x WHERE {\n"
-                + " ?route dcterms:identifier \"" + codRoute + "\".\n"
+                + " ?route dcterms:identifier \"" + ServiceMap.stringEncode(codRoute) + "\".\n"
                 + " ?route km4c:hasFirstStop ?bs1.\n"
                 + " ?route km4c:hasSection ?rs.\n"
                 + " ?rs km4c:endsAtStop ?bs2.\n"
@@ -4544,11 +4595,15 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       agency = null;
     }
     else if(agency.startsWith("http://")) {
+      if(CheckParameters.checkUri(agency)!=null)
+        throw new IllegalArgumentException("agency invalid URI");
       agencyUri = agency;
       agency = null;
     }
     String lineUri = null;
     if(line!=null && line.startsWith("http://")) {
+      if(CheckParameters.checkUri(line)!=null)
+        throw new IllegalArgumentException("line invalid URI");
       lineUri = line;
       line = null;
       agencyUri = null;
@@ -4572,8 +4627,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               "?x2 gtfs:arrivalTime ?at2.\n" +
               "?x2 gtfs:trip ?trip.\n" +              
               (agencyUri!=null ? "?trip gtfs:route ?r.\n?r gtfs:agency <"+ServiceMap.urlEncode(agencyUri)+">.\n" : "")+
-              (agency!=null ? "?trip gtfs:route ?r.\n?r gtfs:agency/foaf:name \""+agency+"\".\n" : "")+
-              ((agencyUri!=null || agency!=null) && line!=null ? "?r gtfs:shortName \""+line+"\".\n" : "")+
+              (agency!=null ? "?trip gtfs:route ?r.\n?r gtfs:agency/foaf:name \""+ServiceMap.stringEncode(agency)+"\".\n" : "")+
+              ((agencyUri!=null || agency!=null) && line!=null ? "?r gtfs:shortName \""+ServiceMap.stringEncode(line)+"\".\n" : "")+
               (lineUri!=null ? "?trip gtfs:route <"+ServiceMap.urlEncode(lineUri)+">.\n" : "")+
               "?trip gtfs:service/dcterms:date ?d.\n" +
               "filter(?d=SUBSTR(STR(xsd:date(now())),1,10) && str(?at1)>str(xsd:time(now())) && str(?at2)<str(xsd:time(now())))\n" +
@@ -4910,17 +4965,16 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       st.close();
     } catch (SQLException ex) {
       ServiceMap.notifyException(ex);
-    }
-    finally {
+    } finally {
       connection.close();      
     }
   }
   
   public void queryLastContribution(JspWriter out, int n, String lang, String apikey) throws Exception {
     String baseApiUrl = Configuration.getInstance().get("baseApiUrl", "");
-    Connection connection = ConnectionPool.getConnection();
     out.println("{\n"
             + "\"LastPhotos\": [");
+    Connection connection = ConnectionPool.getConnection();
     try {
       PreparedStatement st = connection.prepareStatement("SELECT serviceUri,serviceName,file,timestamp FROM ServicePhoto WHERE status='validated' ORDER BY id DESC LIMIT "+n);
       ResultSet r = st.executeQuery();
@@ -4975,8 +5029,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       st.close();
     } catch (SQLException ex) {
       ServiceMap.notifyException(ex);
-    }
-    finally {
+    } finally {
       connection.close();      
     }
     out.println("]}");
@@ -4984,7 +5037,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
 
   public TupleQueryResult queryBusLines(String busStop, RepositoryConnection con) {
       String queryForLine = "";
-      if(busStop!=null && busStop.startsWith("http://"))
+      if(busStop!=null && busStop.startsWith("http://")) {
+        if(CheckParameters.checkUri(busStop)!=null) 
+          throw new IllegalArgumentException("invalid URI");
        queryForLine = "PREFIX km4c:<http://www.disit.org/km4city/schema#>"
               + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>"
               + "select distinct ?id ?line ?desc ?ag ?agname where {\n"
@@ -4999,11 +5054,11 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + "?line gtfs:agency ?ag.\n"
               + "?ag foaf:name ?agname.\n"
               + "} ORDER BY ?id ";
-      else
+      } else
        queryForLine = "PREFIX km4c:<http://www.disit.org/km4city/schema#>"
               + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>"
               + "select distinct ?id where {\n"
-              + "?st gtfs:stop [ foaf:name \""+busStop+"\" ].\n"
+              + "?st gtfs:stop [ foaf:name \""+ServiceMap.stringEncode(busStop)+"\" ].\n"
               + "?st gtfs:trip ?trip.\n"
               + "?line gtfs:longName ?desc.\n"
               + "OPTIONAL {?line gtfs:shortName ?id}.\n"
@@ -5288,117 +5343,123 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     String exactMatch = conf.get("solrExactMatch", "0");
     String prefixMatch = conf.get("solrPrefixMatch", "1");
     SolrClient solr = new HttpSolrClient(urlString);
-    String tilde = "~";
-    String[] s=search.split("[^0-9A-Za-z']+");
-    String ss = "";
     int i=0;
-    boolean haveNumber = false;
-    for(String x:s) {
-      if(x.isEmpty())
-        continue;
-      if(i>0 && "AND".equalsIgnoreCase(searchMode))
-        ss+="AND ";
-      if(x.matches("\\d+[^0-9]*")) {
-        haveNumber=true;
-        ss+=x;
+    try {
+      String tilde = "~";
+      String[] s=search.split("[^0-9A-Za-z']+");
+      String ss = "";
+      boolean haveNumber = false;
+      for(String x:s) {
+        if(x.isEmpty())
+          continue;
+        if(i>0 && "AND".equalsIgnoreCase(searchMode))
+          ss+="AND ";
+        if(x.matches("\\d+[^0-9]*")) {
+          haveNumber=true;
+          ss+=x;
+        }
+        else /*if(i==s.length-1)
+          ss+="*";
+        else*/
+          if(!exactMatch.equals("0"))
+            ss+="("+x+"^"+exactMatch+" OR "+x+tilde+fuzzyMatch+")";
+          else if(!prefixMatch.equals("0"))
+            ss+="("+x+"*^"+prefixMatch+" OR "+x+tilde+fuzzyMatch+")";
+          else
+            ss+="("+x+tilde+fuzzyMatch+")";
+        ss+=" ";
+        i++;
       }
-      else /*if(i==s.length-1)
-        ss+="*";
-      else*/
-        if(!exactMatch.equals("0"))
-          ss+="("+x+"^"+exactMatch+" OR "+x+tilde+fuzzyMatch+")";
-        else if(!prefixMatch.equals("0"))
-          ss+="("+x+"*^"+prefixMatch+" OR "+x+tilde+fuzzyMatch+")";
-        else
-          ss+="("+x+tilde+fuzzyMatch+")";
-      ss+=" ";
-      i++;
+      //ServiceMap.println(ss);
+      SolrQuery query = new SolrQuery(ss);
+      //ServiceMap.println(position);
+      if(position!=null && !position.isEmpty()) {
+        if(CheckParameters.checkLatLng(position)!=null) {
+          throw new IllegalArgumentException("invalid position "+position);
+        }
+        position=position.replace(";",",");
+        query.setParam("pt", position);
+        query.setParam("sfield", "geo_coordinate_p");
+        if(maxDists!=null && !maxDists.isEmpty())
+          query.addFilterQuery("{!geofilt d="+Double.parseDouble(maxDists)+"}");
+        if(sortByDist) {
+          //ServiceMap.println("sort by distance");
+          query.addSort("geodist()",SolrQuery.ORDER.asc);
+        }
+      }
+      if(categories!=null && !categories.isEmpty()) {
+        String[] cts = categories.split(";");
+        String q = "";
+        for(int j=0; j<cts.length; j++) {
+          if(j>0)
+            q += " OR ";
+          if(cts[j].trim().equals("StreetNumber") || cts[j].trim().equals("Municipality"))
+            q += "entityType_s:\"" + ServiceMap.stringEncode(cts[j].trim()) +"\"";
+          else
+            q += "entityType_txt:\"" + ServiceMap.stringEncode(cts[j].trim()) +"\"";
+        }
+        //ServiceMap.println(q);
+        query.addFilterQuery(q);
+      } else if(excludePOI)
+        query.addFilterQuery("entityType_s:StreetNumber OR entityType_s:Municipality");
+      query.setRows(Integer.parseInt(maxResults));
+      query.addField("id");
+      query.addField("entityType_s");
+      query.addField("geo_coordinate_p");
+      query.addField("roadName_s_lower");
+      query.addField("streetNumber_s");
+      query.addField("municipalityName_s_lower");
+      query.addField("name_s_lower");
+      query.addField("score");
+      QueryResponse qr=solr.query(query);
+      SolrDocumentList sdl=qr.getResults();
+      long nfound=sdl.getNumFound();
+
+      out.println("{\"type\": \"FeatureCollection\",\n"
+              + "\"count\": "+nfound+",\n"
+              + "\"features\": [ ");
+      i=0;
+      for(SolrDocument d: sdl) {
+        String id = (String)d.getFieldValue("id");
+        String type = (String)d.getFieldValue("entityType_s");
+        String geo_coordinate = (String)d.getFieldValue("geo_coordinate_p");
+        String[] g=geo_coordinate.split(",");
+        if(i!=0)
+          out.println(",");
+        String name=null, roadName=null, streetNumber=null, municipalityName=null;
+        if(type.equals("StreetNumber")) {
+          roadName = (String)d.getFieldValue("roadName_s_lower");
+          streetNumber = (String)d.getFieldValue("streetNumber_s");
+          municipalityName = (String)d.getFieldValue("municipalityName_s_lower");
+        } else if(type.equals("Municipality")) {
+          municipalityName = (String)d.getFieldValue("municipalityName_s_lower");
+        } else {
+          name = escapeJSON((String)d.getFieldValue("name_s_lower"));
+          municipalityName = (String)d.getFieldValue("municipalityName_s_lower");
+        }
+        if(municipalityName==null)
+          municipalityName = "";
+        Object score = d.getFieldValue("score");
+        out.println("{  \"geometry\": {\n" +
+            "     \"type\": \"Point\",\n" +
+            "    \"coordinates\": [ "+ g[1]+","+g[0] +"]\n" +
+            " },\n" +
+            " \"type\": \"Feature\",\n" +
+            " \"properties\": {\n" +
+            "    \"serviceUri\": \"" + id + "\",\n" +
+            "    \"serviceType\": \"" + type.replace(" ", "_") + "\",\n" +
+            (name==null ?         "" : "    \"name\": \""+name+"\",\n") +
+            (roadName==null ?     "" : "    \"address\": \""+roadName+"\",\n") +
+            (streetNumber==null ? "" : "    \"civic\": \""+streetNumber+"\",\n") +
+            "    \"city\": \""+municipalityName+"\",\n" +
+            "    \"score\": \""+score+"\",\n" +
+            " \"id\": " + Integer.toString(i + 1) + "}}");
+        i++;
+      }
+      out.println("]}");
+    } finally {
+      solr.shutdown();
     }
-    //ServiceMap.println(ss);
-    SolrQuery query = new SolrQuery(ss);
-    //ServiceMap.println(position);
-    if(position!=null && !position.isEmpty()) {
-      position=position.replace(";",",");
-      query.setParam("pt", position);
-      query.setParam("sfield", "geo_coordinate_p");
-      if(maxDists!=null && !maxDists.isEmpty())
-        query.addFilterQuery("{!geofilt d="+maxDists+"}");
-      if(sortByDist) {
-        //ServiceMap.println("sort by distance");
-        query.addSort("geodist()",SolrQuery.ORDER.asc);
-      }
-    }
-    if(categories!=null && !categories.isEmpty()) {
-      String[] cts = categories.split(";");
-      String q = "";
-      for(int j=0; j<cts.length; j++) {
-        if(j>0)
-          q += " OR ";
-        if(cts[j].trim().equals("StreetNumber") || cts[j].trim().equals("Municipality"))
-          q += "entityType_s:" + cts[j].trim();
-        else
-          q += "entityType_txt:" + cts[j].trim();
-      }
-      //ServiceMap.println(q);
-      query.addFilterQuery(q);
-    } else if(excludePOI)
-      query.addFilterQuery("entityType_s:StreetNumber OR entityType_s:Municipality");
-    query.setRows(Integer.parseInt(maxResults));
-    query.addField("id");
-    query.addField("entityType_s");
-    query.addField("geo_coordinate_p");
-    query.addField("roadName_s_lower");
-    query.addField("streetNumber_s");
-    query.addField("municipalityName_s_lower");
-    query.addField("name_s_lower");
-    query.addField("score");
-    QueryResponse qr=solr.query(query);
-    SolrDocumentList sdl=qr.getResults();
-    long nfound=sdl.getNumFound();
-    
-    out.println("{\"type\": \"FeatureCollection\",\n"
-            + "\"count\": "+nfound+",\n"
-            + "\"features\": [ ");
-    i=0;
-    for(SolrDocument d: sdl) {
-      String id = (String)d.getFieldValue("id");
-      String type = (String)d.getFieldValue("entityType_s");
-      String geo_coordinate = (String)d.getFieldValue("geo_coordinate_p");
-      String[] g=geo_coordinate.split(",");
-      if(i!=0)
-        out.println(",");
-      String name=null, roadName=null, streetNumber=null, municipalityName=null;
-      if(type.equals("StreetNumber")) {
-        roadName = (String)d.getFieldValue("roadName_s_lower");
-        streetNumber = (String)d.getFieldValue("streetNumber_s");
-        municipalityName = (String)d.getFieldValue("municipalityName_s_lower");
-      } else if(type.equals("Municipality")) {
-        municipalityName = (String)d.getFieldValue("municipalityName_s_lower");
-      } else {
-        name = escapeJSON((String)d.getFieldValue("name_s_lower"));
-        municipalityName = (String)d.getFieldValue("municipalityName_s_lower");
-      }
-      if(municipalityName==null)
-        municipalityName = "";
-      Object score = d.getFieldValue("score");
-      out.println("{  \"geometry\": {\n" +
-          "     \"type\": \"Point\",\n" +
-          "    \"coordinates\": [ "+ g[1]+","+g[0] +"]\n" +
-          " },\n" +
-          " \"type\": \"Feature\",\n" +
-          " \"properties\": {\n" +
-          "    \"serviceUri\": \"" + id + "\",\n" +
-          "    \"serviceType\": \"" + type.replace(" ", "_") + "\",\n" +
-          (name==null ?         "" : "    \"name\": \""+name+"\",\n") +
-          (roadName==null ?     "" : "    \"address\": \""+roadName+"\",\n") +
-          (streetNumber==null ? "" : "    \"civic\": \""+streetNumber+"\",\n") +
-          "    \"city\": \""+municipalityName+"\",\n" +
-          "    \"score\": \""+score+"\",\n" +
-          " \"id\": " + Integer.toString(i + 1) + "}}");
-      i++;
-    }
-    out.println("]}");
-    solr.shutdown();
     return i;
   }
 

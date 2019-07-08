@@ -45,7 +45,7 @@
             + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
             + "SELECT distinct ?bs ?nomeFermata ?bslat ?bslong WHERE {\n"
             + "	?bs rdf:type km4c:BusStop.\n"
-            + "	?bs foaf:name \"" + nomeFermata + "\"^^xsd:string.\n"
+            + "	?bs foaf:name \"" + ServiceMap.stringEncode(nomeFermata) + "\"^^xsd:string.\n"
             + "	?bs geo:lat ?bslat.\n"
             + "	?bs geo:long ?bslong.\n"
             + "} LIMIT 1";
@@ -91,8 +91,6 @@
                     + "}");
             i++;
         }
-    } catch (Exception e) {
-        out.println(e.getMessage());
-    }finally{con.close();}
+    } finally{con.close();}
     out.println("] }");
 %>

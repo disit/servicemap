@@ -51,7 +51,7 @@
             + "PREFIX rdfs:<http://www.w3.org/2000/01/rdf-schema#>\n "
             + "SELECT  ?avgDistance ?avgTime ?occupancy ?concentration ?vehicleFlow ?averageSpeed ?thresholdPerc ?speedPercentile ?timeInstant WHERE{\n"
             + " ?sensor rdf:type km4c:SensorSite.\n"
-            + " ?sensor <http://purl.org/dc/terms/identifier> \"" + nomeSensore + "\"^^xsd:string.\n"
+            + " ?sensor <http://purl.org/dc/terms/identifier> \"" + ServiceMap.stringEncode(nomeSensore) + "\"^^xsd:string.\n"
             + " ?sensor km4c:hasObservation ?obs.\n"
             + " ?obs dcterms:date ?timeInstant.\n"
             + " OPTIONAL {?obs km4c:averageDistance ?avgDistance}\n"

@@ -154,35 +154,35 @@ public class ServiceMapping {
     ResultSet rs = null;
 
     conMySQL = ConnectionPool.getConnection();
-
-    String query = "SELECT * FROM ServiceMapping ORDER BY priority";
-
-    st = conMySQL.createStatement();
-
-    rs = st.executeQuery(query);
-    while (rs.next()) {
-        String serviceType = rs.getString("serviceType");
-        String section = rs.getString("section");
-        String detailsQuery = rs.getString("serviceDetailsSparqlQuery");
-        String attributesQuery = rs.getString("serviceAttributesSparqlQuery");
-        String realTimeQuery = rs.getString("serviceRealTimeSparqlQuery");
-        String realTimeSqlQuery = rs.getString("serviceRealTimeSqlQuery");
-        String realTimeSolrQuery = rs.getString("serviceRealTimeSolrQuery");
-        String predictionSqlQuery = rs.getString("servicePredictionSqlQuery");
-        String trendSqlQuery = rs.getString("serviceTrendSqlQuery");
-        int version = rs.getInt("apiVersion");
-        maps.get(version-1).put(serviceType, new MappingData(serviceType, version, section,
-                detailsQuery, 
-                attributesQuery, 
-                realTimeQuery, 
-                realTimeSqlQuery, 
-                realTimeSolrQuery, 
-                predictionSqlQuery, 
-                trendSqlQuery));
+    try {
+      String query = "SELECT * FROM ServiceMapping ORDER BY priority";
+      st = conMySQL.createStatement();
+      rs = st.executeQuery(query);
+      while (rs.next()) {
+          String serviceType = rs.getString("serviceType");
+          String section = rs.getString("section");
+          String detailsQuery = rs.getString("serviceDetailsSparqlQuery");
+          String attributesQuery = rs.getString("serviceAttributesSparqlQuery");
+          String realTimeQuery = rs.getString("serviceRealTimeSparqlQuery");
+          String realTimeSqlQuery = rs.getString("serviceRealTimeSqlQuery");
+          String realTimeSolrQuery = rs.getString("serviceRealTimeSolrQuery");
+          String predictionSqlQuery = rs.getString("servicePredictionSqlQuery");
+          String trendSqlQuery = rs.getString("serviceTrendSqlQuery");
+          int version = rs.getInt("apiVersion");
+          maps.get(version-1).put(serviceType, new MappingData(serviceType, version, section,
+                  detailsQuery, 
+                  attributesQuery, 
+                  realTimeQuery, 
+                  realTimeSqlQuery, 
+                  realTimeSolrQuery, 
+                  predictionSqlQuery, 
+                  trendSqlQuery));
+      }
+      rs.close();
+      st.close();
+    } finally {
+      conMySQL.close();
     }
-    rs.close();
-    st.close();
-    conMySQL.close();
   }
   
   public MappingData getMappingForServiceType(int version, List<String> types) {

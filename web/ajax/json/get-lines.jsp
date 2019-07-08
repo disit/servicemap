@@ -43,6 +43,8 @@
  String agency = request.getParameter("agency");
  try {
   api.queryAllBusLines(out, conn, agency);
+ } catch(IllegalArgumentException e) {
+      response.sendError(400);
  } finally {
    conn.close();
  }

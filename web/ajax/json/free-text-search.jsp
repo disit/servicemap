@@ -55,9 +55,9 @@
 
     try {
         serviceMapApi.queryFulltext(out, con, textToSearch, null, null, limit, "it", false, apikey);
-    } catch (Exception e) {
-        out.println(e.getMessage());
-    }finally{
+    } catch(IllegalArgumentException e) {
+      response.sendError(400);
+    } finally {
       con.close() ;
     }
 %>

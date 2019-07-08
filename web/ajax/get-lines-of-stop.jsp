@@ -44,32 +44,6 @@
 
     ServiceMapApi api= new ServiceMapApiV1();
     
-    /*String queryString = " PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
-              + "PREFIX km4cr:<http://www.disit.org/km4city/resource/>\n"
-              + "PREFIX schema:<http://schema.org/#>\n"
-              + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
-              + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
-              + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-              + "PREFIX vcard:<http://www.w3.org/2006/vcard/ns#>\n"
-              + "PREFIX foaf:<http://xmlns.com/foaf/0.1/>\n"
-              + "PREFIX dcterms:<http://purl.org/dc/terms/>\n"
-              + "SELECT DISTINCT ?id WHERE{\n"
-              + " ?tpll rdf:type km4c:PublicTransportLine.\n"
-              + " ?tpll dcterms:identifier ?id.\n"
-              + " ?tpll km4c:hasRoute ?route.\n"
-              + " ?route km4c:hasSection ?rs.\n"
-              + " ?rs km4c:endsAtStop ?bs1.\n"
-              + " ?rs km4c:startsAtStop ?bs2.\n"
-              + " {?bs1 foaf:name \"" + nomeFermata + "\"^^xsd:string.}\n"
-              + " UNION\n"
-              + " {?bs2 foaf:name \"" + nomeFermata + "\"^^xsd:string.}\n"
-              + "} ORDER BY ?id ";
-    
-   
-    TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, filterQuery(queryString));
-    TupleQueryResult result = tupleQuery.evaluate();
-    logQuery(filterQuery(queryString),"get-lines-of-stop","any",nomeFermata);*/
-
     TupleQueryResult result = api.queryBusLines(uriFermata, con);
     if(result==null)
       return;
@@ -90,7 +64,7 @@
                 String LineUri = bindingSet.getValue("line").stringValue();
                 String ag = bindingSet.getValue("ag").stringValue();
                 //out.println("<td onclick='showLinea(\""+ idLine +"\")'>" + idLine + "</td>");
-                out.println("<td onclick='showRoute(\""+ ag +"\",\""+ LineUri +"\",\"" + uriFermata + "\",\"" + divRoute + "\")'>" + Line + "</td>");
+                out.println("<td onclick='showRoute(\""+ ag +"\",\""+ LineUri +"\",\"" + ServiceMap.stringEncode(uriFermata) + "\",\"" + ServiceMap.stringEncode(divRoute) + "\")'>" + Line + "</td>");
             }
             out.println("</tr>");
             out.println("</table>");

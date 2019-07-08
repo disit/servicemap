@@ -39,6 +39,7 @@
         }
         out.println(conf.asHtml());
         out.println("<ul>");
+        out.println("<li>poolStatus= "+ConnectionPool.getStatus()+"</li>");
         out.println("<li>sparqlEndpoint="+sparqlEndpoint+"</li>");
         out.println("<li>sparqlType="+sparqlType+"</li>");
         out.println("<li>km4cVersion="+km4cVersion+"</li>");

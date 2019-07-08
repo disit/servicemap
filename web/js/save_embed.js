@@ -688,73 +688,7 @@ function saveQueryEvent(param) {
   return lastQuery;
 }
 
-
-function saveConfiguration(idConfiguration) {
-  var markers = pins;
-  var zoom = map.getZoom();
-  var c = map.getCenter();
-  var center = JSON.stringify(c);
-
-  // var latLongCenter = center.toString();
-  if ($(".meteo").attr("id") != "")
-    var weatherCity = $(".meteo").attr("id");
-  else
-    weatherCity = "";
-  var stringaCategorie = getCategorie('categorie').join(";");
-  numberOpen = listOfPopUpOpen.length;
-  stringaPopupOpen = "";
-  for (var i = 0; i < numberOpen; i++) {
-    if (i == numberOpen - 1)
-      stringaPopupOpen += JSON.stringify(listOfPopUpOpen[i]);
-    else
-      stringaPopupOpen += JSON.stringify(listOfPopUpOpen[i]) + " , ";
-  }
-  stringaPopupOpen = "[ " + stringaPopupOpen + " ]";
-  if (selezione != "")
-    var actualSelection = selezione;
-  else
-    var actualSelection = "no selection";
-  var mapType = $('.leaflet-control-layers-selector :checked');
-  var line = $("#elencolinee").val();
-  var stop = $("#elencofermate").val();
-
-  var raggioServizi = $("#raggioricerca").val();
-  var raggioSensori = $("#raggioricerca").val();
-  var raggioBus = $("#raggioricerca").val();
-  var numeroRisultatiServizi = $('#nResultsServizi').val();
-  var numeroRisultatiSensori = $('#nResultsSensor').val();
-  var numeroRisultatiBus = $('#nResultsBus').val();
-  $.ajax({
-    url: ctx+"/api/saveConfiguration.jsp",
-    type: "POST",
-    async: true,
-    data: {
-      idConfiguration: idConfiguration,
-      nomeProvincia: $("#elencoprovince").val(),
-      nomeComune: $("#elencocomuni").val(),
-      categorie: stringaCategorie,
-      numeroRisultatiServizi: numeroRisultatiServizi,
-      numeroRisultatiSensori: numeroRisultatiSensori,
-      numeroRisultatiBus: numeroRisultatiBus,
-      coordinateSelezione: coordinateSelezione,
-      raggioServizi: raggioServizi,
-      raggioSensori: raggioSensori,
-      raggioBus: raggioBus,
-      popupOpen: stringaPopupOpen,
-      actSelect: actualSelection,
-      zoom: zoom,
-      center: center,
-      weatherCity: weatherCity,
-      line: line,
-      stop: stop
-    },
-    success: function (msg) {
-    }
-  });
-}
-
 function embedConfiguration() {
-  //saveConfiguration();
   if (document.URL.indexOf("idConf=") == -1 && currentIdConf==null) {
     alert("To embed a configuration you need to save it.");
     save_handler(null,null,null,true);
@@ -912,8 +846,6 @@ function embedConfiguration() {
     var newWindow = window.open("", "", "width=" + w + ",height=" + h + ",top=" + t + ",left=" + l+",location=false");
     newWindow.document.write(newPage_content);
   });
-  //var idConfiguration = Date.now();
-  //saveConfiguration(idConfiguration);
   //url da cambiare 
   var url_to_embed;
   if(currentIdConf!=null)

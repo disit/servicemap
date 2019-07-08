@@ -50,7 +50,7 @@
       if (!nomeProvincia.equals("all")) {
           if(ntry>0)
             nomeProvincia = nomeProvincia.toUpperCase().replace(" ", "-");
-          filtroProvince = " ?prov foaf:name \"" + nomeProvincia + "\"^^xsd:string.\n";
+          filtroProvince = " ?prov foaf:name \"" + ServiceMap.stringEncode(nomeProvincia) + "\"^^xsd:string.\n";
       }
 
       String queryString = "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"

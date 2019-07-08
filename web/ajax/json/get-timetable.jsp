@@ -53,8 +53,9 @@
  //out.println(name);
 
   out.println("{"+timetable+"}");
- }
- finally {
+ } catch(IllegalArgumentException e) {
+      response.sendError(400);
+ } finally {
   conn.close();
  }
 %>

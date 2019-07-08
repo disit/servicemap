@@ -207,48 +207,49 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     String queryId = request.getParameter("queryId");
     if (queryId != null) {
       Connection conMySQL = null;
-      Statement st = null;
+      PreparedStatement st = null;
       ResultSet rs = null;
-      conMySQL = ConnectionPool.getConnection(); //DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
-      String queryForType = "select * from Queries where id=\"" + queryId + "\"";
-      st = conMySQL.createStatement();
-      rs = st.executeQuery(queryForType);
-      String typeOfSaving = "";
-      if (rs.next()) {
-        typeOfSaving = rs.getString("typeSaving");
-        if ("service".equals(typeOfSaving)) {
-          idService = rs.getString("idService");
+      conMySQL = ConnectionPool.getConnection();
+      try {
+        String queryForType = "select * from Queries where id=?";
+        st = conMySQL.prepareStatement(queryForType);
+        st.setString(1, queryId);
+        rs = st.executeQuery();
+        String typeOfSaving = "";
+        if (rs.next()) {
+          typeOfSaving = rs.getString("typeSaving");
+          if ("service".equals(typeOfSaving)) {
+            idService = rs.getString("idService");
+          }
+          else {
+            categorie = rs.getString("categorie");
+            categorie = categorie.replace("[", "");
+            categorie = categorie.replace("]", "");
+            categorie = categorie.replace(",", ";");
+            categorie = categorie.replaceAll("\\s+", "");
+            risultatiServizi = rs.getString("numeroRisultatiServizi");
+            risultatiSensori = rs.getString("numeroRisultatiSensori");
+            risultatiBus = rs.getString("numeroRisultatiBus");
+            typeSaving = rs.getString("typeSaving");
+            textToSearch = rs.getString("text");
+            if (rs.getString("actualSelection").indexOf("COMUNE di") != -1) {
+              selection = rs.getString("actualSelection");
+            } else {
+              selection = URLDecoder.decode(rs.getString("coordinateSelezione"));
+            }
+            raggioServizi = rs.getString("raggioServizi");
+            raggioSensori = rs.getString("raggioSensori");
+            raggioBus = rs.getString("raggioBus");
+          }
         }
         else {
-          categorie = rs.getString("categorie");
-          categorie = categorie.replace("[", "");
-          categorie = categorie.replace("]", "");
-          categorie = categorie.replace(",", ";");
-          categorie = categorie.replaceAll("\\s+", "");
-          risultatiServizi = rs.getString("numeroRisultatiServizi");
-          risultatiSensori = rs.getString("numeroRisultatiSensori");
-          risultatiBus = rs.getString("numeroRisultatiBus");
-          typeSaving = rs.getString("typeSaving");
-          textToSearch = rs.getString("text");
-          if (rs.getString("actualSelection").indexOf("COMUNE di") != -1) {
-            selection = rs.getString("actualSelection");
-          } else {
-            selection = URLDecoder.decode(rs.getString("coordinateSelezione"));
-          }
-          raggioServizi = rs.getString("raggioServizi");
-          raggioSensori = rs.getString("raggioSensori");
-          raggioBus = rs.getString("raggioBus");
+          response.sendError(400, "'queryId' not found");
+          return;
         }
-      }
-      else {
-        response.sendError(400, "'queryId' not found");
+      } finally {
         conMySQL.close();
-        return;
       }
-      conMySQL.close();
     }
-    String ip = ServiceMap.getClientIpAddress(request);
-    String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
 
     if (idService != null) {
