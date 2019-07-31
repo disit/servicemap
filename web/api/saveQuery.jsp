@@ -1,3 +1,4 @@
+<%@page import="org.springframework.web.util.HtmlUtils"%>
 <%@page import="org.disit.servicemap.api.CheckParameters"%>
 <%@page import="java.security.NoSuchAlgorithmException"%>
 <%@page import="org.json.simple.JSONObject"%>
@@ -273,7 +274,7 @@
                   stmt = conMySQL.prepareStatement(query);
                   stmt.setString(1, queryIdR);
                   stmt.setString(2, email);
-                  stmt.setString(3, description);
+                  stmt.setString(3, HtmlUtils.htmlEscape(description));
                   stmt.setString(4, listaCategorie!=null ? listaCategorie.toString() : "" );
                   stmt.setString(5, numeroRisultatiServizi);
                   stmt.setString(6, numeroRisultatiSensori);
@@ -289,7 +290,7 @@
                   stmt.setString(16, line);
                   stmt.setString(17, stop);
                   stmt.setString(18, coordSel);
-                  stmt.setString(19, title);
+                  stmt.setString(19, HtmlUtils.htmlEscape(title));
                   stmt.setString(20, idService);
                   stmt.setString(21, typeService);
                   stmt.setString(22, nameService);

@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.api.IoTChecker"%>
 <%@page import="org.disit.servicemap.JwtUtil.User"%>
 <%@page import="java.text.SimpleDateFormat"%>
 <%@page import="java.text.ParseException"%>
@@ -79,15 +80,23 @@ if(queryId!=null && (queryId.length()>32 || !queryId.matches("[0-9a-fA-F]+"))) {
     ServiceMap.logError(request, response, 400, "invalid queryId parameter");
     return;
 }
-if(idService!=null && !idService.startsWith("http://www.disit.org/km4city/resource/")) {
+String check;
+if(idService!=null && (check=CheckParameters.checkUri(idService))!=null) {
     ServiceMap.logError(request, response, 400, "invalid 'serviceUri' parameter");
     return;
 }
-String check;
 if((check=CheckParameters.checkSelection(selection))!=null) {
     ServiceMap.logError(request, response, 400, "invalid 'selection' parameter: " + check);
     return;  
 }
+if(apikey!=null && (check=CheckParameters.checkApiKey(apikey))!=null) {
+    ServiceMap.logError(request, response, 400, check);
+    return;  
+}
+if(apikey==null && u!=null) {
+  apikey="user:"+u.username+" role:"+u.role+" at:"+u.accessToken;
+}
+
 if ("html".equals(request.getParameter("format")) || (request.getParameter("format") == null && request.getParameter("queryId") != null)) {%>
 <jsp:include page="../../mappa.jsp" > <jsp:param name="mode" value="query"/> </jsp:include>
 <%
@@ -422,6 +431,11 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         con.close();
         return;
       }
+      if(!IoTChecker.checkIoTService(idService, apikey)) {
+        ServiceMap.logError(request, response, 400, "cannot access to "+idService);
+        con.close();
+        return;
+      }
       String types = null;
       ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, serviceTypes);
       if(md!=null && (md.realTimeSqlQuery!=null || md.realTimeSparqlQuery!=null || md.realTimeSolrQuery!=null )) {
@@ -529,7 +543,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
           }
           else {
             //getServices in Municipality
-            int results = serviceMapApi.queryMunicipalityServices(out, con, selection, categorie, textToSearch, risultatiBus, risultatiSensori, risultatiServizi, lang, getGeometry, fullCount);
+            int results = serviceMapApi.queryMunicipalityServices(out, con, selection, categorie, textToSearch, risultatiBus, risultatiSensori, risultatiServizi, lang, getGeometry, fullCount, apikey);
             ServiceMap.updateResultsPerIP(ip, requestType, results);
             ServiceMap.logAccess(request, null, selection, categorie, null, "api-services-by-municipality", risultati, null, queryId, textToSearch, "json", uid, reqFrom);
           }

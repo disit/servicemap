@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.api.IoTChecker"%>
 <%@page import="org.disit.servicemap.ServiceMapping"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
 <%@page import="java.io.IOException"%>
@@ -55,7 +56,10 @@
     response.sendError(400, "no type found for "+idService);
     return;
   }
-  
+  if(!IoTChecker.checkIoTService(idService, apikey)) {
+    response.sendError(400, "no access to "+idService);
+    return;    
+  }
   ServiceMap.logAccess(request, null, null, null, idService, "ui-service-info", null, null, null, null, null, null, null);
   try {
     //se esiste un mapping per un tipo associato al servizio usa le API altrimenti ritorna al vecchio codice

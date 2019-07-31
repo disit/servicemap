@@ -1336,7 +1336,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         int w = 0;
         while (result.hasNext() && numeroServizi < resServizi ) {
           BindingSet bindingSet = result.next();
+          
           String valueOfSer = bindingSet.getValue("ser").stringValue();
+          // check if is private or public and if user can see it
+          if(!IoTChecker.checkIoTService(valueOfSer, apiKey)) {
+              continue;
+          }
 
           String valueOfSType = "";
           if (bindingSet.getValue("sType") != null) {
@@ -1547,12 +1552,16 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     out.println(" \"type\": \"FeatureCollection\",\n"
             + " \"features\": [");
     while (result.hasNext()) {
-      if (i != 0) {
-        out.print(", ");
-      }
       BindingSet bindingSet = result.next();
 
       String serviceUri = bindingSet.getValue("ser").stringValue();
+      if(!IoTChecker.checkIoTService(serviceUri, apikey)) {
+        continue;
+      }
+      
+      if (i != 0) {
+        out.print(", ");
+      }
       String serviceLat = "";
       if (bindingSet.getValue("lat") != null) {
         serviceLat = bindingSet.getValue("lat").stringValue();
@@ -1680,7 +1689,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     return i;
   }
 
-  public int queryMunicipalityServices(JspWriter out, RepositoryConnection con, String selection, String categorie, String textToSearch, String risultatiBus, String risultatiSensori, String risultatiServizi, String lang, final boolean getGeometry, String makeFullCount) throws Exception {
+  public int queryMunicipalityServices(JspWriter out, RepositoryConnection con, String selection, String categorie, String textToSearch, String risultatiBus, String risultatiSensori, String risultatiServizi, String lang, final boolean getGeometry, String makeFullCount, String apiKey) throws Exception {
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "virtuoso");
     String km4cVersion = conf.get("km4cVersion", "new");
@@ -1944,6 +1953,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       while (resultServices.hasNext()) {
         BindingSet bindingSetServices = resultServices.next();
         String valueOfSer = bindingSetServices.getValue("ser").stringValue();
+        if(!IoTChecker.checkIoTService(valueOfSer, apiKey)) {
+          continue;
+        }
         String valueOfSName = "";
         if (bindingSetServices.getValue("sName") != null) {
           valueOfSName = bindingSetServices.getValue("sName").stringValue();
@@ -3350,15 +3362,15 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       }
       String customAttrLastValues = "";
       if(fromTime == null) {
-        Connection rtCon = ServiceMap.getRTConnection();
-        for(String a:customAttrs) {
-          JsonArray cdata = new JsonArray();            
-          ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
-          if(cdata.size()>0) 
-            customAttrLastValues += ",\""+a+"\":"+cdata.get(0);;
+        try(Connection rtCon = ServiceMap.getRTConnection()) {
+          for(String a:customAttrs) {
+            JsonArray cdata = new JsonArray();            
+            ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
+            if(cdata.size()>0) 
+              customAttrLastValues += ",\""+a+"\":"+cdata.get(0);;
+          }
+          out.print(customAttrLastValues);
         }
-        out.print(customAttrLastValues);
-        rtCon.close();
       }
       if(c!=0)
         out.println(" }");
@@ -3446,7 +3458,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     logQuery(query, "API-service-rt-info", sparqlType, serviceUri, System.nanoTime() - ts);
     //ServiceMap.println(query);
     out.println(",\"realtime\": ");
-    if (resultStatus.hasNext()) {
+    if (resultStatus.hasNext()) {    
       List<String> vars = resultStatus.getBindingNames();
       out.print("{ \"head\": {\n"
               + " \"vars\":[ ");
@@ -3488,7 +3500,22 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             c++;
           }
         }
+        if(fromTime == null) {
+          try(Connection rtCon = ServiceMap.getRTConnection()) {
+            String customAttrLastValues = "";
+            for(String a:customAttrs) {
+              JsonArray cdata = new JsonArray();            
+              ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
+              if(cdata.size()>0) 
+                customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
+            }
+            out.print(customAttrLastValues);
+          } catch (Exception ex) {
+            ServiceMap.notifyException(ex);
+          }
+        }
         out.println(" }");
+        
         p++;
         rtData.add(rt);
       }

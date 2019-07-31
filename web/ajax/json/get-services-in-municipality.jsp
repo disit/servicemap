@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.api.IoTChecker"%>
 <%@page import="java.io.IOException"%>
 <%@page import="org.openrdf.model.Value"%>
 <%@page import="java.util.*"%>
@@ -406,6 +407,9 @@
             while (result.hasNext()) {
                 BindingSet bindingSet = result.next();
                 String valueOfSer = bindingSet.getValue("ser").stringValue();
+                if(!IoTChecker.checkIoTService(valueOfSer, (String) request.getSession().getAttribute("apikey"))) {
+                  continue;
+                }
                 String valueOfSType = "";
                 if(bindingSet.getValue("sType")!=null)
                   valueOfSType = escapeJSON(bindingSet.getValue("sType").stringValue());
