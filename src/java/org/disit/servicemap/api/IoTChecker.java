@@ -94,6 +94,7 @@ public class IoTChecker {
       HttpGet httpget = null;
       HttpResponse response = null;
     
+      String datamanagerEndpoint = conf.get("datamanagerEndpoint", "http://localhost:8080/datamanager/api/");
 
       try {
         long start = System.currentTimeMillis();
