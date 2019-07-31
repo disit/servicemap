@@ -2103,9 +2103,18 @@ public class ServiceMap {
         Connection conMySQL = ConnectionPool.getConnection();
         ArrayList<String> graphs = new ArrayList<>();
         try {
-          String query = "SELECT graphUri FROM ApiKey ak JOIN PrivateData pd ON ak.idApiKey=pd.idApiKey WHERE ak.key=? AND valid=1 AND dateFrom<=now() AND IF(dateTo,now()<=dateTo,1)";
-          PreparedStatement st = conMySQL.prepareStatement(query);
-          st.setString(1, apikey);
+          String query;
+          PreparedStatement st;
+          if(apikey.startsWith("user:")) {
+            String username = apikey.substring(5).split(" role:")[0];
+            query = "SELECT graphUri FROM ApiKey ak JOIN PrivateData pd ON ak.idApiKey=pd.idApiKey WHERE ak.username=? AND valid=1 AND dateFrom<=now() AND IF(dateTo,now()<=dateTo,1)";
+            st = conMySQL.prepareStatement(query);
+            st.setString(1, username);
+          } else {
+            query = "SELECT graphUri FROM ApiKey ak JOIN PrivateData pd ON ak.idApiKey=pd.idApiKey WHERE ak.key=? AND valid=1 AND dateFrom<=now() AND IF(dateTo,now()<=dateTo,1)";
+            st = conMySQL.prepareStatement(query);
+            st.setString(1, apikey);
+          }
 
           ResultSet r = st.executeQuery();
           while(r.next()) {
@@ -2134,7 +2143,7 @@ public class ServiceMap {
       String graphCond = "";
       if(apikey==null) 
         apikey="";
-      //search graphs not associated with apikey (can be improved)
+      //search private graphs not accessible using the apikey
       Connection conMySQL = ConnectionPool.getConnection();
       ArrayList<String> graphs = new ArrayList<>();
       try {

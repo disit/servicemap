@@ -59,10 +59,12 @@ public class JwtUtil {
   static public class User {
     final public String username;
     final public String role;
+    final public String accessToken;
     
-    private User(String u, String r) {
+    private User(String u, String r, String at) {
       username = u;
       role = r;
+      accessToken = at;
     }
   }
   
@@ -78,7 +80,7 @@ public class JwtUtil {
     if(rr!=null) {
       for(String role: roles) {
         if(rr.contains(role))
-          return new User(u,role);
+          return new User(u,role, accessToken);
       }
     }
     throw new Exception("user "+u+" with not valid role "+rr);

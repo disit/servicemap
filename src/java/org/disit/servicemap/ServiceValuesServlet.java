@@ -64,6 +64,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.jsp.JspWriter;
+import org.disit.servicemap.JwtUtil.User;
 import org.openrdf.query.Query;
 import org.openrdf.query.QueryLanguage;
 import org.openrdf.query.Update;
@@ -73,13 +74,14 @@ import org.openrdf.repository.RepositoryConnection;
 public class ServiceValuesServlet extends HttpServlet {
   @Override
   protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    if(!checkAccess(request, response)) 
+    String username = checkAccess(request, response);
+    if(username==null) 
       return;
 
     String ip = ServiceMap.getClientIpAddress(request);
     try {
       if(! ServiceMap.checkIP(ip, "api")) {
-        ServiceMap.logError(request, response, 403,"API calls daily limit reached");
+        ServiceMap.logError(request, response, 403, "API calls daily limit reached");
         return;
       }    
     } catch(Exception e) {
@@ -105,6 +107,9 @@ public class ServiceValuesServlet extends HttpServlet {
     if(uid!=null && !ServiceMap.validateUID(uid)) {
       ServiceMap.logError(request, response, 404, "invalid uid");
       return;
+    }
+    if(uid==null) {
+      uid = username;
     }
     String reqFrom = request.getParameter("requestFrom");
     
@@ -383,7 +388,7 @@ public class ServiceValuesServlet extends HttpServlet {
     } finally {
       con.close();
     }
-    return false;
+    return true;
   }
 
   private boolean saveTrends(JsonObject obj, HttpServletRequest request, HttpServletResponse response) throws Exception {
@@ -470,7 +475,7 @@ public class ServiceValuesServlet extends HttpServlet {
     String healthiness = request.getParameter("healthiness");
     String uid = request.getParameter("uid");
     
-    if(!checkAccess(request, response)) 
+    if(checkAccess(request, response)==null) 
       return;
       
     if(uid!=null && !ServiceMap.validateUID(uid)) {
@@ -644,29 +649,33 @@ public class ServiceValuesServlet extends HttpServlet {
     }
   }
 
-  private boolean checkAccess(HttpServletRequest request, HttpServletResponse response) throws IOException {
+  private String checkAccess(HttpServletRequest request, HttpServletResponse response) throws IOException {
     Configuration conf = Configuration.getInstance();
-    String accessToken = request.getParameter("accessToken");
-    if (accessToken==null) {
-      String ipAddress = ServiceMap.getClientIpAddress(request);
-      String[] otherIps = conf.get("allowedNetworkIpPrefixes", "127.0.0.1;192.168.0.;192.168.1.").split(";");
-      boolean allowed = false;
-      for(String s: otherIps) {
-        if(ipAddress.startsWith(s.trim())) {
-          allowed=true;
-          break;
-        }
+    try {
+      User u = org.disit.servicemap.JwtUtil.getUserFromRequest(request);
+      if(u!=null) {
+        ServiceMap.println("user:"+u.username+" role:"+u.role);
+        return u.username;
       }
-      if (!allowed) {
-        ServiceMap.logError(request, response, 401, "cannot access from "+ipAddress);
-        return false;
-      }
-    } else {
-      //TBD check access token
-      ServiceMap.logError(request, response, 401, "accessToken cannot be checked");
-      return false;
+    } catch(Exception e) {
+      ServiceMap.logError(request, response, 401, "access token is not valid");
+      return null;
     }
-    return true;
+    
+    String ipAddress = ServiceMap.getClientIpAddress(request);
+    String[] otherIps = conf.get("allowedNetworkIpPrefixes", "127.0.0.1;192.168.0.;192.168.1.").split(";");
+    boolean allowed = false;
+    for(String s: otherIps) {
+      if(ipAddress.startsWith(s.trim())) {
+        allowed=true;
+        break;
+      }
+    }
+    if (!allowed) {
+      ServiceMap.logError(request, response, 401, "cannot access from "+ipAddress);
+      return null;
+    }
+    return ipAddress;
   }
 
   public static void getValues(Connection rtCon, Configuration conf, String fromTime, String toTime, String limit, String serviceUri, String valueName, JsonArray rtData, String mode) throws SQLException, NumberFormatException {

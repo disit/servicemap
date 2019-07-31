@@ -587,8 +587,14 @@ input#pulsante-ricerca:active {
     width: auto !important;
     min-width: 215px;
     white-space: nowrap;
-
 }
+
+.leaflet-container a {
+    color: #3887BE;
+    font-weight: 400;
+    text-decoration: none;
+}
+
 .ui-tabs .ui-tabs-panel {
     display: block;
     border-width: 0;
@@ -919,9 +925,13 @@ body.firefox	#query_description_container #left_bracket p{
 }
 .leaflet-popup-content-wrapper {
     box-shadow: #000000 0px 0px 50px;
-   
+    border-radius: 3px;   
 }
-
+.leaflet-container h1, .leaflet-container h2, .leaflet-container h3, .leaflet-container h4, .leaflet-container h5, .leaflet-container h6, .leaflet-container p {
+    font-size: 15px;
+    line-height: 20px;
+    margin: 0 0 10px;
+}
 .selected{
     -webkit-filter: sepia(1)
         drop-shadow(2px 1px 0 #e38913)

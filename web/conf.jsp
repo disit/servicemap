@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.api.IoTChecker"%>
 <%@page import="org.disit.servicemap.ServiceMapping"%>
 <%/* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
@@ -36,6 +37,7 @@
           conf.load();
           ServiceMapping.reset();
           ServiceMap.resetTplAgencies();
+          IoTChecker.reset();
         }
         out.println(conf.asHtml());
         out.println("<ul>");
@@ -45,6 +47,7 @@
         out.println("<li>km4cVersion="+km4cVersion+"</li>");
         out.println("</ul>");
         out.println(ServiceMapping.getInstance().asHtml());
+        out.println(IoTChecker.print());
         out.println("<small>from: "+ipAddress+"</small>");
       }
       else {

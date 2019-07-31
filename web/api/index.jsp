@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.api.IoTChecker"%>
 <%@page import="java.net.URLDecoder"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApi"%>
 <%@ page import="org.openrdf.query.algebra.Count"%>
@@ -259,6 +260,9 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       ArrayList<String> serviceTypes = ServiceMap.getTypes(con, idService, null);
       if(serviceTypes.size()==0) {
         response.sendError(400, "no type found for "+idService);
+      }
+      if(!IoTChecker.checkIoTService(idService, null)) {
+        response.sendError(400, "cannot access to "+idService);
       }
       if (serviceTypes.contains("BusStop")|| serviceTypes.contains("NearBusStops")) {
         serviceMapApi.queryBusStop(out, con, idService);

@@ -38,8 +38,8 @@
 	    	  out.write("<ul><li><b>Servlet Name:</b> "+servletName+"</li>");
 	    	  out.write("<li><b>Exception Name:</b> "+throwable.getClass().getName()+"</li>");
 	    	  out.write("<li><b>Requested URI:</b> "+requestUri+"</li>");
-          if(throwable.getMessage()!=null)
-            out.write("<li><b>Exception Message:</b> "+throwable.getMessage().replace("&","&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br />") +"</li>");
+          /*if(throwable.getMessage()!=null)
+            out.write("<li><b>Exception Message:</b> "+throwable.getMessage().replace("&","&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br />") +"</li>");*/
 	    	  out.write("</ul>");
 	  }	      
 	  out.write("<br><br>");
@@ -53,8 +53,7 @@
 %>
 { "failure" : "EXCEPTION",
   "httpcode" : <%= statusCode %>,
-  "exception": "<%= throwable.getClass().getName() %>",
-  "message": "<%= JSONObject.escape(throwable.getMessage()) %>"
+  "exception": "<%= throwable.getClass().getName() %>"
 }          
 <% 
   ServiceMap.notifyException(throwable,"url: "+requestUri);

@@ -127,12 +127,17 @@ public class ServiceMapApi {
                 + "\"type\": \"FeatureCollection\", "
                 + "\"features\": [ ");
         while (result.hasNext()) {
-            if (i != 0) {
-                out.println(", ");
-            }
             BindingSet bindingSet = result.next();
 
             String serviceUri = bindingSet.getValue("ser").stringValue();
+            if(!IoTChecker.checkIoTService(serviceUri, null)) {
+              continue;
+            }
+            
+            if (i != 0) {
+                out.println(", ");
+            }
+
             String serviceLat = "";
             if (bindingSet.getValue("lat") != null) {
                 serviceLat = bindingSet.getValue("lat").stringValue();
@@ -1893,6 +1898,9 @@ public class ServiceMapApi {
             while (result.hasNext()) {
                 BindingSet bindingSet = result.next();
                 String valueOfSer = bindingSet.getValue("ser").stringValue();
+                if(!IoTChecker.checkIoTService(valueOfSer, null)) {
+                  continue;
+                }
                 String valueOfSerAddress = "";
                 if (bindingSet.getValue("serAddress") != null) {
                     valueOfSerAddress = bindingSet.getValue("serAddress").stringValue();
