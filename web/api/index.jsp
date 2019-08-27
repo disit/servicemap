@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.api.CheckParameters"%>
 <%@page import="org.disit.servicemap.api.IoTChecker"%>
 <%@page import="java.net.URLDecoder"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApi"%>
@@ -300,6 +301,11 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
           } else {
             String[] coords = null;
             if (selection!=null && selection.startsWith("http://")) {
+              String msg;
+              if((msg=CheckParameters.checkUri(selection)) != null) {
+                response.sendError(400, "invalid uri "+msg);
+                return;
+              }
               String queryForCoordinates = "PREFIX km4c:<http://www.disit.org/km4city/schema#>"
                       + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>"
                       + "SELECT ?lat ?long {{"
@@ -328,11 +334,11 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
                 selection = bindingSetCoord.getValue("lat").stringValue() + ";" + bindingSetCoord.getValue("long").stringValue();
               }
             }
-            else if(selection!=null && selection.contains(";")) {
+            if(selection!=null && selection.contains(";")) {
               coords = selection.split(";");
             }
             // get services by lat/long
-            if(coords!=null && (coords.length==2 || coords.length==4))
+            if(coords!=null && (coords.length==2 || coords.length==4)) 
               serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi);
             ServiceMap.logAccess(request, null, selection, categorie, null, "api-services-by-gps", risultati, raggi, queryId, textToSearch, "json", uid, reqFrom);
           }

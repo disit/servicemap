@@ -192,6 +192,10 @@ public class PhotoUploadServlet extends HttpServlet {
     response.addHeader("Access-Control-Allow-Origin", "*");
     String uri=request.getRequestURI();
     String file=uri.substring(uri.lastIndexOf("photo/")+6);
+    if(file.isEmpty() || file.startsWith("..")) {
+      response.sendError(400,"invalid file");
+      return;
+    }
     ServiceMap.println("GET "+uri+" "+file);
     String uploadPath = Configuration.getInstance().get("photoUploadPath", "/tmp/servicemap");
     File uploads = new File(uploadPath);

@@ -497,6 +497,12 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         } else {
           String[] coords = null;
           if (selection.startsWith("http:")) {
+            String msg;
+            if((msg=CheckParameters.checkUri(selection)) != null) {
+              response.sendError(400, "invalid uri "+msg);
+              return;
+            }
+            
             String queryForCoordinates = "PREFIX km4c:<http://www.disit.org/km4city/schema#>"
                     + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>"
                     + "SELECT ?lat ?long {{"

@@ -104,6 +104,7 @@ public class ServiceMap {
   static public String dateFormat = "yyyy-MM-dd HH:mm:ss";
   static public String dateFormatTZ = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
   static public String dateFormatTZ2 = "yyyy-MM-dd'T'HH:mm:ssXXX";  
+  static public String dateFormatTZ3 = "yyyy-MM-dd'T'HH:mmXXX";  
   static public String dateFormatGMT = "yyyy-MM-dd'T'HH:mm:ssZ";
 
   static private Map<String,String> tplAgencies = null;
@@ -135,25 +136,31 @@ public class ServiceMap {
   
   static public void logQuery(String query, String id, String type, String args, long time) {
     try {
-      String queryLog = Configuration.getInstance().get("queryLogFile", "query-log.txt");
+      Configuration conf = Configuration.getInstance();
+      String queryLog = conf.get("queryLogFile", "query-log.txt");
       if(!queryLog.isEmpty()) {
         File file =new File(queryLog);
         if(!file.exists()){
           file.createNewFile();
         }
 
+        String queryLogQuery = conf.get("queryLogQuery", "false");
+        if(!"true".equals(queryLogQuery) && !id.equalsIgnoreCase("SPARQL"))
+          query="NA";
         //ServiceMap.println("file: "+file.getAbsolutePath());
         //true = append file
         Date now = new Date();
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         String formattedDate = formatter.format(now);
-        FileWriter fileWritter = new FileWriter(file.getAbsolutePath(),true);
-        BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
-        bufferWritter.write(("#QUERYID|"+id+"|"+type+"|"+args+"|"+(time/1000000)+"|"+formattedDate+"|"+query+"\n#####################\n").replace("\n", "\r\n"));
-        bufferWritter.close();
-        ServiceMap.performance("#QUERYID:"+id+":"+type+":"+args+":"+(time/1000000));
+        try (
+          FileWriter fileWritter = new FileWriter(file.getAbsolutePath(),true);
+          BufferedWriter bufferWritter = new BufferedWriter(fileWritter);) {
+          bufferWritter.write(("#QUERYID|"+id+"|"+type+"|"+args+"|"+(time/1000000)+"|"+formattedDate+"|"+query+"\n#####################\n").replace("\n", "\r\n"));
+        }
+        //bufferWritter.close();
         //ServiceMap.println(query);
       }
+      ServiceMap.performance("#QUERYID:"+id+":"+type+":"+args+":"+(time/1000000));
     }
     catch(Exception e) {
       ServiceMap.notifyException(e);
