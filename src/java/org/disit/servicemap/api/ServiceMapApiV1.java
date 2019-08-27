@@ -3154,229 +3154,236 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             }});
     RestHighLevelClient client = new RestHighLevelClient(restClientBuilder);
 
-    
-    String q = "serviceUri:\""+serviceUri+"\"";
-    
-    DateFormat dateFormatterT = new SimpleDateFormat(ServiceMap.dateFormatT);
-    Date tTime = new Date();
-    if(toTime!=null) {
-      tTime = dateFormatterT.parse(toTime);
-    }
-    Date fTime = new Date();
-    if(fromTime!=null) {
-      fTime = dateFormatterT.parse(fromTime);
-    }
-    if(fromTime!=null || toTime!=null) {
-      DateFormat dateFormatterGMT = new SimpleDateFormat(ServiceMap.dateFormatGMT);
-      String fq = null;
-      String tz = "Z";
-      String toTimeZ = null;
-      String fromTimeZ = null;
-      if(fromTime!=null) {
-        fromTimeZ = dateFormatterGMT.format(fTime);
-      }
+    try {
+      String q = "serviceUri:\""+serviceUri+"\"";
+
+      DateFormat dateFormatterT = new SimpleDateFormat(ServiceMap.dateFormatT);
+      Date tTime = new Date();
       if(toTime!=null) {
-        toTimeZ = dateFormatterGMT.format(tTime);
+        tTime = dateFormatterT.parse(toTime);
       }
-      if(fromTime!=null && toTime==null)
-        fq = "date_time:["+fromTimeZ+" TO *]";
-      else if(fromTime==null && toTime!=null)
-        fq = "date_time:[* TO "+toTimeZ+"]";
-      else
-        fq = "date_time:["+fromTimeZ+" TO "+toTimeZ+"]";
-      q += " AND "+fq;
-    }
-    if(valueName!=null) {
-      q += " AND value_name:\"" + valueName + "\"";
-    }
-    int resultSize = Integer.parseInt(conf.get("elasticSearchMaxSize", "10000"));
-    if(fromTime == null) {
-      if(rtAttributes!=null)
-        resultSize = (rtAttributes.entrySet().size()+10) * limit;
-      else
-        resultSize = 10 * limit;
-    }
-    SearchRequest sr = new SearchRequest();
-    SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder(); 
-    searchSourceBuilder.query(QueryBuilders.boolQuery().must(
-            QueryBuilders.queryStringQuery(q)
-    )).sort("date_time", SortOrder.DESC)
-      .sort("value_name.keyword", SortOrder.ASC)
-      .size(resultSize);
-    if(valueName==null) {
-      searchSourceBuilder.aggregation(AggregationBuilders.terms("value_name").field("value_name.keyword").size(100).order(BucketOrder.key(true)));
-    }
-    boolean fromAggregation = false;
-    if(valueName!=null && fromTime!=null && (tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays", "20"))*24*60*60L) {
-      searchSourceBuilder.aggregation(
-              AggregationBuilders.dateHistogram("date_time")
-                      .field(conf.get("elasticSearchAggField", "date_time"))
-                      .dateHistogramInterval(DateHistogramInterval.minutes(Integer.parseInt(conf.get("elasticSearchAvgMins", "15"))))
-                      .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
-      fromAggregation = true;
-    }
-      
-    sr.source(searchSourceBuilder);
-    sr.indices(index);
-    
-    long ts = System.currentTimeMillis();
-    SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
-    SearchHit[] hits = r.getHits().getHits();
-    long nfound=r.getHits().getTotalHits();
-    String jsonQuery = "NA";
-    if(conf.get("elasticSearchDebugQuery", "false").equals("true")) {
-      try {
-        jsonQuery = searchSourceBuilder.toString();
-      } catch(Exception e) {
-        e.printStackTrace();
+      Date fTime = new Date();
+      if(fromTime!=null) {
+        fTime = dateFormatterT.parse(fromTime);
       }
-    }
-    ServiceMap.performance("elasticsearch query "+serviceUri+" from:"+fromTime+" to:"+toTime+" : "+(System.currentTimeMillis()-ts)+"ms "+fromAggregation+" "+jsonQuery);
-    
-    
-    out.println(",\"realtime\": ");
-    if(nfound==0) {
-      out.println("{}");
-    } else {
-      out.print("{ \"head\": {\n"
-              + " \"vars\":[ \"measuredTime\"");
-      if(valueName != null) {
-        out.print(",\""+valueName+"\"");                      
+      if(fromTime!=null || toTime!=null) {
+        DateFormat dateFormatterGMT = new SimpleDateFormat(ServiceMap.dateFormatGMT);
+        String fq = null;
+        String tz = "Z";
+        String toTimeZ = null;
+        String fromTimeZ = null;
+        if(fromTime!=null) {
+          fromTimeZ = dateFormatterGMT.format(fTime);
+        }
+        if(toTime!=null) {
+          toTimeZ = dateFormatterGMT.format(tTime);
+        }
+        if(fromTime!=null && toTime==null)
+          fq = "date_time:["+fromTimeZ+" TO *]";
+        else if(fromTime==null && toTime!=null)
+          fq = "date_time:[* TO "+toTimeZ+"]";
+        else
+          fq = "date_time:["+fromTimeZ+" TO "+toTimeZ+"]";
+        q += " AND "+fq;
+      }
+      if(valueName!=null) {
+        q += " AND value_name:\"" + valueName + "\"";
+      }
+      int resultSize = Integer.parseInt(conf.get("elasticSearchMaxSize", "10000"));
+      if(fromTime == null) {
+        if(rtAttributes!=null)
+          resultSize = (rtAttributes.entrySet().size()+10) * limit;
+        else
+          resultSize = 10 * limit;
+      }
+      SearchRequest sr = new SearchRequest();
+      SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder(); 
+      searchSourceBuilder.query(QueryBuilders.boolQuery().must(
+              QueryBuilders.queryStringQuery(q)
+      )).sort("date_time", SortOrder.DESC)
+        .sort("value_name.keyword", SortOrder.ASC)
+        .size(resultSize);
+      if(valueName==null) {
+        searchSourceBuilder.aggregation(AggregationBuilders.terms("value_name").field("value_name.keyword").size(100).order(BucketOrder.key(true)));
+      }
+      boolean fromAggregation = false;
+      if(valueName!=null && fromTime!=null && (tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays", "20"))*24*60*60L) {
+        searchSourceBuilder.aggregation(
+                AggregationBuilders.dateHistogram("date_time")
+                        .field(conf.get("elasticSearchAggField", "date_time"))
+                        .dateHistogramInterval(DateHistogramInterval.minutes(Integer.parseInt(conf.get("elasticSearchAvgMins", "15"))))
+                        .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
+        fromAggregation = true;
+      }
+
+      sr.source(searchSourceBuilder);
+      sr.indices(index);
+
+      long ts = System.currentTimeMillis();
+      SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
+      SearchHit[] hits = r.getHits().getHits();
+      long nfound=r.getHits().getTotalHits();
+      String jsonQuery = "NA";
+      if(conf.get("elasticSearchDebugQuery", "false").equals("true")) {
+        try {
+          jsonQuery = searchSourceBuilder.toString();
+        } catch(Exception e) {
+          e.printStackTrace();
+        }
+      }
+      ServiceMap.performance("elasticsearch query "+serviceUri+" from:"+fromTime+" to:"+toTime+" : "+(System.currentTimeMillis()-ts)+"ms "+fromAggregation+" "+jsonQuery);
+
+
+      out.println(",\"realtime\": ");
+      if(nfound==0) {
+        out.println("{}");
       } else {
-        Terms agg = r.getAggregations().get("value_name");
+        out.print("{ \"head\": {\n"
+                + " \"vars\":[ \"measuredTime\"");
+        if(valueName != null) {
+          out.print(",\""+valueName+"\"");                      
+        } else {
+          Terms agg = r.getAggregations().get("value_name");
 
-        for (Terms.Bucket entry : agg.getBuckets()) {
-          //System.out.println(" "+entry.getKey()+" "+entry.getDocCount());
-          if(entry.getDocCount()>0)
-            out.print(",\""+entry.getKey()+"\"");
+          for (Terms.Bucket entry : agg.getBuckets()) {
+            //System.out.println(" "+entry.getKey()+" "+entry.getDocCount());
+            if(entry.getDocCount()>0)
+              out.print(",\""+entry.getKey()+"\"");
+          }
+          for(String a:customAttrs) {
+              out.print(",\""+a+"\"");              
+          }
         }
-        for(String a:customAttrs) {
-            out.print(",\""+a+"\"");              
-        }
-      }
-      out.println("]},");
-      
-      out.println(" \"results\": {");
-      out.println(" \"bindings\": [");
-      
-      int c=0;
-      Date cdt = null;
-      JsonObject rt = new JsonObject();
-      DateFormat dateFormatterTZ = new SimpleDateFormat(ServiceMap.dateFormatTZ);
-      DateFormat dateFormatterTZ2 = new SimpleDateFormat(ServiceMap.dateFormatTZ2);
-      Gson gson = new Gson();                
-      if(!fromAggregation) {
-        for(SearchHit h:hits) { 
-          Map<String, Object> d = h.getSourceAsMap();
+        out.println("]},");
 
-          String dts = (String)d.get("date_time");
-          Object vn = d.get("value_name");
-          Object value = d.get("value");
-          //ServiceMap.println("value:"+value);
-          if(value==null) {
-            value = d.get("value_str");
-            if(value!=null)
-              value = "\""+JSONObject.escape(value.toString())+"\"";
-            else {
-              value = d.get("value_obj");
-              if(value!=null) {
-                value = gson.toJson(value);
+        out.println(" \"results\": {");
+        out.println(" \"bindings\": [");
+
+        int c=0;
+        Date cdt = null;
+        JsonObject rt = new JsonObject();
+        DateFormat dateFormatterTZ = new SimpleDateFormat(ServiceMap.dateFormatTZ);
+        DateFormat dateFormatterTZ2 = new SimpleDateFormat(ServiceMap.dateFormatTZ2);
+        DateFormat dateFormatterTZ3 = new SimpleDateFormat(ServiceMap.dateFormatTZ3);
+        Gson gson = new Gson();                
+        if(!fromAggregation) {
+          for(SearchHit h:hits) { 
+            Map<String, Object> d = h.getSourceAsMap();
+
+            String dts = (String)d.get("date_time");
+            Object vn = d.get("value_name");
+            Object value = d.get("value");
+            //ServiceMap.println("value:"+value);
+            if(value==null) {
+              value = d.get("value_str");
+              if(value!=null)
+                value = "\""+JSONObject.escape(value.toString())+"\"";
+              else {
+                value = d.get("value_obj");
+                if(value!=null) {
+                  value = gson.toJson(value);
+                }
+                else
+                  value = "\"\"";
+              }
+            } else {
+              value = "\""+value+"\"";
+            }
+            //ServiceMap.println(dts+" "+vn+":"+value);
+
+            //su solr l'ora è memorizzata come se fosse GMT quindi va tolto l'offset da GMT
+            Date dt;
+            try {
+              dt = dateFormatterTZ.parse(dts);
+            } catch(Exception x) {
+              try {
+                dt = dateFormatterTZ2.parse(dts);
+              } catch(Exception e) {
+                try {
+                  dt = dateFormatterTZ3.parse(dts);
+                } catch(Exception ee) {
+                  ServiceMap.notifyException(ee, "date: "+dts+" suri:"+serviceUri);
+                  throw ee;
+                }
+              }
+            }
+
+            /*int offset=TimeZone.getDefault().getOffset(dt.getTime());
+            dt.setTime(dt.getTime()-offset);*/
+
+            //ServiceMap.println(ServiceMap.dateFormatterTZ.format(dt)+" "+mt+" "+value+" "+u);
+            if(cdt==null || cdt.equals(dt)) {
+              if(c==0) {
+                String measuredTime = dateFormatterTZ.format(dt);
+                out.print("  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
+                rt.addProperty("measuredTime", measuredTime);
               }
               else
-                value = "\"\"";
-            }
-          } else {
-            value = "\""+value+"\"";
-          }
-          //ServiceMap.println(dts+" "+vn+":"+value);
-
-          //su solr l'ora è memorizzata come se fosse GMT quindi va tolto l'offset da GMT
-          Date dt;
-          try {
-            dt = dateFormatterTZ.parse(dts);
-          } catch(Exception x) {
-            try {
-              dt = dateFormatterTZ2.parse(dts);
-            } catch(Exception e) {
-              ServiceMap.notifyException(e, "date: "+dts+" suri:"+serviceUri);
-              throw e;
-            }
-          }
-
-          /*int offset=TimeZone.getDefault().getOffset(dt.getTime());
-          dt.setTime(dt.getTime()-offset);*/
-
-          //ServiceMap.println(ServiceMap.dateFormatterTZ.format(dt)+" "+mt+" "+value+" "+u);
-          if(cdt==null || cdt.equals(dt)) {
-            if(c==0) {
+                out.print(",");
+              c++;
+              cdt=dt;
+            } else {
+              if(fromTime==null && rtData.size()>=limit-1) //prende i primi valori
+                break;
+              cdt = dt;
+              rtData.add(rt);
+              rt = new JsonObject();
               String measuredTime = dateFormatterTZ.format(dt);
-              out.print("  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
+              out.print("},  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
               rt.addProperty("measuredTime", measuredTime);
+              c=1;
             }
-            else
-              out.print(",");
-            c++;
-            cdt=dt;
-          } else {
-            if(fromTime==null && rtData.size()>=limit-1) //prende i primi valori
-              break;
-            cdt = dt;
-            rtData.add(rt);
-            rt = new JsonObject();
-            String measuredTime = dateFormatterTZ.format(dt);
-            out.print("},  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
-            rt.addProperty("measuredTime", measuredTime);
-            c=1;
+            out.print("  \""+vn+"\":{\"value\":"+value+"}");
+            rt.addProperty(vn.toString(),value.toString());
           }
-          out.print("  \""+vn+"\":{\"value\":"+value+"}");
-          rt.addProperty(vn.toString(),value.toString());
-        }
-        rtData.add(rt);
-      } else {
-        Histogram agg = r.getAggregations().get("date_time");
+          rtData.add(rt);
+        } else {
+          Histogram agg = r.getAggregations().get("date_time");
 
-        List<? extends Histogram.Bucket> l = agg.getBuckets();
-        ListIterator<? extends Histogram.Bucket> li = l.listIterator(l.size());
-        while(li.hasPrevious()) {
-          Histogram.Bucket entry = li.previous();
-          org.elasticsearch.search.aggregations.metrics.avg.Avg avg = entry.getAggregations().get("avg");
-          //System.out.println(" "+entry.getKey()+" "+entry.getDocCount()+" "+avg.getValueAsString());
-          String value = avg.getValueAsString();
-          if(!value.equals("Infinity")) {
-            if(c!=0)
-              out.println("},");
-            rt = new JsonObject();
-            Date measuredTime = dateFormatterTZ.parse(entry.getKeyAsString());
-            out.print("{\n\"measuredTime\":{\"value\":\""+dateFormatterTZ.format(measuredTime)+"\"},");
-            rt.addProperty("measuredTime", dateFormatterTZ.format(measuredTime));
-            out.print(" \""+valueName+"\":{\"value\":\""+value+"\"}");
-            rt.addProperty(valueName, value);
-            rtData.add(rt);
-            c++;
+          List<? extends Histogram.Bucket> l = agg.getBuckets();
+          ListIterator<? extends Histogram.Bucket> li = l.listIterator(l.size());
+          while(li.hasPrevious()) {
+            Histogram.Bucket entry = li.previous();
+            org.elasticsearch.search.aggregations.metrics.avg.Avg avg = entry.getAggregations().get("avg");
+            //System.out.println(" "+entry.getKey()+" "+entry.getDocCount()+" "+avg.getValueAsString());
+            String value = avg.getValueAsString();
+            if(!value.equals("Infinity")) {
+              if(c!=0)
+                out.println("},");
+              rt = new JsonObject();
+              Date measuredTime = dateFormatterTZ.parse(entry.getKeyAsString());
+              out.print("{\n\"measuredTime\":{\"value\":\""+dateFormatterTZ.format(measuredTime)+"\"},");
+              rt.addProperty("measuredTime", dateFormatterTZ.format(measuredTime));
+              out.print(" \""+valueName+"\":{\"value\":\""+value+"\"}");
+              rt.addProperty(valueName, value);
+              rtData.add(rt);
+              c++;
+            }
+          }
+          /*for (Histogram.Bucket entry : agg.getBuckets()) {
+            org.elasticsearch.search.aggregations.metrics.avg.Avg avg = entry.getAggregations().get("avg");
+            System.out.println(" "+entry.getKey()+" "+entry.getDocCount()+" "+avg.getValueAsString());
+          }*/       
+        }
+        String customAttrLastValues = "";
+        if(fromTime == null) {
+          try(Connection rtCon = ServiceMap.getRTConnection()) {
+            for(String a:customAttrs) {
+              JsonArray cdata = new JsonArray();            
+              ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
+              if(cdata.size()>0) 
+                customAttrLastValues += ",\""+a+"\":"+cdata.get(0);;
+            }
+            out.print(customAttrLastValues);
           }
         }
-        /*for (Histogram.Bucket entry : agg.getBuckets()) {
-          org.elasticsearch.search.aggregations.metrics.avg.Avg avg = entry.getAggregations().get("avg");
-          System.out.println(" "+entry.getKey()+" "+entry.getDocCount()+" "+avg.getValueAsString());
-        }*/       
+        if(c!=0)
+          out.println(" }");
+        out.println("]}}");
       }
-      String customAttrLastValues = "";
-      if(fromTime == null) {
-        try(Connection rtCon = ServiceMap.getRTConnection()) {
-          for(String a:customAttrs) {
-            JsonArray cdata = new JsonArray();            
-            ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
-            if(cdata.size()>0) 
-              customAttrLastValues += ",\""+a+"\":"+cdata.get(0);;
-          }
-          out.print(customAttrLastValues);
-        }
-      }
-      if(c!=0)
-        out.println(" }");
-      out.println("]}}");
+    } finally {
+      client.close();
     }
-    client.close();    
   }
   
   private Connection timeTrendQuery(ServiceMapping.MappingData md, String serviceUri, JspWriter out, Connection rtCon, Configuration conf) throws NumberFormatException, Exception, IOException, SQLException {
