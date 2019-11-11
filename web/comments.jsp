@@ -102,8 +102,7 @@
       ServiceMap.notifyException(ex);
     } finally {
       connection.close();
-    }
-}%>
+    }%>
     </table>
     </div>
   </body>

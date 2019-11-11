@@ -47,8 +47,12 @@
 
    You should have received a copy of the GNU Affero General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
-
-User u = org.disit.servicemap.JwtUtil.getUserFromRequest(request);
+User u = null;
+try {
+  u = org.disit.servicemap.JwtUtil.getUserFromRequest(request);
+} catch(Exception e) {
+  ServiceMap.notifyException(e);
+}
 if(u!=null) {
   ServiceMap.println("user:"+u.username+" role:"+u.role);
 } else {
@@ -96,7 +100,7 @@ if(apikey!=null && (check=CheckParameters.checkApiKey(apikey))!=null) {
 if(apikey==null && u!=null) {
   apikey="user:"+u.username+" role:"+u.role+" at:"+u.accessToken;
 }
-
+  
 if ("html".equals(request.getParameter("format")) || (request.getParameter("format") == null && request.getParameter("queryId") != null)) {%>
 <jsp:include page="../../mappa.jsp" > <jsp:param name="mode" value="query"/> </jsp:include>
 <%
@@ -169,8 +173,6 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         risultatiBus = risultatiSensori;
       }
     }
-    String ip = ServiceMap.getClientIpAddress(request);
-    String ua = request.getHeader("User-Agent");
     String text = request.getParameter("text");
     if (queryId == null) {
       if (idService != null) {
@@ -432,7 +434,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         return;
       }
       if(!IoTChecker.checkIoTService(idService, apikey)) {
-        ServiceMap.logError(request, response, 400, "cannot access to "+idService);
+        ServiceMap.logError(request, response, (apikey==null || apikey.isEmpty() ? 401 : 403), "cannot access to "+idService);
         con.close();
         return;
       }
