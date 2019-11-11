@@ -116,7 +116,6 @@ public class ServiceMapping {
       while (resultAttrs.hasNext()) {
         BindingSet bs = resultAttrs.next();
 
-        int ppp = 0;
         String name = bs.getBinding(bnames.get(0)).getValue().stringValue();
         JsonObject o = new JsonObject();
         for (int i=1; i<bnames.size(); i++) {
@@ -124,7 +123,6 @@ public class ServiceMapping {
           if(bs.getBinding(n) != null) {
             String v = bs.getBinding(n).getValue().stringValue();
             o.addProperty(n, v);
-            ppp++;
           }
         }
         r.add(name, o);

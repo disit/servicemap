@@ -702,7 +702,7 @@ function loadServiceInfo(uri, div, id, coord) {
                             mostraLineeBusAJAX(serviceUri, divLinee, divRoute);
                             mostraOrariAJAX(serviceUri, divTimetable);
                         } else if(realtime!=undefined) {
-                            mostraRealTimeData(divInfo, realtime);
+                            mostraRealTimeData(divInfo, realtime, uri);
                             popup_fixpos(div);
                         }
                     } else {
@@ -2384,9 +2384,12 @@ function showChart(selezione, raggioRicerca, coordinateSelezione) {
     }
 }
 
-function mostraRealTimeData(divInfo, realtime) {
+function mostraRealTimeData(divInfo, realtime, serviceUri) {
   var html = "";
   var time = "";
+  var toTime = "";
+  var fromTime = "";
+  var k = "";
   if(!("results" in realtime)) {
     $("#"+divInfo).html("<b>No realtime data</b>");
     return;
@@ -2397,11 +2400,25 @@ function mostraRealTimeData(divInfo, realtime) {
     $.each( realtime.results.bindings[0], function( key, v ) {
       if(key == "measuredTime" || key == "instantTime")
         time = v.value;
-      else {
+    });
+    toTime = time.substr(0,19); //remove time zone
+    try {
+      var t = new Date(time);
+      t.setDate(t.getDate()-30);
+      fromTime="&fromTime="+encodeURIComponent(t.toISOString().substr(0,19));
+    } catch(e) {
+      console.log(e);
+    }
+    $.each( realtime.results.bindings[0], function( key, v ) {
+      if(key != "measuredTime" && key != "instantTime") {
         var value = v.value;
         if(typeof value === 'object')
           value = JSON.stringify(value);
-        html +="<tr><td>"+key+"</td><td>"+value+(v.valueDate? " <small>@"+v.valueDate+"</small>": "")+"</td></tr>";
+        if(window.configurationData.enableSensorValidation=="true")
+          k = "<a href='"+window.configurationData.sensorValidationUrl+"?serviceUri="+encodeURIComponent(serviceUri)+"&metric="+encodeURIComponent(key)+fromTime+"&toTime="+encodeURIComponent(toTime)+"' target='_blank'>"+key+"</a>";
+        else 
+          k = key;
+        html +="<tr><td>"+k+"</td><td>"+value+(v.valueDate? " <small>@"+v.valueDate+"</small>": "")+"</td></tr>";
       }
     });
   } else {

@@ -44,12 +44,11 @@
         <script src="${pageContext.request.contextPath}/js/leaflet.awesome-markers.min.js"></script>
         <script src="${pageContext.request.contextPath}/js/jquery.dialogextend.js"></script>
         <script src="${pageContext.request.contextPath}/js/leaflet-gps.js"></script>
-        <script src="${pageContext.request.contextPath}/js/leaflet.markercluster.js"></script>
+        <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
         <script src="${pageContext.request.contextPath}/js/mustache.js"></script> 
         <script src="${pageContext.request.contextPath}/js/mustache.min.js"></script>
         <script src="${pageContext.request.contextPath}/js/ViewManager.js"></script>
         <script src="${pageContext.request.contextPath}/js/jquery.dataTables.min.js"></script>
-<!--        <script src="${pageContext.request.contextPath}/js/dataTables.bootstrap.min.js"></script>-->
         <script src="${pageContext.request.contextPath}/js/moment.min.js"></script>
         <script src="${pageContext.request.contextPath}/js/datetime-moment.js"></script>
         <script src="${pageContext.request.contextPath}/js/jquery.timepicker.min.js"></script>
@@ -71,8 +70,8 @@
 
         <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-thumbs.css" type="text/css" media="screen" />
         <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-thumbs.js"></script>
-        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/MarkerCluster.css" type="text/css" />
-        <link rel="stylesheet" href="${pageContext.request.contextPath}/css/MarkerCluster.Default.css" type="text/css" />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" type="text/css" />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/jquery.dataTables.min.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/jquery.timepicker.min.css" type="text/css" />
@@ -140,8 +139,11 @@
         </script>
         <% } %>
         <script>
-            var mode = "${param.mode}";
-            var api = "${param.api}";
+            var mode = "<c:out value="${param.mode}" />";
+            var api = "<c:out value="${param.api}" />";
+            window.configurationData = {};
+            window.configurationData.enableSensorValidation="<%= Configuration.getInstance().get("enableSensorValidation","true") %>";
+            window.configurationData.sensorValidationUrl="<%= Configuration.getInstance().get("sensorValidationUrl","https://www.snap4city.org/sensor-validate/") %>";            
         </script>
 
         <div id="dialog"></div>        
@@ -1350,7 +1352,7 @@
                                                                     $('#' + divId).closest('div.leaflet-popup-content-wrapper').css("width", "300px");
                                                                 }
                                                                 if(feature.realtime!=undefined) {
-                                                                  mostraRealTimeData(divId+"-info", feature.realtime);
+                                                                  mostraRealTimeData(divId+"-info", feature.realtime, serviceUri);
                                                                   //popup_fixpos(div);
                                                                 }
 

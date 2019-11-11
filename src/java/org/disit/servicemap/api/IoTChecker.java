@@ -55,15 +55,18 @@ public class IoTChecker {
         return true;
       }
       
-      String accessToken = null;
-      if(apiKey!=null && apiKey.startsWith("user:")) {
-        accessToken = apiKey.split(" at:")[1];
-      }
-
       // check if the IoT is public or private
       Configuration conf = Configuration.getInstance();
       if(!conf.get("enableIoTChecker", "true").equals("true"))
         return true;
+      
+      String accessToken = null;
+      if(apiKey!=null && apiKey.startsWith("user:")) {
+        accessToken = apiKey.split(" at:")[1];
+      } else if(apiKey!=null && apiKey.equals(conf.get("iotCheckerPassword", "password"))) { //set in the configuration a VERY strong password
+        System.out.println("IotChecker "+serviceUri+" GRANTED ACCESS using password");
+        return true;
+      }
       
       boolean isPublic = false;
       boolean allow = false;
@@ -88,7 +91,7 @@ public class IoTChecker {
         throw new IllegalAccessException("invalid iot uri "+serviceUri);
       
       String elementId = parts[n-2]+":"+parts[n-3]+":"+parts[n-1];
-      ServiceMap.println("iotcheck: "+serviceUri+" "+elementId+" "+accessToken);
+      ServiceMap.println("iotchecker: "+serviceUri+" "+elementId+" "+accessToken);
       
       HttpClient httpclient = HttpClients.createDefault();
       HttpGet httpget = null;

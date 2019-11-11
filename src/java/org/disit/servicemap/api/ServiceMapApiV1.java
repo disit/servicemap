@@ -62,12 +62,18 @@ import java.util.regex.Pattern;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.http.impl.nio.reactor.IOReactorConfig;
 import org.apache.http.util.EntityUtils;
 import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrQuery;
@@ -87,6 +93,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
+import org.elasticsearch.client.RestClientBuilder.HttpClientConfigCallback;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.xcontent.ToXContent;
@@ -3139,11 +3146,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     String[] hosts = conf.get("elasticSearchHosts", "localhost").split(",");
     int port = Integer.parseInt(conf.get("elasticSearchPort", "9200"));
     String[] index = conf.get("elasticSearchIndex", "sensorindex").split(";");
-    
+
     HttpHost[] httpHosts = new HttpHost[hosts.length];
     for(int i=0; i<hosts.length; i++)
-      httpHosts[i] = new HttpHost(hosts[i],port, "http");
+      httpHosts[i] = new HttpHost(hosts[i],port, conf.get("elasticSearchScheme", "http"));
     final int timeout = Integer.parseInt(conf.get("elasticSearchTimeout", "30000"));
+    final int threadCount = Integer.parseInt(conf.get("elasticSearchThreadCount", "0"));
     RestClientBuilder restClientBuilder = RestClient.builder(httpHosts);
     restClientBuilder.setRequestConfigCallback(
         new RestClientBuilder.RequestConfigCallback() {
@@ -3152,6 +3160,30 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     RequestConfig.Builder requestConfigBuilder) {
                 return requestConfigBuilder.setSocketTimeout(timeout);
             }});
+    if(conf.get("elasticSearchUser", null)!=null) {
+      final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+      credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(conf.get("elasticSearchUser", null), conf.get("elasticSearchPassword", "")));
+      restClientBuilder.setHttpClientConfigCallback(new HttpClientConfigCallback() {
+        @Override
+        public HttpAsyncClientBuilder customizeHttpClient(
+                HttpAsyncClientBuilder httpClientBuilder) {
+            return httpClientBuilder
+                .setDefaultCredentialsProvider(credentialsProvider);
+        }
+      });
+    }
+    if(threadCount>0) {
+      restClientBuilder.setHttpClientConfigCallback(new HttpClientConfigCallback() {
+          @Override
+          public HttpAsyncClientBuilder customizeHttpClient(
+                  HttpAsyncClientBuilder httpClientBuilder) {
+              return httpClientBuilder.setDefaultIOReactorConfig(
+                  IOReactorConfig.custom()
+                      .setIoThreadCount(threadCount)
+                      .build());
+          }
+      });
+    }
     RestHighLevelClient client = new RestHighLevelClient(restClientBuilder);
 
     try {
@@ -3271,27 +3303,6 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             Map<String, Object> d = h.getSourceAsMap();
 
             String dts = (String)d.get("date_time");
-            Object vn = d.get("value_name");
-            Object value = d.get("value");
-            //ServiceMap.println("value:"+value);
-            if(value==null) {
-              value = d.get("value_str");
-              if(value!=null)
-                value = "\""+JSONObject.escape(value.toString())+"\"";
-              else {
-                value = d.get("value_obj");
-                if(value!=null) {
-                  value = gson.toJson(value);
-                }
-                else
-                  value = "\"\"";
-              }
-            } else {
-              value = "\""+value+"\"";
-            }
-            //ServiceMap.println(dts+" "+vn+":"+value);
-
-            //su solr l'ora è memorizzata come se fosse GMT quindi va tolto l'offset da GMT
             Date dt;
             try {
               dt = dateFormatterTZ.parse(dts);
@@ -3310,6 +3321,35 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
 
             /*int offset=TimeZone.getDefault().getOffset(dt.getTime());
             dt.setTime(dt.getTime()-offset);*/
+            
+            Object vn = d.get("value_name");
+
+            if(conf.get("elasticSearchCheckDuplicates", "false").equals("true") && rt.has(vn.toString()) && dt.equals(cdt)) {
+              ServiceMap.notifyException(null, "WARNING ESearch "+serviceUri+" duplicate value name "+vn+" @ "+dts);
+              continue;
+            }
+            
+            Object value = d.get("value");
+            //ServiceMap.println("value:"+value);
+            if(value==null) {
+              value = d.get("value_str");
+              if(value!=null)
+                value = "\""+JSONObject.escape(value.toString())+"\"";
+              else {
+                value = d.get("value_obj");
+                if(value!=null) {
+                  if(conf.get("elasticSearchValueObjAsString", "false").equals("true"))
+                    value = gson.toJson(value);
+                  else
+                    value = "\""+JSONObject.escape(gson.toJson(value).toString())+"\"";
+                }
+                else
+                  value = "\"\"";
+              }
+            } else {
+              value = "\""+value+"\"";
+            }
+            //ServiceMap.println(dts+" "+vn+":"+value);
 
             //ServiceMap.println(ServiceMap.dateFormatterTZ.format(dt)+" "+mt+" "+value+" "+u);
             if(cdt==null || cdt.equals(dt)) {
@@ -3371,8 +3411,11 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             for(String a:customAttrs) {
               JsonArray cdata = new JsonArray();            
               ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
-              if(cdata.size()>0) 
-                customAttrLastValues += ",\""+a+"\":"+cdata.get(0);;
+              if(cdata.size()>0) {
+                customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
+                if(rtData.size()>0)
+                  rtData.get(0).getAsJsonObject().add(a, cdata.get(0));
+              }
             }
             out.print(customAttrLastValues);
           }
@@ -3566,12 +3609,17 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       int nCols = rs.getMetaData().getColumnCount();
       int p = 0;
       String customAttrLastValues = "";
+      JsonObject customAttrLastValuesObj = new JsonObject();
       if(fromTime == null) {
         for(String a:customAttrs) {
-          JsonArray cdata = new JsonArray();            
-          ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
-          if(cdata.size()>0) 
-            customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
+          if(valueName==null || a.equals(valueName)) {
+            JsonArray cdata = new JsonArray();            
+            ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
+            if(cdata.size()>0) {
+              customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
+              customAttrLastValuesObj.add(a, cdata.get(0));
+            }
+          }
         }
       }
       if(!isWeatherSensor) {
@@ -3582,7 +3630,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             int cc = 0;
             for(int c=1; c<=nCols; c++) {
               String v = rs.getMetaData().getColumnLabel(c);
-              if(!v.startsWith("_")) {
+              if(!v.startsWith("_") && (valueName == null || v.equals(valueName) || v.equals("measuredTime"))) {
                 if(cc!=0)
                   out.print(",");
                 out.print("\""+v+"\"");
@@ -3590,7 +3638,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               }
             }
             for(String a:customAttrs) {
-                out.print(",\""+a+"\"");              
+              if(valueName == null || a.equals(valueName)) {
+                if(cc!=0)
+                  out.print(",");
+                out.print("\""+a+"\"");
+                cc++;
+              }
             }
             out.println("]},");
             out.println(" \"results\": {");
@@ -3603,7 +3656,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           JsonObject rt = new JsonObject();
           for(int c=1; c<=nCols; c++) {
             String v = rs.getMetaData().getColumnLabel(c);
-            if(!v.startsWith("_")) {
+            if(!v.startsWith("_") && (valueName == null || v.equals(valueName) || v.equals("measuredTime"))) {
               String value = rs.getString(c);
               if(value!=null && rs.getMetaData().getColumnType(c)==java.sql.Types.DATE ||
                       rs.getMetaData().getColumnType(c)==java.sql.Types.TIMESTAMP ||
@@ -3634,7 +3687,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             int cc = 0;
             for(int c=1; c<=nCols; c++) {
               String v = rs.getMetaData().getColumnLabel(c);
-              if(!v.startsWith("_")) {
+              if(!v.startsWith("_") && (valueName==null || v.equals(valueName) || v.equals("measuredTime"))) {
                 if(cc!=0)
                   out.print(",");
                 out.print("\""+v+"\"");
@@ -3642,7 +3695,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               }
             }
             for(String a:customAttrs) {
-                out.print(",\""+a+"\"");              
+              if(valueName == null || a.equals(valueName)) {
+                if(cc!=0)
+                  out.print(",");
+                out.print("\""+a+"\"");
+                cc++;
+              }
             }
             out.println("]},");
             out.println(" \"results\": {");
@@ -3668,7 +3726,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           out.println(" {");
           for(int c=1; c<=nCols; c++) {
             String v = rs.getMetaData().getColumnLabel(c);
-            if(!v.startsWith("_")) {
+            if(!v.startsWith("_") && (valueName==null || v.equals(valueName))) {
               if(cc!=0)
                 out.println(",");
               String value=row[c-1];
@@ -3688,8 +3746,15 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         out.println("]}}");
       else
         out.println("{}");
-      rtCon.close();
+      rtCon.close();      
       //rtCon2.close();
+      
+      //add custom values to rtData[0]
+      if(rtData.size()>0) {
+        for(Map.Entry<String, JsonElement> x:customAttrLastValuesObj.entrySet()) {
+          rtData.get(0).getAsJsonObject().add(x.getKey(), x.getValue());
+        }
+      }
       ServiceMap.performance("phoenix time realtime: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri+" from:"+fromTime+" to:"+toTime);
     } catch(Exception e) {
       out.println("{}");

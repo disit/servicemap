@@ -846,26 +846,30 @@ public class ServiceMap {
       if(lastDate!=null) {
         //check if it is a custom attribute and have an own datetime
         JsonElement lastValue = last.get(name);
-        if(lastValue!=null && lastValue.isJsonObject() && lastValue.getAsJsonObject().get("valueAcqDate")!=null) {
-          String lastTime = lastValue.getAsJsonObject().get("valueAcqDate").getAsString();
-          try {
-            lastDate = new SimpleDateFormat(ServiceMap.dateFormatTZ).parse(lastTime);
-          } catch(ParseException ex) {
-            lastDate = new SimpleDateFormat(ServiceMap.dateFormatTZ2).parse(lastTime);
+        if(lastValue!=null && lastValue.isJsonObject()) {
+          if(lastValue.getAsJsonObject().get("valueAcqDate")!=null) {
+            String lastTime = lastValue.getAsJsonObject().get("valueAcqDate").getAsString();
+            try {
+              lastDate = new SimpleDateFormat(ServiceMap.dateFormatTZ).parse(lastTime);
+            } catch(ParseException ex) {
+              lastDate = new SimpleDateFormat(ServiceMap.dateFormatTZ2).parse(lastTime);
+            }
           }
+          lastValue = lastValue.getAsJsonObject().get("value");
         }
+        
         long delay = (now.getTime()-lastDate.getTime())/1000;
         long defaultRefreshRate = Integer.parseInt(conf.get("defaultRefreshRate","-1"));
         h.addProperty("delay", delay);
         if(delay<refreshRate || delay<defaultRefreshRate) {
-          if(last.get(name)!=null && !last.get(name).getAsString().isEmpty()) {
-          } else {
+          ServiceMap.println("healthiness: "+name+" "+lastValue);
+          if(lastValue==null || (lastValue.getAsString().isEmpty() || lastValue.getAsString().equals("null"))) {
             healthy = false;
             reason = "missing value";
           }
         } else {
           healthy = false;
-          reason = "too old data "+delay+">="+refreshRate+" and delay>="+defaultRefreshRate;
+          reason = "too old data delay: "+delay+"s >= "+refreshRate+"s and delay>="+defaultRefreshRate+"s";
         }
       } else {
         healthy = false;
