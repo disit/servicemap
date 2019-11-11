@@ -1533,16 +1533,23 @@ public class ServiceMap {
   
   public static Connection getRTConnection() throws Exception {
     Configuration conf = Configuration.getInstance();
+    //"jdbc:phoenix:192.168.0.118,192.168.0.124,192.168.0.129:2181:/hbase"
+    String phoenixJDBC = conf.get("phoenixJDBC", null);
+    if(phoenixJDBC == null)
+      return null;
     Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
     //Class.forName("org.apache.phoenix.queryserver.client.Driver");
-    return DriverManager.getConnection(conf.get("phoenixJDBC", "jdbc:phoenix:192.168.0.118,192.168.0.124,192.168.0.129:2181:/hbase")); //jdbc:phoenix:thin:url=http://192.168.0.228:8765
+    return DriverManager.getConnection(phoenixJDBC); 
   }
   
   public static Connection getRTConnection2() throws Exception {
     Configuration conf = Configuration.getInstance();
+    //"jdbc:phoenix:192.168.0.229,192.168.0.230,192.168.0.236:2181:/hbase-unsecure"
+    String phoenixJDBC2 = conf.get("phoenixJDBC2", null);
+    if(phoenixJDBC2 == null)
+      return null;
     Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
-    //Class.forName("org.apache.phoenix.queryserver.client.Driver");
-    return DriverManager.getConnection(conf.get("phoenixJDBC2", "jdbc:phoenix:192.168.0.229,192.168.0.230,192.168.0.236:2181:/hbase-unsecure")); //jdbc:phoenix:thin:url=http://192.168.0.228:8765
+    return DriverManager.getConnection(phoenixJDBC2);
   }
   
   public static boolean checkIP(String IPAddr, String requestType) throws Exception {
