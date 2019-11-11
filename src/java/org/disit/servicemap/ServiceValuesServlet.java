@@ -354,6 +354,9 @@ public class ServiceValuesServlet extends HttpServlet {
         }
       }
       Connection conn = ServiceMap.getRTConnection();
+      if(conn==null) {
+        throw new Exception("missing hbase phoenix connection");
+      }
       try {
         for(JsonElement a : attributes.getAsJsonArray()) {
           JsonObject attr = a.getAsJsonObject();
@@ -368,7 +371,7 @@ public class ServiceValuesServlet extends HttpServlet {
             acqDate = new Date(df.parse(valueAcqDate).getTime());
           }
           date = new Date(df.parse(valueDate).getTime());
-          
+
           ServiceMap.println(serviceUri+" "+valueName);
           String query = "UPSERT INTO ServiceDataValues(serviceUri,valueName,\"value\",valueDate, valueAcqDate) VALUES (?,?,?,?,?)";
           PreparedStatement st = conn.prepareStatement(query);
@@ -431,6 +434,10 @@ public class ServiceValuesServlet extends HttpServlet {
       }
       
       Connection conn = ServiceMap.getRTConnection();
+      if(conn==null) {
+        throw new Exception("missing hbase phoenix connection");
+      }
+      
       try {
           for(Entry<String,JsonElement> e : trends.getAsJsonObject().entrySet()) {
             String timeAggregation = e.getKey();
@@ -571,15 +578,17 @@ public class ServiceValuesServlet extends HttpServlet {
               }
             }
             Connection rtCon = ServiceMap.getRTConnection();
-            for(Entry<String,JsonElement> e : attrs.entrySet()) {
-              if(otherAttrs.has(e.getKey())) {
-                JsonArray l = new JsonArray();
-                getValues(rtCon, conf, null, toTime, "1", serviceUri, e.getKey(), l, null);
-                e.getValue().getAsJsonObject().add("last", l.size()>0 ? l.get(0) : null);
+            if(rtCon!=null) {
+              for(Entry<String,JsonElement> e : attrs.entrySet()) {
+                if(otherAttrs.has(e.getKey())) {
+                  JsonArray l = new JsonArray();
+                  getValues(rtCon, conf, null, toTime, "1", serviceUri, e.getKey(), l, null);
+                  e.getValue().getAsJsonObject().add("last", l.size()>0 ? l.get(0) : null);
+                }
+                e.getValue().getAsJsonObject().add("trends", getTrends(rtCon, conf, serviceUri, e.getKey()));
               }
-              e.getValue().getAsJsonObject().add("trends", getTrends(rtCon, conf, serviceUri, e.getKey()));
+              rtCon.close();
             }
-            rtCon.close();
           }
           result.add("attributes", attrs);
           response.getWriter().print(result);
@@ -599,17 +608,19 @@ public class ServiceValuesServlet extends HttpServlet {
           if(otherAttrs.has(valueName)) {
             //valueName is one of the values table
             Connection rtCon = ServiceMap.getRTConnection();
-            if(healthiness!=null && healthiness.equals("true")) {
-              attr.add(valueName, otherAttrs.get(valueName));
-              int l = ServiceMap.getHealthCount(attrs);
-              if(l>0) {
-                fromTime=null;
-                limit = ""+l;
+            if(rtCon != null) {
+              if(healthiness!=null && healthiness.equals("true")) {
+                attr.add(valueName, otherAttrs.get(valueName));
+                int l = ServiceMap.getHealthCount(attrs);
+                if(l>0) {
+                  fromTime=null;
+                  limit = ""+l;
+                }
               }
+
+              getValues(rtCon, conf, fromTime, toTime, limit, serviceUri, valueName, rtData, null);
+              rtCon.close();
             }
-            
-            getValues(rtCon, conf, fromTime, toTime, limit, serviceUri, valueName, rtData, null);
-            rtCon.close();
           } else {
             //valueName is on phoenix specific table or solr
             if(md==null) {
@@ -749,6 +760,9 @@ public class ServiceValuesServlet extends HttpServlet {
     ServiceMap.println("realtime query: "+query);
     try {
       Connection rtCon = ServiceMap.getRTConnection();
+      if(rtCon==null) {
+        throw new Exception("missing hbase phoenix connection");
+      }
       Statement s = rtCon.createStatement();
       s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
       ResultSet rs = s.executeQuery(query);
@@ -841,6 +855,9 @@ public class ServiceValuesServlet extends HttpServlet {
     ServiceMap.println("realtime query: "+query);
     try {
       Connection rtCon = ServiceMap.getRTConnection();
+      if(rtCon==null) {
+        throw new Exception("missing hbase phoenix connection");
+      }
       Statement s = rtCon.createStatement();
       s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
       ResultSet rs = s.executeQuery(query);

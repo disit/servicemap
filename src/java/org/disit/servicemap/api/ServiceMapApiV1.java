@@ -499,6 +499,9 @@ public class ServiceMapApiV1 extends ServiceMapApi {
     Map<String,String> gtfsrtPassages = null;
     if(conf.get("gtfsRealtime","Helsingin seudun liikenne").contains(agencyName)) {
       Connection rtcon = ServiceMap.getRTConnection2();
+      if(rtcon==null) {
+        throw new Exception("missing hbase phoenix connection");
+      }
       //find passage
       gtfsrtPassages = new HashMap<>();
       Statement stmt = rtcon.createStatement();
@@ -2988,12 +2991,14 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               rtAttributes.getAsJsonObject(valueName).get("attr_type").getAsString().equals("CustomAttribute")) {
         // is stored with values
         Connection rtCon= ServiceMap.getRTConnection2();
-        ServiceValuesServlet.getValues(rtCon, conf, fromTime, toTime, (fromTime==null ? ""+limit : null), serviceUri, valueName, rtData, "sparql");
-        out.println(",\"realtime\":{\"head\": {\n" +
-            " \"vars\":[\""+valueName+"\"]},\n" +
-            " \"results\": {\n" +
-            " \"bindings\":"+rtData+"}}");
-        rtCon.close();
+        if(rtCon!=null) {
+          ServiceValuesServlet.getValues(rtCon, conf, fromTime, toTime, (fromTime==null ? ""+limit : null), serviceUri, valueName, rtData, "sparql");
+          out.println(",\"realtime\":{\"head\": {\n" +
+              " \"vars\":[\""+valueName+"\"]},\n" +
+              " \"results\": {\n" +
+              " \"bindings\":"+rtData+"}}");
+          rtCon.close();
+        }
       } else {
         ArrayList<String> customAttrs = new ArrayList<>();
         if(fromTime==null && rtAttributes!=null) {
@@ -3408,16 +3413,18 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         String customAttrLastValues = "";
         if(fromTime == null) {
           try(Connection rtCon = ServiceMap.getRTConnection()) {
-            for(String a:customAttrs) {
-              JsonArray cdata = new JsonArray();            
-              ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
-              if(cdata.size()>0) {
-                customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
-                if(rtData.size()>0)
-                  rtData.get(0).getAsJsonObject().add(a, cdata.get(0));
+            if(rtCon!=null) {
+              for(String a:customAttrs) {
+                JsonArray cdata = new JsonArray();            
+                ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
+                if(cdata.size()>0) {
+                  customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
+                  if(rtData.size()>0)
+                    rtData.get(0).getAsJsonObject().add(a, cdata.get(0));
+                }
               }
+              out.print(customAttrLastValues);
             }
-            out.print(customAttrLastValues);
           }
         }
         if(c!=0)
@@ -3437,6 +3444,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     out.println(", \"trends\": [");
     if(rtCon==null)
       rtCon = ServiceMap.getRTConnection();
+    if(rtCon==null)
+      return null;
     Statement s = rtCon.createStatement();
     s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
     ResultSet rs = s.executeQuery(query);
@@ -3466,6 +3475,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     ServiceMap.println("prediction query: "+query);
     out.println(", \"predictions\": [");
     rtCon = ServiceMap.getRTConnection();
+    if(rtCon==null)
+      return null;
     Statement s = rtCon.createStatement();
     s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
     ResultSet rs = s.executeQuery(query);
@@ -3552,14 +3563,16 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         }
         if(fromTime == null) {
           try(Connection rtCon = ServiceMap.getRTConnection()) {
-            String customAttrLastValues = "";
-            for(String a:customAttrs) {
-              JsonArray cdata = new JsonArray();            
-              ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
-              if(cdata.size()>0) 
-                customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
+            if(rtCon!=null) {
+              String customAttrLastValues = "";
+              for(String a:customAttrs) {
+                JsonArray cdata = new JsonArray();            
+                ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
+                if(cdata.size()>0) 
+                  customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
+              }
+              out.print(customAttrLastValues);
             }
-            out.print(customAttrLastValues);
           } catch (Exception ex) {
             ServiceMap.notifyException(ex);
           }
@@ -3602,6 +3615,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     out.println(", \"realtime\": ");
     try {
       Connection rtCon = ServiceMap.getRTConnection();
+      if(rtCon==null) {
+        throw new Exception("missing hbase phoenix connection");
+      }
       //Connection rtCon2 = ServiceMap.getRTConnection2();
       Statement s = rtCon.createStatement();
       s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
