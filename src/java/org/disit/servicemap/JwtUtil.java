@@ -73,7 +73,7 @@ public class JwtUtil {
       loadPublicKey();
 
     String roles[] = new String[] {"RootAdmin", "ToolAdmin", "AreaManager", "Manager", "Observer"};
-    Jws<Claims> t = Jwts.parser().setSigningKey(pk).parseClaimsJws(accessToken);
+    Jws<Claims> t = Jwts.parser().setSigningKey(pk).setAllowedClockSkewSeconds(10).parseClaimsJws(accessToken);
     String u = (String) t.getBody().get("username");
     Map<String,List<String>> x = (Map<String,List<String>>) t.getBody().get("realm_access");
     List<String> rr = x.get("roles");
@@ -86,17 +86,23 @@ public class JwtUtil {
     throw new Exception("user "+u+" with not valid role "+rr);
   }
   
-  static public User getUserFromRequest(HttpServletRequest r) throws Exception {
+  static public String getTokenFromRequest(HttpServletRequest r) throws Exception {
     String token = r.getParameter("accessToken");
-    if(token==null) {
+    if(token==null || token.equals("null")) {
+      token = null;
       String a = r.getHeader("Authorization");
-      if(a!=null) {
+      if(a != null) {
         String[] auth = a.split(" ");
         if(auth.length==2 && auth[0].equals("Bearer")) {
           token = auth[1];
         }
       }
     }
+    return token;
+  }
+  
+  static public User getUserFromRequest(HttpServletRequest r) throws Exception {
+    String token = getTokenFromRequest(r);
     if(token!=null)
       return getUserFromJwt(token);
     return null;
