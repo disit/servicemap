@@ -75,15 +75,21 @@ public class JwtUtil {
     String roles[] = new String[] {"RootAdmin", "ToolAdmin", "AreaManager", "Manager", "Observer"};
     Jws<Claims> t = Jwts.parser().setSigningKey(pk).setAllowedClockSkewSeconds(10).parseClaimsJws(accessToken);
     String u = (String) t.getBody().get("username");
+    List<String> rr = null;
     Map<String,List<String>> x = (Map<String,List<String>>) t.getBody().get("realm_access");
-    List<String> rr = x.get("roles");
+    if(x!=null) {
+      rr = x.get("roles");
+    } else {
+      rr = (List<String>) t.getBody().get("roles");
+    }
     if(rr!=null) {
       for(String role: roles) {
         if(rr.contains(role))
           return new User(u,role, accessToken);
       }
+      throw new Exception("user "+u+" with not valid role "+rr+" in "+accessToken);
     }
-    throw new Exception("user "+u+" with not valid role "+rr);
+    throw new Exception("user "+u+" with no roles found in "+accessToken);
   }
   
   static public String getTokenFromRequest(HttpServletRequest r) throws Exception {
