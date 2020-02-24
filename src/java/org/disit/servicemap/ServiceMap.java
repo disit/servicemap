@@ -2157,7 +2157,7 @@ public class ServiceMap {
 
   static public String graphAccessQueryFragment2(String apikey) throws Exception {
     Configuration conf=Configuration.getInstance();
-    if(conf.get("enableGraphAccessControl2", "true").equals("true")) {
+    if(conf.get("enableGraphAccessControl2", "false").equals("true")) {
       String graphCond = "";
       if(apikey==null) 
         apikey="";

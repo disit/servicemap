@@ -526,6 +526,7 @@ public class ServiceValuesServlet extends HttpServlet {
       }
     }
     
+    response.addHeader("Access-Control-Allow-Origin", "*");
     try {
       RepositoryConnection con = ServiceMap.getSparqlConnection();
       try {

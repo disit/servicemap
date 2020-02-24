@@ -2484,6 +2484,11 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     JsonObject rtAttributes = null;
     serviceUri = ServiceMap.urlEncode(serviceUri);
     int i = 0;
+    int limit = 1;
+    if(fromTime!=null && fromTime.startsWith("last-")) {
+      limit = Integer.parseInt(fromTime.split("-")[1]);
+      fromTime = null;
+    }
     ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, serviceTypes);
     if(md==null || (md.detailsQuery==null)) {
       ServiceMap.println("querySerice: no mapping or no details query");
@@ -2880,7 +2885,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 " FILTER(?timeInstant>=\""+fromTime+ServiceMap.getCurrentTimezoneOffset()+"\"^^xsd:dateTime)"
                       : "")
               + "} ORDER BY DESC (?timeInstant)"
-              + (fromTime==null ? "LIMIT 1" : "LIMIT " + conf.get("fromTimeLimit","1500"));
+              + (fromTime==null ? "LIMIT "+limit : "LIMIT " + conf.get("fromTimeLimit","1500"));
       TupleQuery tupleQueryParking = con.prepareTupleQuery(QueryLanguage.SPARQL, queryStringParkingStatus);
       long ts = System.nanoTime();
       TupleQueryResult resultParkingStatus = tupleQueryParking.evaluate();
@@ -2977,7 +2982,6 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         out.println("{}");
       }
     } else if("true".equalsIgnoreCase(realtime)) {
-      int limit = 1;
       if(checkHealthiness.equals("true") && rtAttributes != null) {
         limit = ServiceMap.getHealthCount(rtAttributes);
         if(limit == 0)

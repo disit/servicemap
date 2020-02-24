@@ -74,6 +74,9 @@ public class Configuration {
   }
 
   public String get(String key, String def) {
+    String env = System.getenv("SMAP_"+key);
+    if(env!=null)
+      return env;
     String value=map.get(key);
     if(value==null)
       return def;
