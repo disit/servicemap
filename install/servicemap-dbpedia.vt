@@ -1,0 +1,49 @@
+SPARQL
+clear graph <urn:dbpedia:historicbuilding>;
+SPARQL
+insert into <urn:dbpedia:historicbuilding> {
+?ss a km4c:Historical_buildings.
+?ss schema:name ?name.
+?ss geo:lat ?lat; geo:long ?long; geo:geometry ?p.
+?ss dcterms:description ?a_en.
+?ss dcterms:description ?a_ita.
+}
+where {
+service <https://dbpedia.org/sparql> {
+?s a <http://dbpedia.org/ontology/HistoricBuilding>.
+?s rdfs:label ?name. filter(lang(?name)='en')
+?s <http://dbpedia.org/ontology/abstract> ?a_en. filter(lang(?a_en)="en")
+?s <http://dbpedia.org/ontology/abstract> ?a_it. filter(lang(?a_it)="it")
+?s geo:lat ?lat.
+?s geo:long ?long.
+?s geo:geometry ?p.
+#filter(bif:st_distance(?p,bif:st_point(12.4969,41.9030))<10)
+}
+bind(uri(concat("http://www.disit.org/km4city/resource/dbpedia_historicbuilding_",md5(str(?s)))) as ?ss)
+bind(replace(?a_it,"Il template {{Coord}} ha riscontrato degli errori \\(istruzioni\\):.?Modulo:Wikidata:398: attempt to index field 'wikibase' \\(a nil value\\) ?","") as ?a_ita)
+};
+SPARQL
+clear graph <urn:dbpedia:museum>;
+SPARQL
+insert into <urn:dbpedia:museum> {
+?ss a km4c:Museum.
+?ss schema:name ?name.
+?ss geo:lat ?lat; geo:long ?long; geo:geometry ?p.
+?ss dcterms:description ?a_en.
+?ss dcterms:description ?a_ita.
+}
+where {
+service <https://dbpedia.org/sparql> {
+?s a <http://dbpedia.org/ontology/Museum>.
+?s rdfs:label ?name. filter(lang(?name)='en')
+?s <http://dbpedia.org/ontology/abstract> ?a_en. filter(lang(?a_en)="en")
+optional{?s <http://dbpedia.org/ontology/abstract> ?a_it. filter(lang(?a_it)="it")}
+?s geo:lat ?lat.
+?s geo:long ?long.
+?s geo:geometry ?p.
+#filter(bif:st_distance(?p,bif:st_point(12.4969,41.9030))<10)
+}
+bind(uri(concat("http://www.disit.org/km4city/resource/dbpedia_rome_museum_",md5(str(?s)))) as ?ss)
+bind(replace(?a_it,"Il template {{Coord}} ha riscontrato degli errori \\(istruzioni\\):.?Modulo:Wikidata:398: attempt to index field 'wikibase' \\(a nil value\\) ?","") as ?a_ita)
+};
+

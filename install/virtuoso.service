@@ -1,0 +1,20 @@
+[Unit]
+Description=Virtuoso Server Daemon
+Author=Unknown
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=infinity
+RuntimeMaxSec=infinity
+Environment=HOME=/root
+User=
+Group=
+ExecStart=/usr/local/virtuoso-opensource/bin/virtuoso-t -f -c /usr/local/virtuoso-opensource/var/lib/virtuoso/db/virtuoso.ini
+PIDFile=/usr/local/virtuoso-opensource/virtuoso.pid
+
+[Install]
+WantedBy=multi-user.target
+Alias=virtuoso.service
+
