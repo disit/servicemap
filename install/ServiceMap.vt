@@ -1,0 +1,63 @@
+DB.DBA.XML_SET_NS_DECL ('dcterms', 'http://purl.org/dc/terms/', 2);
+DB.DBA.XML_SET_NS_DECL ('foaf', 'http://xmlns.com/foaf/0.1/', 2);
+DB.DBA.XML_SET_NS_DECL ('geo', 'http://www.w3.org/2003/01/geo/wgs84_pos#', 2);
+DB.DBA.XML_SET_NS_DECL ('gtfs', 'http://vocab.gtfs.org/terms#', 2);
+DB.DBA.XML_SET_NS_DECL ('km4c', 'http://www.disit.org/km4city/schema#', 2);
+DB.DBA.XML_SET_NS_DECL ('schema', 'http://schema.org/', 2);
+DB.DBA.XML_SET_NS_DECL ('skos', 'http://www.w3.org/2004/02/skos/core#', 2);
+DB.DBA.XML_SET_NS_DECL ('sosa', 'http://www.w3.org/ns/sosa/', 2);
+DB.DBA.XML_SET_NS_DECL ('ssn', ' http://www.w3.org/ns/ssn/', 2);
+
+GRANT SELECT ON "DB"."DBA"."SPARQL_SINV_2" TO "SPARQL";
+GRANT EXECUTE ON "DB"."DBA"."SPARQL_SINV_IMP" TO "SPARQL";
+
+CREATE FUNCTION KM4C_ADD_WKTGEOMETRY() {
+DECLARE result VARCHAR;
+result:=(SPARQL
+PREFIX km4c:<http://www.disit.org/km4city/schema#>
+INSERT {
+  graph <urn:km4city:geo_test> {?s geo:geometry ?w}
+}
+WHERE {
+  ?s <http://www.opengis.net/ont/geosparql#asWKT> ?wkt.
+  FILTER NOT EXISTS {?s geo:geometry ?xx}
+  bind( bif:replace(bif:replace(str(?wkt), "((","("),"))",")") as ?k)
+  bind( STRDT(?k,virtrdf:Geometry) as ?w)
+});
+RESULT_NAMES(result);
+RESULT(result);
+};
+
+CREATE PROCEDURE KM4C_ADD_AGENCY (IN limit INT:=2000) {
+DECLARE result VARCHAR;
+result:=(SPARQL
+INSERT {
+GRAPH <urn:km4city:tpl-bus-agency> {?bs gtfs:agency ?ag}
+} WHERE {
+select distinct ?bs ?ag {
+?bs a gtfs:Stop.
+FILTER NOT EXISTS {?bs gtfs:agency ?x}
+?st gtfs:stop ?bs.
+?st gtfs:trip/gtfs:route/gtfs:agency ?ag
+} LIMIT ?:limit
+});
+RESULT_NAMES(result);
+RESULT(result);
+};
+
+CREATE PROCEDURE KM4C_RM_DUP_GEOM() {
+DECLARE result VARCHAR;
+result:=( SPARQL
+DELETE {
+GRAPH ?g {
+?s geo:geometry ?g2.
+} } WHERE {
+graph ?g {
+?s a sosa:Sensor.
+?s geo:geometry ?g1; geo:geometry ?g2.
+filter(strlen(str(?g1))<strlen(str(?g2)))
+}});
+RESULT_NAMES(result);
+RESULT(result);
+};
+
