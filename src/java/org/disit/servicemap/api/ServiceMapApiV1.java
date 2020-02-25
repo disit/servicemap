@@ -3026,7 +3026,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       }
     }
     if(checkHealthiness.equals("true"))
-      out.println(", \"healthiness\": "+ServiceMap.computeHealthiness(rtData, rtAttributes));
+      out.println(", \"healthiness\": "+ServiceMap.computeHealthiness(rtData, rtAttributes, toTime));
     Connection rtCon = null;
     if(md!=null && md.predictionSqlQuery!=null) {
       rtCon = predictionQuery(md, serviceUri, out, rtCon, conf);

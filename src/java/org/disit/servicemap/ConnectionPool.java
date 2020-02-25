@@ -145,7 +145,7 @@ public class ConnectionPool {
   }
 
   public static Connection getConnection() throws IOException, SQLException {
-    if (connPool == null) {
+    if (connPool == null || dataSource == null) {
       Configuration conf = Configuration.getInstance();
       String url = conf.get("urlMySqlDB", "")+conf.get("dbMySql", "ServiceMap")+"?useUnicode=true&characterEncoding=utf-8";
       int maxConnections = Integer.parseInt(conf.get("maxConnectionsMySql", "10"));
@@ -160,8 +160,7 @@ public class ConnectionPool {
           dataSource = connPool.setUp();
         }
       }
-    }
-    else {
+    } else {
       //connPool.printStatus();
     }
 

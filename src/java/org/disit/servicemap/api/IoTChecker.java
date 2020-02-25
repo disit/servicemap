@@ -103,8 +103,9 @@ public class IoTChecker {
         long start = System.currentTimeMillis();
         URIBuilder builder;
         if(accessToken!=null) {
-          builder = new URIBuilder(datamanagerEndpoint+"v1/apps/"+elementId+"/access/check");
-          builder.setParameter("sourceRequest", "servicemap");
+          builder = new URIBuilder(datamanagerEndpoint+"v3/apps/"+elementId+"/access/check");
+          builder.setParameter("sourceRequest", "servicemap")
+                  .setParameter("elementType", "IOTID");
         } else {
           builder = new URIBuilder(datamanagerEndpoint+"v1/public/access/check");
           builder.setParameter("sourceRequest", "servicemap")
@@ -112,7 +113,9 @@ public class IoTChecker {
                   .setParameter("elementType", "IOTID");
         }
         httpget = new HttpGet(builder.build());
-        httpget.addHeader("Authorization", "Bearer "+accessToken);
+        if(accessToken!=null) {
+          httpget.addHeader("Authorization", "Bearer "+accessToken);
+        }
         
         // Create a response handler
         response = httpclient.execute(httpget);
@@ -126,14 +129,14 @@ public class IoTChecker {
           String sResult = resultJson.get("result").getAsString();
           String sMessage = resultJson.get("message").isJsonNull() ? "" : resultJson.get("message").getAsString();
           if(sResult.equals("true") ) {
-            if(sMessage.equals("PUBLIC")) {
+            if(sMessage.contains("PUBLIC")) {
               isPublic = true;
             }
             allow = true;
           }          
         } else {
           ServiceMap.performance("IoTChecker "+builder.build()+" "+statusCode+" { } "+(System.currentTimeMillis()-start)+"ms");
-          ServiceMap.notifyException(null, "IoTChecker failed "+statusCode+" call to "+builder.build()+" ");
+          ServiceMap.notifyException(null, "IoTChecker failed "+statusCode+" call to "+builder.build()+" accessToken:"+accessToken);
         }
       } catch(Exception e) {
         ServiceMap.notifyException(e);
@@ -141,7 +144,11 @@ public class IoTChecker {
       }
       
       synchronized(cache) {
-        cache.put(serviceUri, new IoTCacheData(isPublic));
+        if(conf.get("iotCheckerForcePublicCache","true").equals("true") || isPublic || accessToken==null) {
+          cache.put(serviceUri, new IoTCacheData(isPublic));
+        } else {
+          cache.put(serviceUri, null);          
+        }
       }
       return allow;
     }
@@ -157,9 +164,13 @@ public class IoTChecker {
         String hitPerc="NA";
         if(nAccess>0)
           hitPerc = ((nPublicHit+nPrivateHit)*100.0/nAccess)+"%";
-        String r = "IoTPublicCache ( hit:"+nPublicHit+"+"+nPrivateHit+" access:"+nAccess+" "+hitPerc+") <ol>";
+        String r = "IoTPublicCache ( hit: pub "+nPublicHit+"+ priv "+nPrivateHit+" access:"+nAccess+" "+hitPerc+") <ol>";
         for(Entry<String,IoTCacheData> d: cache.entrySet()) {
-          r+="<li>"+d.getKey()+": "+(d.getValue().isPublic ? "public" : "private")+" "+(System.currentTimeMillis()-d.getValue().generationTime)+"ms old</li>";
+          if(d.getValue()!=null) {
+            r+="<li>"+d.getKey()+": "+(d.getValue().isPublic ? "public" : "private")+" "+(System.currentTimeMillis()-d.getValue().generationTime)+"ms old</li>";
+          } else {
+            r+="<li>"+d.getKey()+": null </li>";            
+          }
         }
         r+="</ol>";
         return r;

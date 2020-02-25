@@ -793,10 +793,14 @@ public class ServiceMap {
   }
 
   static public JsonObject computeHealthiness(JsonArray rtData, JsonObject rtAttrs) throws Exception {
-    return computeHealthiness(rtData, rtAttrs, null);
+    return computeHealthiness(rtData, rtAttrs, null, null);
+  }
+  
+  static public JsonObject computeHealthiness(JsonArray rtData, JsonObject rtAttrs, String toTime) throws Exception {
+    return computeHealthiness(rtData, rtAttrs, null, toTime);
   }
 
-  static public JsonObject computeHealthiness(JsonArray rtData, JsonObject rtAttrs, String timeAttr) throws Exception {
+  static public JsonObject computeHealthiness(JsonArray rtData, JsonObject rtAttrs, String timeAttr, String toTime) throws Exception {
     Configuration conf=Configuration.getInstance();
     JsonObject health = new JsonObject();
     if(rtData==null || rtAttrs==null)
@@ -804,6 +808,13 @@ public class ServiceMap {
     
     boolean healthy = false;
     Date now = new Date();
+    if(toTime!=null) {
+      try {
+        now = new SimpleDateFormat(ServiceMap.dateFormatT).parse(toTime);      
+      } catch(ParseException e) {
+        ServiceMap.println("ComputeHealthiness: invalid toTime "+toTime);
+      }
+    }
     Date lastDate = null;
     String reason = null;
     JsonObject last = null;

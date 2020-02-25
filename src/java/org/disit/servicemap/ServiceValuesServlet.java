@@ -646,7 +646,7 @@ public class ServiceValuesServlet extends HttpServlet {
           result.addProperty("valueName", valueName);
           result.add("values", rtData);
           if(healthiness!=null && healthiness.equals("true")) {
-            JsonObject health = ServiceMap.computeHealthiness(rtData, attr, "valueAcqDate");
+            JsonObject health = ServiceMap.computeHealthiness(rtData, attr, "valueAcqDate", toTime);
             result.add("health", health.get(valueName));
           }
           response.getWriter().print(result);

@@ -51,7 +51,7 @@ User u = null;
 try {
   u = org.disit.servicemap.JwtUtil.getUserFromRequest(request);
 } catch(Exception e) {
-  ServiceMap.notifyException(e);
+  ServiceMap.notifyException(e, "url:" + request.getRequestURL().append("?" + request.getQueryString()) + "\naccessToken:" + org.disit.servicemap.JwtUtil.getTokenFromRequest(request)+"\n");
 }
 if(u!=null) {
   ServiceMap.println("user:"+u.username+" role:"+u.role);
@@ -349,9 +349,8 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         }          
         Date from=new Date(now.getTime()-n*1000);
         fromTime=dateFormatter.format(from).replace(" ", "T");
-      }
-      else if(!fromTime.matches("^\\d\\d\\d\\d-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d$")) {
-        ServiceMap.logError(request, response, 400, "invalid 'fromTime' parameter, expected n-day,n-hour,n-minute or yyyy-mm-ddThh:mm:ss");
+      } else if(!fromTime.matches("^last-\\d*$") && !fromTime.matches("^\\d\\d\\d\\d-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\d$")) {
+        ServiceMap.logError(request, response, 400, "invalid 'fromTime' parameter, expected n-day,n-hour,n-minute,last-n or yyyy-mm-ddThh:mm:ss");
         return;
       }
     }
