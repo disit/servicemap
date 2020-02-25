@@ -1,0 +1,342 @@
+DB.DBA.XML_SET_NS_DECL ('dcterms', 'http://purl.org/dc/terms/', 2);
+DB.DBA.XML_SET_NS_DECL ('foaf', 'http://xmlns.com/foaf/0.1/', 2);
+DB.DBA.XML_SET_NS_DECL ('geo', 'http://www.w3.org/2003/01/geo/wgs84_pos#', 2);
+DB.DBA.XML_SET_NS_DECL ('gtfs', 'http://vocab.gtfs.org/terms#', 2);
+DB.DBA.XML_SET_NS_DECL ('km4c', 'http://www.disit.org/km4city/schema#', 2);
+DB.DBA.XML_SET_NS_DECL ('schema', 'http://schema.org/', 2);
+DB.DBA.XML_SET_NS_DECL ('skos', 'http://www.w3.org/2004/02/skos/core#', 2);
+DB.DBA.XML_SET_NS_DECL ('sosa', 'http://www.w3.org/ns/sosa/', 2);
+DB.DBA.XML_SET_NS_DECL ('ssn', ' http://www.w3.org/ns/ssn/', 2);
+
+GRANT SELECT ON "DB"."DBA"."SPARQL_SINV_2" TO "SPARQL";
+GRANT EXECUTE ON "DB"."DBA"."SPARQL_SINV_IMP" TO "SPARQL";
+
+CREATE FUNCTION KM4C_ADD_WKTGEOMETRY() {
+DECLARE result VARCHAR;
+result:=(SPARQL
+PREFIX km4c:<http://www.disit.org/km4city/schema#>
+INSERT {
+  graph <urn:km4city:geo_test> {?s geo:geometry ?w}
+}
+WHERE {
+  ?s <http://www.opengis.net/ont/geosparql#asWKT> ?wkt.
+  FILTER NOT EXISTS {?s geo:geometry ?xx}
+  bind( bif:replace(bif:replace(str(?wkt), "((","("),"))",")") as ?k)
+  bind( STRDT(?k,virtrdf:Geometry) as ?w)
+});
+RESULT_NAMES(result);
+RESULT(result);
+};
+
+CREATE PROCEDURE KM4C_ADD_AGENCY (IN limit INT:=2000) {
+DECLARE result VARCHAR;
+result:=(SPARQL
+INSERT {
+GRAPH <urn:km4city:tpl-bus-agency> {?bs gtfs:agency ?ag}
+} WHERE {
+select distinct ?bs ?ag {
+?bs a gtfs:Stop.
+FILTER NOT EXISTS {?bs gtfs:agency ?x}
+?st gtfs:stop ?bs.
+?st gtfs:trip/gtfs:route/gtfs:agency ?ag
+} LIMIT ?:limit
+});
+RESULT_NAMES(result);
+RESULT(result);
+};
+
+CREATE PROCEDURE KM4C_RM_DUP_GEOM() {
+DECLARE result VARCHAR;
+result:=( SPARQL
+DELETE {
+GRAPH ?g {
+?s geo:geometry ?g2.
+} } WHERE {
+graph ?g {
+?s a sosa:Sensor.
+?s geo:geometry ?g1; geo:geometry ?g2.
+filter(strlen(str(?g1))<strlen(str(?g2)))
+}});
+RESULT_NAMES(result);
+RESULT(result);
+};
+
+SPARQL
+CLEAR GRAPH <urn:test:value_types>;
+SPARQL
+PREFIX sosa:<http://www.w3.org/ns/sosa/>
+PREFIX km4cvt:<http://www.disit.org/km4city/resource/value_type/>
+INSERT {
+GRAPH <urn:test:value_types> {
+  ?s a ssn:Property.
+  ?s km4c:value_unit ?u.
+}}
+WHERE {
+  VALUES (?s ?u) {
+(<http://www.disit.org/km4city/resource/value_type/temperature> "°C")
+(<http://www.disit.org/km4city/resource/value_type/humidity> "%")
+(<http://www.disit.org/km4city/resource/value_type/latitude> "")
+(<http://www.disit.org/km4city/resource/value_type/longitude> "")
+(<http://www.disit.org/km4city/resource/value_type/latitude_longitude> "")
+(<http://www.disit.org/km4city/resource/value_type/ir> "")
+(<http://www.disit.org/km4city/resource/value_type/light> "lux")
+(<http://www.disit.org/km4city/resource/value_type/status> "")
+(<http://www.disit.org/km4city/resource/value_type/freeze> "")
+(<http://www.disit.org/km4city/resource/value_type/pressure> "hPa")
+(<http://www.disit.org/km4city/resource/value_type/velocity> "")
+(<http://www.disit.org/km4city/resource/value_type/benzene_concentration> "ppm")
+(<http://www.disit.org/km4city/resource/value_type/CO_concentration> "ppm")
+(<http://www.disit.org/km4city/resource/value_type/CO2_concentration> "ppm")
+(<http://www.disit.org/km4city/resource/value_type/H2S_concentration> "ppm")
+(<http://www.disit.org/km4city/resource/value_type/NO_concentration> "ppm")
+(<http://www.disit.org/km4city/resource/value_type/NO2_concentration> "ppm")
+(<http://www.disit.org/km4city/resource/value_type/O3_concentration> "ppm")
+(<http://www.disit.org/km4city/resource/value_type/PM10_concentration> "ppm")
+(<http://www.disit.org/km4city/resource/value_type/PM2.5_concentration> "ppm")
+(<http://www.disit.org/km4city/resource/value_type/SO_concentration> "ppm")
+(<http://www.disit.org/km4city/resource/value_type/SO2_concentration> "ppm")
+(<http://www.disit.org/km4city/resource/value_type/annual_PM10_exceedance_count> "#")
+(<http://www.disit.org/km4city/resource/value_type/daily_O3_exceedance_count> "#")
+(<http://www.disit.org/km4city/resource/value_type/hour_O3_max> "")
+(<http://www.disit.org/km4city/resource/value_type/blue_code_count> "#")
+(<http://www.disit.org/km4city/resource/value_type/green_code_count> "#")
+(<http://www.disit.org/km4city/resource/value_type/red_code_count> "#")
+(<http://www.disit.org/km4city/resource/value_type/white_code_count> "#")
+(<http://www.disit.org/km4city/resource/value_type/yellow_code_count> "#")
+(<http://www.disit.org/km4city/resource/value_type/average_vehicle_distance> "m")
+(<http://www.disit.org/km4city/resource/value_type/average_vehicle_speed> "km/h")
+(<http://www.disit.org/km4city/resource/value_type/average_vehicle_time> "s")
+(<http://www.disit.org/km4city/resource/value_type/vehicle_concentration> "")
+(<http://www.disit.org/km4city/resource/value_type/vehicle_occupancy> "")
+(<http://www.disit.org/km4city/resource/value_type/vehicle_speed_percentile> "")
+(<http://www.disit.org/km4city/resource/value_type/vehicle_threshold_perc> "")
+(<http://www.disit.org/km4city/resource/value_type/vehicle_flow> "car/h")
+(<http://www.disit.org/km4city/resource/value_type/pollen_concentration_level> "")
+(<http://www.disit.org/km4city/resource/value_type/pollen_concentration_value> "")
+(<http://www.disit.org/km4city/resource/value_type/pollen_concentration_trend> "")
+(<http://www.disit.org/km4city/resource/value_type/car_park_status> "")
+(<http://www.disit.org/km4city/resource/value_type/car_park_exit_rate> "")
+(<http://www.disit.org/km4city/resource/value_type/car_park_fill_rate> "")
+(<http://www.disit.org/km4city/resource/value_type/car_park_free_places> "#")
+(<http://www.disit.org/km4city/resource/value_type/car_park_occupied_places> "#")
+(<http://www.disit.org/km4city/resource/value_type/car_park_occupancy> "%")
+(<http://www.disit.org/km4city/resource/value_type/car_park_validity_status> "")
+(<http://www.disit.org/km4city/resource/value_type/car_park_occupancy_time> "-")
+(<http://www.disit.org/km4city/resource/value_type/max_temperature> "°C")
+(<http://www.disit.org/km4city/resource/value_type/min_temperature> "°C")
+(<http://www.disit.org/km4city/resource/value_type/perceived_temperature> "°C")
+(<http://www.disit.org/km4city/resource/value_type/snow> "")
+(<http://www.disit.org/km4city/resource/value_type/uv> "")
+(<http://www.disit.org/km4city/resource/value_type/wind> "")
+(<http://www.disit.org/km4city/resource/value_type/sun_max_height_hour> "")
+(<http://www.disit.org/km4city/resource/value_type/moonrise_time> "")
+(<http://www.disit.org/km4city/resource/value_type/moonset_time> "")
+(<http://www.disit.org/km4city/resource/value_type/sun_max_height> "")
+(<http://www.disit.org/km4city/resource/value_type/sunrise_time> "")
+(<http://www.disit.org/km4city/resource/value_type/sunset_time> "")
+(<http://www.disit.org/km4city/resource/value_type/wind_speed> "m/s")
+(<http://www.disit.org/km4city/resource/value_type/wind_direction> "deg")
+(<http://www.disit.org/km4city/resource/value_type/wind_gust_speed> "m/s")
+(<http://www.disit.org/km4city/resource/value_type/dew_point> "°C")
+(<http://www.disit.org/km4city/resource/value_type/rain> "mm")
+(<http://www.disit.org/km4city/resource/value_type/precipitation_type> "")
+(<http://www.disit.org/km4city/resource/value_type/salt_concentration> "%")
+(<http://www.disit.org/km4city/resource/value_type/water_film> "µm")
+(<http://www.disit.org/km4city/resource/value_type/road_condition> "")
+(<http://www.disit.org/km4city/resource/value_type/vdc> "V")
+(<http://www.disit.org/km4city/resource/value_type/waste_filling_rate> "%")
+(<http://www.disit.org/km4city/resource/value_type/available_bikes> "#")
+(<http://www.disit.org/km4city/resource/value_type/free_stalls> "#")
+(<http://www.disit.org/km4city/resource/value_type/broken_bikes> "#")
+(<http://www.disit.org/km4city/resource/value_type/charging_station_state> "")
+(<http://www.disit.org/km4city/resource/value_type/charging_state> "")
+(<http://www.disit.org/km4city/resource/value_type/charging_level> "%")
+(<http://www.disit.org/km4city/resource/value_type/transits_count> "#")
+(<http://www.disit.org/km4city/resource/value_type/sittings_count> "#")
+(<http://www.disit.org/km4city/resource/value_type/battery_level> "%")
+(<http://www.disit.org/km4city/resource/value_type/fuel_type> "")
+(<http://www.disit.org/km4city/resource/value_type/fuel_price> "euro")
+(<http://www.disit.org/km4city/resource/value_type/soil_water_potential> "cbar")
+(<http://www.disit.org/km4city/resource/value_type/leaf_wetness> "%")
+(<http://www.disit.org/km4city/resource/value_type/water_level> "m")
+(<http://www.disit.org/km4city/resource/value_type/voltage> "V")
+(<http://www.disit.org/km4city/resource/value_type/current> "A")
+(<http://www.disit.org/km4city/resource/value_type/power> "W")
+(<http://www.disit.org/km4city/resource/value_type/energy> "KW/h")
+(<http://www.disit.org/km4city/resource/value_type/glucose_percentage> "%")
+(<http://www.disit.org/km4city/resource/value_type/actuator_canceller> "")
+(<http://www.disit.org/km4city/resource/value_type/actuator_deleted> "")
+(<http://www.disit.org/km4city/resource/value_type/actuator_deletion_date> "")
+(<http://www.disit.org/km4city/resource/value_type/creation_date> "")
+(<http://www.disit.org/km4city/resource/value_type/entity_creator> "")
+(<http://www.disit.org/km4city/resource/value_type/entity_desc> "")
+(<http://www.disit.org/km4city/resource/value_type/audio> "")
+(<http://www.disit.org/km4city/resource/value_type/orientation> "")
+(<http://www.disit.org/km4city/resource/value_type/state_count> "")
+(<http://www.disit.org/km4city/resource/value_type/state_time> "")
+(<http://www.disit.org/km4city/resource/value_type/speed> "")
+(<http://www.disit.org/km4city/resource/value_type/stop> "")
+(<http://www.disit.org/km4city/resource/value_type/measure_units> "")
+(<http://www.disit.org/km4city/resource/value_type/timestamp> "")
+(<http://www.disit.org/km4city/resource/value_type/motion_detection> "")
+(<http://www.disit.org/km4city/resource/value_type/sound_lv> "dB")
+(<http://www.disit.org/km4city/resource/value_type/presence_detection_e> "")
+(<http://www.disit.org/km4city/resource/value_type/water_flowing> "")
+(<http://www.disit.org/km4city/resource/value_type/power_meter_m> "")
+(<http://www.disit.org/km4city/resource/value_type/power_meter_s> "")
+(<http://www.disit.org/km4city/resource/value_type/button_state> "")
+(<http://www.disit.org/km4city/resource/value_type/distance> "m")
+(<http://www.disit.org/km4city/resource/value_type/button> "")
+(<http://www.disit.org/km4city/resource/value_type/noise_laeq> "dBA")
+(<http://www.disit.org/km4city/resource/value_type/noise_lamax> "dbA")
+(<http://www.disit.org/km4city/resource/value_type/snow> "cm")
+(<http://www.disit.org/km4city/resource/value_type/visibility> "")
+(<http://www.disit.org/km4city/resource/value_type/cloud_cover> "")
+(<http://www.disit.org/km4city/resource/value_type/weather> "")
+(<http://www.disit.org/km4city/resource/value_type/sunrise_time> "")
+(<http://www.disit.org/km4city/resource/value_type/sunset_time> "")
+(<http://www.disit.org/km4city/resource/value_type/people_count> "#")
+(<http://www.disit.org/km4city/resource/value_type/message> "")
+(<http://www.disit.org/km4city/resource/value_type/electro_conductivity> "mS/cm")
+(<http://www.disit.org/km4city/resource/value_type/electro_valve_action> "")
+(<http://www.disit.org/km4city/resource/value_type/water_consumption> "l/h")
+(<http://www.disit.org/km4city/resource/value_type/soil_temperature> "°C")
+(<http://www.disit.org/km4city/resource/value_type/soil_humidity> "%")
+(<http://www.disit.org/km4city/resource/value_type/lamp_temperature> "°C")
+(<http://www.disit.org/km4city/resource/value_type/lamp_level> "%")
+(<http://www.disit.org/km4city/resource/value_type/monitor_status> "-")
+(<http://www.disit.org/km4city/resource/value_type/duration> "s")
+(<http://www.disit.org/km4city/resource/value_type/date> "-")
+(<http://www.disit.org/km4city/resource/value_type/time> "-")
+(<http://www.disit.org/km4city/resource/value_type/datetime> "-")
+(<http://www.disit.org/km4city/resource/value_type/fast_charging_status> "-")
+(<http://www.disit.org/km4city/resource/value_type/wifi_access_count> "#")
+(<http://www.disit.org/km4city/resource/value_type/wake_time_wrt_total_bed_time> "%")
+(<http://www.disit.org/km4city/resource/value_type/nonrem_time_wrt_total_bed_time> "%")
+(<http://www.disit.org/km4city/resource/value_type/rem_time_wrt_total_bed_time> "%")
+(<http://www.disit.org/km4city/resource/value_type/nonrem_time_wrt_total_sleep_time> "%")
+(<http://www.disit.org/km4city/resource/value_type/rem_time_wrt_total_sleep_time> "%")
+(<http://www.disit.org/km4city/resource/value_type/total_sleep_time> "min")
+(<http://www.disit.org/km4city/resource/value_type/sleep_efficiency> "%")
+(<http://www.disit.org/km4city/resource/value_type/asleep_time> "min")
+(<http://www.disit.org/km4city/resource/value_type/rem_sleep_latency> "min")
+(<http://www.disit.org/km4city/resource/value_type/wake_time_after_sleep_onset> "min")
+(<http://www.disit.org/km4city/resource/value_type/average_heart_rate> "bpm")
+(<http://www.disit.org/km4city/resource/value_type/average_respiratory_rate> "bpm")
+(<http://www.disit.org/km4city/resource/value_type/sleep_quality_index> "#")
+(<http://www.disit.org/km4city/resource/value_type/temperature_flag> "#")
+(<http://www.disit.org/km4city/resource/value_type/humidity_flag> "#")
+(<http://www.disit.org/km4city/resource/value_type/brightness_flag> "#")
+(<http://www.disit.org/km4city/resource/value_type/noise_flag> "#")
+(<http://www.disit.org/km4city/resource/value_type/enviromental_quality_flag> "#")
+  }
+};
+
+/*###############################################################################################################################################*/
+SPARQL
+CLEAR GRAPH <urn:test:value_types_mapping>;
+SPARQL
+PREFIX sosa:<http://www.w3.org/ns/sosa/>
+PREFIX km4cvt:<http://www.disit.org/km4city/resource/value_type/>
+INSERT {
+GRAPH <urn:test:value_types_mapping> {
+  ?s dcterms:source ?u.
+}}
+WHERE {
+  VALUES (?s ?u) {
+(<http://www.disit.org/km4city/resource/value_type/temperature> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/humidity> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/ir> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/light> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/pressure> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/benzene_concentration> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/CO_concentration> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/CO2_concentration> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/H2S_concentration> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/NO_concentration> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/NO2_concentration> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/O3_concentration> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/PM10_concentration> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/PM2.5_concentration> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/SO_concentration> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/SO2_concentration> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/annual_PM10_exceedance_count> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/daily_O3_exceedance_count> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/hour_O3_max> <http://www.disit.org/km4city/schema#Air_quality_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/blue_code_count> <http://www.disit.org/km4city/schema#First_aid>)
+(<http://www.disit.org/km4city/resource/value_type/green_code_count> <http://www.disit.org/km4city/schema#First_aid>)
+(<http://www.disit.org/km4city/resource/value_type/red_code_count> <http://www.disit.org/km4city/schema#First_aid>)
+(<http://www.disit.org/km4city/resource/value_type/white_code_count> <http://www.disit.org/km4city/schema#First_aid>)
+(<http://www.disit.org/km4city/resource/value_type/yellow_code_count> <http://www.disit.org/km4city/schema#First_aid>)
+(<http://www.disit.org/km4city/resource/value_type/average_vehicle_distance> <http://www.disit.org/km4city/schema#SensorSite>)
+(<http://www.disit.org/km4city/resource/value_type/average_vehicle_speed> <http://www.disit.org/km4city/schema#SensorSite>)
+(<http://www.disit.org/km4city/resource/value_type/average_vehicle_time> <http://www.disit.org/km4city/schema#SensorSite>)
+(<http://www.disit.org/km4city/resource/value_type/vehicle_concentration> <http://www.disit.org/km4city/schema#SensorSite>)
+(<http://www.disit.org/km4city/resource/value_type/vehicle_occupancy> <http://www.disit.org/km4city/schema#SensorSite>)
+(<http://www.disit.org/km4city/resource/value_type/vehicle_speed_percentile> <http://www.disit.org/km4city/schema#SensorSite>)
+(<http://www.disit.org/km4city/resource/value_type/vehicle_threshold_perc> <http://www.disit.org/km4city/schema#SensorSite>)
+(<http://www.disit.org/km4city/resource/value_type/vehicle_flow> <http://www.disit.org/km4city/schema#SensorSite>)
+(<http://www.disit.org/km4city/resource/value_type/pollen_concentration_level> <http://www.disit.org/km4city/schema#Pollen_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/pollen_concentration_value> <http://www.disit.org/km4city/schema#Pollen_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/pollen_concentration_trend> <http://www.disit.org/km4city/schema#Pollen_monitoring_station>)
+(<http://www.disit.org/km4city/resource/value_type/car_park_status> <http://www.disit.org/km4city/schema#Car_park>)
+(<http://www.disit.org/km4city/resource/value_type/car_park_exit_rate> <http://www.disit.org/km4city/schema#Car_park>)
+(<http://www.disit.org/km4city/resource/value_type/car_park_fill_rate> <http://www.disit.org/km4city/schema#Car_park>)
+(<http://www.disit.org/km4city/resource/value_type/car_park_free_places> <http://www.disit.org/km4city/schema#Car_park>)
+(<http://www.disit.org/km4city/resource/value_type/car_park_occupied_places> <http://www.disit.org/km4city/schema#Car_park>)
+(<http://www.disit.org/km4city/resource/value_type/car_park_occupancy> <http://www.disit.org/km4city/schema#Car_park>)
+(<http://www.disit.org/km4city/resource/value_type/car_park_validity_status> <http://www.disit.org/km4city/schema#Car_park>)
+(<http://www.disit.org/km4city/resource/value_type/max_temperature> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/min_temperature> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/perceived_temperature> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/snow> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/uv> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/wind> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/sun_max_height_hour> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/moonrise_time> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/moonset_time> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/sun_max_height> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/sunrise_time> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/sunset_time> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/wind_speed> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/wind_direction> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/wind_gust_speed> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/dew_point> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/rain> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/precipitation_type> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/salt_concentration> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/road_condition> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/waste_filling_rate> <http://www.disit.org/km4city/schema#Smart_waste_container>)
+(<http://www.disit.org/km4city/resource/value_type/available_bikes> <http://www.disit.org/km4city/schema#Bike_rack>)
+(<http://www.disit.org/km4city/resource/value_type/free_stalls> <http://www.disit.org/km4city/schema#Bike_rack>)
+(<http://www.disit.org/km4city/resource/value_type/broken_bikes> <http://www.disit.org/km4city/schema#Bike_rack>)
+(<http://www.disit.org/km4city/resource/value_type/charging_station_state> <http://www.disit.org/km4city/schema#Charging_stations>)
+(<http://www.disit.org/km4city/resource/value_type/charging_state> <http://www.disit.org/km4city/schema#Charging_stations>)
+(<http://www.disit.org/km4city/resource/value_type/charging_level> <http://www.disit.org/km4city/schema#Charging_stations>)
+(<http://www.disit.org/km4city/resource/value_type/transits_count> <http://www.disit.org/km4city/schema#SensorSite>)
+(<http://www.disit.org/km4city/resource/value_type/fuel_type> <http://www.disit.org/km4city/schema#Fuel_station>)
+(<http://www.disit.org/km4city/resource/value_type/fuel_price> <http://www.disit.org/km4city/schema#Fuel_station>)
+(<http://www.disit.org/km4city/resource/value_type/soil_water_potential> <http://www.disit.org/km4city/schema#Smart_irrigator>)
+(<http://www.disit.org/km4city/resource/value_type/leaf_wetness> <http://www.disit.org/km4city/schema#Smart_irrigator>)
+(<http://www.disit.org/km4city/resource/value_type/leaf_wetness> <http://www.disit.org/km4city/schema#Smart_irrigator>)
+(<http://www.disit.org/km4city/resource/value_type/audio> <http://www.disit.org/km4city/schema#Noise_level_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/motion_detection> <http://www.disit.org/km4city/schema#Monitoring_camera>)
+(<http://www.disit.org/km4city/resource/value_type/sound_lv> <http://www.disit.org/km4city/schema#Noise_level_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/presence_detection_e> <http://www.disit.org/km4city/schema#Monitoring_camera>)
+(<http://www.disit.org/km4city/resource/value_type/noise_laeq> <http://www.disit.org/km4city/schema#Noise_level_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/noise_lamax> <http://www.disit.org/km4city/schema#Noise_level_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/visibility> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/cloud_cover> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/weather> <http://www.disit.org/km4city/schema#Weather_sensor>)
+(<http://www.disit.org/km4city/resource/value_type/people_count> <http://www.disit.org/km4city/schema#People_counter>)
+(<http://www.disit.org/km4city/resource/value_type/electro_conductivity> <http://www.disit.org/km4city/schema#Smart_irrigator>)
+(<http://www.disit.org/km4city/resource/value_type/electro_valve_action> <http://www.disit.org/km4city/schema#Smart_irrigator>)
+(<http://www.disit.org/km4city/resource/value_type/water_consumption> <http://www.disit.org/km4city/schema#Smart_irrigator>)
+(<http://www.disit.org/km4city/resource/value_type/soil_temperature> <http://www.disit.org/km4city/schema#Smart_irrigator>)
+(<http://www.disit.org/km4city/resource/value_type/soil_humidity> <http://www.disit.org/km4city/schema#Smart_irrigator>)
+(<http://www.disit.org/km4city/resource/value_type/lamp_level> <http://www.disit.org/km4city/schema#Smart_street_light>)
+(<http://www.disit.org/km4city/resource/value_type/monitor_status> <http://www.disit.org/km4city/schema#Digital_signage>)
+(<http://www.disit.org/km4city/resource/value_type/fast_charging_status> <http://www.disit.org/km4city/schema#Fast_charging_station>)
+(<http://www.disit.org/km4city/resource/value_type/wifi_access_count> <http://www.disit.org/km4city/schema#Wifi>)
+}
+};

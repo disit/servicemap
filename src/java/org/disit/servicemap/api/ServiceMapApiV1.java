@@ -1,4 +1,4 @@
-﻿/* ServiceMap.
+/* ServiceMap.
    Copyright (C) 2015 DISIT Lab http://www.disit.org - University of Florence
 
    This program is free software: you can redistribute it and/or modify
