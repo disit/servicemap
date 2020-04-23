@@ -2860,6 +2860,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         out.println("]}");
     }
    
+    serviceUri = ServiceMapping.getInstance().getServiceUriAlias(serviceUri);
+        
     JsonArray rtData = new JsonArray();
     String labelPark = "Car park";
     if (lang.equals("it")) {
@@ -3230,6 +3232,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       if(valueName!=null) {
         q += " AND value_name:\"" + valueName + "\"";
       }
+      if(conf.get("elasticSearchFilterEmptyValue","false").equals("true")) {
+        q += " AND NOT value_str.keyword:\"\"";
+      }
       int resultSize = Integer.parseInt(conf.get("elasticSearchMaxSize", "10000"));
       if(fromTime == null) {
         if(rtAttributes!=null)
@@ -3303,29 +3308,30 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         int c=0;
         Date cdt = null;
         JsonObject rt = new JsonObject();
-        DateFormat dateFormatterTZ = new SimpleDateFormat(ServiceMap.dateFormatTZ);
-        DateFormat dateFormatterTZ2 = new SimpleDateFormat(ServiceMap.dateFormatTZ2);
-        DateFormat dateFormatterTZ3 = new SimpleDateFormat(ServiceMap.dateFormatTZ3);
+        DateFormat dateFormatterTZ[] = { 
+          new SimpleDateFormat(ServiceMap.dateFormatTZ), new SimpleDateFormat(ServiceMap.dateFormatTZ2),
+          new SimpleDateFormat(ServiceMap.dateFormatTZ3), new SimpleDateFormat(ServiceMap.dateFormatTZ4),
+          new SimpleDateFormat(ServiceMap.dateFormatTZ5), new SimpleDateFormat(ServiceMap.dateFormatTZ6)};
         Gson gson = new Gson();                
         if(!fromAggregation) {
           for(SearchHit h:hits) { 
             Map<String, Object> d = h.getSourceAsMap();
 
             String dts = (String)d.get("date_time");
-            Date dt;
-            try {
-              dt = dateFormatterTZ.parse(dts);
-            } catch(Exception x) {
+            Date dt = null;
+            ParseException exc = null;
+            for(DateFormat dtf: dateFormatterTZ) {
               try {
-                dt = dateFormatterTZ2.parse(dts);
-              } catch(Exception e) {
-                try {
-                  dt = dateFormatterTZ3.parse(dts);
-                } catch(Exception ee) {
-                  ServiceMap.notifyException(ee, "date: "+dts+" suri:"+serviceUri);
-                  throw ee;
-                }
+                dt = dtf.parse(dts);
+              } catch(ParseException e) {
+                exc = e;
+                continue;
               }
+              break;
+            }
+            if(dt == null) {
+                  ServiceMap.notifyException(exc, "date: "+dts+" suri:"+serviceUri);
+                  throw exc;
             }
 
             /*int offset=TimeZone.getDefault().getOffset(dt.getTime());
@@ -3334,7 +3340,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             Object vn = d.get("value_name");
 
             if(conf.get("elasticSearchCheckDuplicates", "false").equals("true") && rt.has(vn.toString()) && dt.equals(cdt)) {
-              ServiceMap.notifyException(null, "WARNING ESearch "+serviceUri+" duplicate value name "+vn+" @ "+dts);
+              //ServiceMap.notifyException(null, "WARNING ESearch "+serviceUri+" duplicate value name "+vn+" @ "+dts);
+              ServiceMap.println("WARNING ESearch "+serviceUri+" duplicate value name "+vn+" @ "+dts);
               continue;
             }
             
@@ -3363,7 +3370,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             //ServiceMap.println(ServiceMap.dateFormatterTZ.format(dt)+" "+mt+" "+value+" "+u);
             if(cdt==null || cdt.equals(dt)) {
               if(c==0) {
-                String measuredTime = dateFormatterTZ.format(dt);
+                String measuredTime = dateFormatterTZ[0].format(dt);
                 out.print("  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
                 rt.addProperty("measuredTime", measuredTime);
               }
@@ -3377,7 +3384,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               cdt = dt;
               rtData.add(rt);
               rt = new JsonObject();
-              String measuredTime = dateFormatterTZ.format(dt);
+              String measuredTime = dateFormatterTZ[0].format(dt);
               out.print("},  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
               rt.addProperty("measuredTime", measuredTime);
               c=1;
@@ -3400,9 +3407,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               if(c!=0)
                 out.println("},");
               rt = new JsonObject();
-              Date measuredTime = dateFormatterTZ.parse(entry.getKeyAsString());
-              out.print("{\n\"measuredTime\":{\"value\":\""+dateFormatterTZ.format(measuredTime)+"\"},");
-              rt.addProperty("measuredTime", dateFormatterTZ.format(measuredTime));
+              Date measuredTime = dateFormatterTZ[0].parse(entry.getKeyAsString());
+              out.print("{\n\"measuredTime\":{\"value\":\""+dateFormatterTZ[0].format(measuredTime)+"\"},");
+              rt.addProperty("measuredTime", dateFormatterTZ[0].format(measuredTime));
               out.print(" \""+valueName+"\":{\"value\":\""+value+"\"}");
               rt.addProperty(valueName, value);
               rtData.add(rt);

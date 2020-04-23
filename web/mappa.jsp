@@ -157,7 +157,7 @@
             if(request.getParameter("apikey")!=null) {
               request.getSession().setAttribute("apikey",request.getParameter("apikey"));
             }
-            Connection conMySQL = null;
+            //final Connection conMySQL;
             Statement st = null;
             ResultSet rs = null;
             Connection conMySQL2 = null;
@@ -389,7 +389,7 @@
                             <div id="categorie">
                                 
                                 <%
-                                   conMySQL = ConnectionPool.getConnection();
+                                   Connection conMySQL = ConnectionPool.getConnection();
                                    try {
                                     String query = "SELECT distinct MacroClass FROM ServiceCategory_menu_NEW where TypeOfService not like 'T_Service' AND Visible = '1' order by MacroClass";
 
@@ -436,8 +436,8 @@
                                      }
                                      st.close();
                                    } finally {
-                                     conMySQL.close();
-                                   }
+                                    conMySQL.close();
+                                  }
                                 %>
                                 <br />
                             </div>
@@ -493,7 +493,7 @@
                             <span name="lbl" caption="Search_Area_R">Search area</span>
                             <select id="geosearch" name="geosearch" disabled="disabled">
                               <option value='select'>select...</option>
-                              <%                              
+                              <%                                                                 
                                     conMySQL = ConnectionPool.getConnection();
                                     try {
                                       String queryLabel = "SELECT label FROM Geometry ORDER by label";
@@ -547,7 +547,7 @@
                             <input type="checkbox" name="macro-select-all_t" id="macro-select-all_t" value="Select All" /> <span name="lbl" caption="Select_All_T">De/Select All</span>
                             <div id="categorie_t">
                                 
-                                <% 
+                                <%  
                                     conMySQL = ConnectionPool.getConnection();
                                     try {
                                       String query_T = "SELECT distinct MacroClass FROM ServiceCategory_menu_NEW where TypeOfService not like 'Service' AND Visible = '1' order by MacroClass";

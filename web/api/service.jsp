@@ -44,12 +44,16 @@
   String ua = request.getHeader("User-Agent");
   String apikey = (String)request.getSession().getAttribute("apikey");
 
+  if(idService == null) {
+    response.sendError(400, "no serviceUri provided");
+    return;
+  }
   String queryString = "";
   String filtroQuery = "";
   int i = 0;
   long s = System.nanoTime();
 
-  List<String> types = ServiceMap.getTypes(con, idService, apikey);
+  List<String> types = ServiceMap.getTypes(con, ServiceMapping.getInstance().getServiceUriAlias(idService), apikey);
   //for(int x=0; x<types.size(); x++)
   //  ServiceMap.println(idService+" types: "+types.get(x));
   if(types.size()==0) {

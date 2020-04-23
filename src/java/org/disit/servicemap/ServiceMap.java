@@ -105,6 +105,9 @@ public class ServiceMap {
   static public String dateFormatTZ = "yyyy-MM-dd'T'HH:mm:ss.SSSXXX";
   static public String dateFormatTZ2 = "yyyy-MM-dd'T'HH:mm:ssXXX";  
   static public String dateFormatTZ3 = "yyyy-MM-dd'T'HH:mmXXX";  
+  static public String dateFormatTZ4 = "yyyy-MM-dd'T'HH:mm:ss.SSSX";
+  static public String dateFormatTZ5 = "yyyy-MM-dd'T'HH:mm:ssX";  
+  static public String dateFormatTZ6 = "yyyy-MM-dd'T'HH:mmX";  
   static public String dateFormatGMT = "yyyy-MM-dd'T'HH:mm:ssZ";
 
   static private Map<String,String> tplAgencies = null;
@@ -392,11 +395,13 @@ public class ServiceMap {
     return "SELECT * {\n" +
       "{\n" +
       "SELECT DISTINCT ?via ?comune ?uriComune ?provincia ?uriProvincia (?road as ?uriStrada) ?dist WHERE {\n" +
+      "{ SELECT ?n ?dist {\n" +
       " ?n a km4c:Node.\n" +
       " ?n geo:geometry ?g.\n" +
       " filter(bif:st_intersects(?g,bif:st_point("+lng+","+lat+"),0.3))\n" +
       " bind (bif:st_distance(?g,bif:st_point("+lng+","+lat+")) as ?dist)\n" +
-      "{\n" +
+      "} order by ?dist limit 10}" +
+ /*     "{\n" +
       " ?e km4c:startsAtNode ?n.\n" +
       " ?e km4c:endsAtNode ?n1.\n" +
       " ?n1 geo:geometry ?g1.\n" +
@@ -406,7 +411,8 @@ public class ServiceMap {
       " ?e km4c:startsAtNode ?n1.\n" +
       " ?n1 geo:geometry ?g1.\n" +
       " FILTER(bif:st_intersects(bif:st_linestring(bif:st_point(bif:st_x(?g),bif:st_y(?g)),bif:st_point(bif:st_x(?g1),bif:st_y(?g1))),bif:st_point("+lng+","+lat+"),0.01))\n" +
-      "}" +
+      "}" +*/
+      " ?e km4c:startsAtNode | km4c:endsAtNode ?n.\n" +
       " ?road km4c:containsElement ?e.\n" +
       " ?road km4c:extendName ?via.\n" +
       " ?road km4c:inMunicipalityOf ?uriComune.\n" +

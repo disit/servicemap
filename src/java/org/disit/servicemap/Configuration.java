@@ -37,8 +37,13 @@ public class Configuration {
   static public Configuration getInstance() {
     if(conf==null) {
       synchronized(Configuration.class) {
-        if(conf==null)
-          conf= new Configuration();
+        if(conf==null) {
+          try {
+            conf= new Configuration();
+          } catch(Exception e) {
+            e.printStackTrace();
+          }
+        }
       }
     }
     return conf;
@@ -57,8 +62,7 @@ public class Configuration {
       FileInputStream file=new FileInputStream(System.getProperty("user.home")+PROP);
       p.load(file);
       file.close();
-      
-      map = new TreeMap<String, String>();
+      map = new TreeMap<>();
       Enumeration<?> names = p.propertyNames();
       System.out.println("Configuration:");
       while(names.hasMoreElements()) {
@@ -66,7 +70,6 @@ public class Configuration {
         System.out.println("  "+n+"=\""+p.getProperty(n)+"\"");
         map.put(n,p.getProperty(n));
       }
-
     } catch (IOException ex) {
       ex.printStackTrace();
       Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);

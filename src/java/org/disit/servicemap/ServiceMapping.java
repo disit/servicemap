@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.Vector;
 import javax.servlet.jsp.JspWriter;
 import static org.disit.servicemap.ServiceMap.logQuery;
@@ -104,7 +105,7 @@ public class ServiceMapping {
       Configuration conf = Configuration.getInstance();
       String sparqlType = conf.get("sparqlType", "virtuoso");
 
-      attrQuery = attrQuery.replace("%SERVICE_URI", serviceUri);
+      attrQuery = attrQuery.replace("%SERVICE_URI", getServiceUriAlias(serviceUri));
       TupleQuery tupleQueryAttrs = con.prepareTupleQuery(QueryLanguage.SPARQL, attrQuery);
       ServiceMap.println("attrQuery:" + attrQuery);
       long ts = System.nanoTime();
@@ -139,11 +140,13 @@ public class ServiceMapping {
   }
   
   private ArrayList<Map<String,MappingData>> maps;
+  private Map<String,String> aliases;
   
   private ServiceMapping() {
     maps = new ArrayList<>();
     for(int i=0; i<2; i++)
-      maps.add(new LinkedHashMap<String,MappingData>());
+      maps.add(new LinkedHashMap<>());
+    aliases = new TreeMap<>();
   }
   
   private void loadFromDB() throws Exception {
@@ -175,6 +178,16 @@ public class ServiceMapping {
                   realTimeSolrQuery, 
                   predictionSqlQuery, 
                   trendSqlQuery));
+      }
+      rs.close();
+      st.close();
+      
+      st = conMySQL.createStatement();
+      rs = st.executeQuery("SELECT * FROM ServiceAlias");
+      while (rs.next()) {
+          String serviceUri = rs.getString("serviceUri");
+          String serviceUriAlias = rs.getString("serviceUriAlias");
+          aliases.put(serviceUri,serviceUriAlias);
       }
       rs.close();
       st.close();
@@ -218,7 +231,24 @@ public class ServiceMapping {
               "</td></tr>"
               ;
     }
+    html+="</table><br>";
+    html+="<table border=\"1\" cellspacing=\"0\">";
+    html += "<tr><th>serviceUri</th><th>alias</th></tr>";
+    for(Map.Entry<String,String> e:aliases.entrySet()) {
+      html += "<tr><td>"+e.getKey()+
+              "</td><td>"+e.getValue()+
+              "</td></tr>"
+              ;
+    }
     html+="</table>";
     return html;
+  }
+  
+  public String getServiceUriAlias(String serviceUri) {
+    String suri = aliases.get(serviceUri);
+    if(suri == null)
+      return serviceUri;
+    ServiceMap.println("suri_alias: "+serviceUri+"-->"+suri);
+    return suri;
   }
 }
