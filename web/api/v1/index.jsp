@@ -66,7 +66,7 @@ if(uid!=null && !ServiceMap.validateUID(uid)) {
 }
 String idService = request.getParameter("serviceUri");
 if(idService!=null)
-  idService = idService.trim();
+  idService = ServiceMap.serviceUriEncode(idService.trim());
 String selection = request.getParameter("selection");
 String queryId = request.getParameter("queryId");
 String search = request.getParameter("search");
@@ -443,23 +443,23 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, toTime, checkHealthiness, uid, serviceTypes);        
       } 
       else if (serviceTypes.contains("http://vocab.gtfs.org/terms#Stop") && (serviceTypes.contains("BusStop")|| serviceTypes.contains("NearBusStops"))) {
-        serviceMapApi.queryTplStop(out, con, idService, "BusStop", lang, realtime, uid);
+        serviceMapApi.queryTplStop(out, con, idService, "BusStop", lang, realtime, uid, toTime);
         types = "TransferServiceAndRenting;BusStop";
       }
       else if (serviceTypes.contains("http://vocab.gtfs.org/terms#Stop") && serviceTypes.contains("Tram_stops")) {
-        serviceMapApi.queryTplStop(out, con, idService, "Tram_stops", lang, realtime, uid);
+        serviceMapApi.queryTplStop(out, con, idService, "Tram_stops", lang, realtime, uid, toTime);
         types = "TransferServiceAndRenting;Tram_stops";
       }
       else if (serviceTypes.contains("http://vocab.gtfs.org/terms#Stop") && serviceTypes.contains("Train_station")) {
-        serviceMapApi.queryTplStop(out, con, idService, "Train_station", lang, realtime, uid);
+        serviceMapApi.queryTplStop(out, con, idService, "Train_station", lang, realtime, uid, toTime);
         types = "TransferServiceAndRenting;Train_station";
       }
       else if (serviceTypes.contains("http://vocab.gtfs.org/terms#Stop") && serviceTypes.contains("Ferry_stop")) {
-        serviceMapApi.queryTplStop(out, con, idService, "Ferry_stop", lang, realtime, uid);
+        serviceMapApi.queryTplStop(out, con, idService, "Ferry_stop", lang, realtime, uid, toTime);
         types = "TransferServiceAndRenting;Ferry_station";
       }
       else if (serviceTypes.contains("http://vocab.gtfs.org/terms#Stop") && serviceTypes.contains("Subway_station")) {
-        serviceMapApi.queryTplStop(out, con, idService, "Subway_station", lang, realtime, uid);
+        serviceMapApi.queryTplStop(out, con, idService, "Subway_station", lang, realtime, uid, toTime);
         types = "TransferServiceAndRenting;Subway_station";
       }
       else if (serviceTypes.contains("WeatherReport") || serviceTypes.contains("Municipality")) {
@@ -544,7 +544,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
           }
           // get services by lat/long
           if(coords!=null && (coords.length==2 || coords.length==4 || (coords.length==1 && (coords[0].startsWith("wkt:") || selection.startsWith("geo:") || selection.startsWith("graph:"))))) {
-            int results = serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, true, fullCount, value_type, graphUri, apikey);
+            int results = serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, true, fullCount, value_type, graphUri, valueName, apikey);
             ServiceMap.updateResultsPerIP(ip, requestType, results);
             ServiceMap.logAccess(request, null, selection, categorie, null, "api-services-by-gps", risultati, raggi, queryId, textToSearch, "json", uid, reqFrom);
           }

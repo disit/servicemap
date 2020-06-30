@@ -1445,7 +1445,7 @@
                                                         var divId = feature.id + "-" + feature.properties.tipo;
                                                         if (feature.properties.tipo != "fermata") {
                                                             contenutoPopup = "<h3>" + feature.properties.name + "</h3>";
-                                                            contenutoPopup = contenutoPopup + "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
+                                                            contenutoPopup = contenutoPopup + "Serviceuri: <a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>"+ feature.properties.serviceUri +"</a><br />";
                                                             contenutoPopup = contenutoPopup + "Tipologia: " + feature.properties.tipo + "<br />";
                                                             if (feature.properties.email != "" && feature.properties.email)
                                                                 contenutoPopup = contenutoPopup + "Email: " + feature.properties.email + "<br />";
@@ -1466,7 +1466,7 @@
                                                         else {
                                                             var divLinee = divId + "-linee";
                                                             var contenutoPopup = "<h3>FERMATA : " + feature.properties.popupContent + "</h3>";
-                                                            contenutoPopup = contenutoPopup + "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
+                                                            contenutoPopup = contenutoPopup + "Serviceuri: <a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>"+ feature.properties.serviceUri +"</a><br />";
                                                             contenutoPopup += "<div id=\"" + divLinee + "\" ></div>";
                                                             contenutoPopup = contenutoPopup + "<div id=\"" + divId + "\" ></div>";
                                                             if (include(openPins, feature.id))
@@ -2839,7 +2839,7 @@
                                                                         contenutoPopup = "<h3> BUS STOP: " + feature.properties.name + "</h3>";
                                                                     else
                                                                         contenutoPopup = "<h3>" + feature.properties.name + "</h3>";
-                                                                    contenutoPopup = contenutoPopup + "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
+                                                                    contenutoPopup = contenutoPopup + "Serviceuri: <a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>"+ feature.properties.serviceUri +"</a><br />";
                                                                     contenutoPopup = contenutoPopup + "Tipology: " + feature.properties.tipo + "<br />";
                                                                     if (feature.properties.email != "")
                                                                         contenutoPopup = contenutoPopup + "Email: " + feature.properties.email + "<br />";

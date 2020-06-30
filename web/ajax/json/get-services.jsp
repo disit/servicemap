@@ -107,7 +107,7 @@
 
     String apiKey = (String)request.getSession().getAttribute("apikey");
     try {
-      serviceMapApi.queryLatLngServices(out, con, coord, categorie, textFilter,raggioServizi,raggioServizi,raggioServizi,numeroRisultatiServizi,numeroRisultatiServizi,numeroRisultatiServizi,null, cat_servizi, false, inside, true, fullCount, value_type, graphUri, apiKey);
+      serviceMapApi.queryLatLngServices(out, con, coord, categorie, textFilter,raggioServizi,raggioServizi,raggioServizi,numeroRisultatiServizi,numeroRisultatiServizi,numeroRisultatiServizi,null, cat_servizi, false, inside, true, fullCount, value_type, graphUri, null, apiKey);
     } catch(IllegalArgumentException e) {
       response.sendError(400);
     } catch (Exception e) {

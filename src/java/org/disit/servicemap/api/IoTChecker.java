@@ -19,9 +19,13 @@ package org.disit.servicemap.api;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -85,12 +89,32 @@ public class IoTChecker {
         }
       }
       // find if serviceUri is public
-      String[] parts = serviceUri.split("/");
-      int n = parts.length;
-      if(n<3)
-        throw new IllegalAccessException("invalid iot uri "+serviceUri);
-      
-      String elementId = parts[n-2]+":"+parts[n-3]+":"+parts[n-1];
+      Pattern p = Pattern.compile("^.*\\/iot\\/([a-zA-Z\\-_0-9]*)\\/([a-zA-Z0-9_]*)\\/(.*)");
+      Matcher m = p.matcher(serviceUri);
+      String elementId;
+      // if an occurrence if a pattern was found in a given string...
+      if (m.find()) {
+        String deviceId = m.group(3);
+        try {
+          deviceId = URLDecoder.decode(deviceId,"UTF8");
+        } catch(UnsupportedEncodingException e) {
+        }
+        
+        elementId = m.group(2)+":"+m.group(1)+":"+deviceId;
+      } else {
+        p = Pattern.compile("^.*\\/iot\\/([a-zA-Z\\-_0-9]*)\\/(.*)");
+        m = p.matcher(serviceUri);
+        if (m.find()) {
+          String deviceId = m.group(2);
+          try {
+            deviceId = URLDecoder.decode(deviceId,"UTF8");
+           } catch(UnsupportedEncodingException e) {
+          }        
+          elementId = m.group(1)+":"+deviceId;
+        } else {        
+          throw new IllegalAccessException("invalid iot uri "+serviceUri);
+        }
+      }
       ServiceMap.println("iotchecker: "+serviceUri+" "+elementId+" "+accessToken);
       
       HttpClient httpclient = HttpClients.createDefault();

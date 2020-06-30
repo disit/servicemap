@@ -42,7 +42,7 @@
  RepositoryConnection conn = ServiceMap.getSparqlConnection();
  
  try {
-  String timetable = api.queryTplTimeTable(conn, TPLStopUri, "", "");
+  String timetable = api.queryTplTimeTable(conn, TPLStopUri, "", "", null);
  //JSONObject obj = new JSONObject(JSON.parse("{"+timetable+"}"));
  //JSONObject obj = new JSONObject(); 
  //JSONParser parser = new JSONParser();

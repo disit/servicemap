@@ -221,7 +221,7 @@
       }
       out.println("<div class=\"clearer\"></div>");
       out.println("<div class=\"aggiornamento\"><span name=\"lbl\" caption=\"last_update\">Latest Update</span>: " + valueOfInstantDateTime + "</div>");
-      out.println("<div ><a href='" +logEndPoint + valueOfWRep + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a></div>");
+      out.println("<div ><a href='" +logEndPoint + valueOfWRep + "' title='Linked Open Graph' target='_blank'>"+valueOfWRep+"</a></div>");
       String divSavePin= "savePin-weather-"+nomeComune;
       out.println("<div id=\""+divSavePin+"\" class=\"savePin\" onclick=save_handler('weather','"+valueOfWRep+"','meteo"+nomeComune+"')></div>");
       out.println("</div>");

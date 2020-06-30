@@ -136,7 +136,7 @@ public class CheckParameters {
   }
   
   public static String checkUri(String uri) {
-    if(uri==null || !uri.matches("^https?://[-a-zA-Z\\.0-9_/%\\+ :()]*$"))
+    if(uri==null || !uri.matches("^https?://[-a-zA-Z\\.0-9_/%\\+ :;()]*$"))
       return "invalid uri";
     return null;
   }

@@ -810,7 +810,7 @@ function createContenutoPopup(feature, div, id) {
             contenutoPopup = "<div class=\"description\"><h3>" + feature.properties.name + "</h3></div>";
         }
         var name = feature.properties.serviceUri.substring("http://www.disit.org/km4city/resource/".length);
-        contenutoPopup += "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
+        contenutoPopup += "<b>Serviceuri:</b> <a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>"+ feature.properties.serviceUri +"</a><br />";
         contenutoPopup += "<b><span name=\"lbl\" caption=\"name\">Name</span>:</b> " + name + "<br />";
         var tipologia = feature.properties.tipologia;
         var serviceType = feature.properties.serviceType;
@@ -898,7 +898,7 @@ function createContenutoPopup(feature, div, id) {
         var divTimetable = div + "-timetable";
         var contenutoPopup = "<h3>TPL STOP : " + feature.properties.name + "</h3>";
         contenutoPopup += "<h2>"+feature.properties.agency + "</h2>";
-        contenutoPopup = contenutoPopup + "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
+        contenutoPopup = contenutoPopup + "<b>Serviceuri:</b> <a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>"+ feature.properties.serviceUri +" GRAPH</a><br />";
         contenutoPopup = contenutoPopup + "<div id=\"" + divLinee + "\" ></div>";
         contenutoPopup = contenutoPopup + "<div id=\"" + divRoute + "\" ></div>";
         contenutoPopup = contenutoPopup + "<div id=\"" + divTimetable + "\" ></div>";
@@ -1580,7 +1580,7 @@ function searchEvent(param, raggioRic, centroRic, numEv, text) {
                         var contenutoPopup = "";
                         contenutoPopup = contenutoPopup + "<div id=\"" + feature.id + "-" + feature.properties.tipo + "\" >";
                         contenutoPopup = contenutoPopup + "<div class=\"description\"><h3> " + feature.properties.name + "</h3></div>";
-                        contenutoPopup = contenutoPopup + "<a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>LINKED OPEN GRAPH</a><br />";
+                        contenutoPopup = contenutoPopup + "<b>Serviceuri:</b> <a href='" + logEndPoint + feature.properties.serviceUri + "' title='Linked Open Graph' target='_blank'>"+ feature.properties.serviceUri +"</a><br />";
                         if (feature.properties.categoryIT != "" && feature.properties.categoryIT)
                             contenutoPopup = contenutoPopup + "<b>Event Type:</b> " + feature.properties.categoryIT + "<br />";
                         if (feature.properties.place != "" && feature.properties.place) {

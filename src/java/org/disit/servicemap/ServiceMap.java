@@ -2217,10 +2217,16 @@ public class ServiceMap {
   public static String stringEncode(String str) {
     if(str==null)
       return null;
-    return str.replace("\"", "\\\"").replace("\\","\\\\").replace("\n", "\\n").replace("\r","\\r");
+    return str.replace("\\","\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r","\\r");
   }
   
   public static String htmlEncode(String html) {
     return HtmlUtils.htmlEscape(html);
+  }
+  
+  public static String serviceUriEncode(String suri) {
+    if(!suri.contains("%"))
+      return suri.replace(";", "%3B");
+    return suri;
   }
 }
