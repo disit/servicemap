@@ -1635,7 +1635,7 @@ public class ServiceMap {
       }
       st.close();
     } catch (SQLException ex) {
-      connection.close();
+      //connection.close();
       ServiceMap.notifyException(ex);
       ret=true;
     } finally {

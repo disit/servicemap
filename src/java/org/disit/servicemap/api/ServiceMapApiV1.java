@@ -563,7 +563,7 @@ public class ServiceMapApiV1 extends ServiceMapApi {
         "filter((xsd:date(?d)=xsd:date(\""+nowDate+"\") && str(?at)>str(xsd:time(\""+nowTime+"\")))||(xsd:date(?d)=bif:dateadd(\"day\",1,xsd:date(\""+nowDate+"\")) && str(?at)<str(xsd:time(\""+nowTime+"\"))))\n" +
         "optional{?trip gtfs:headsign ?routeName.}\n" +
         "?st gtfs:arrivalTime ?at.\n" +
-        "?st gtfs:departureTime ?dt.\n" +
+        "optional{?st gtfs:departureTime ?dt.}\n" +
         "?trip gtfs:route ?route.\n" +
         "optional{?route gtfs:shortName ?lineName.}\n" +
         "?route gtfs:longName ?lineDesc.\n" +
@@ -593,7 +593,9 @@ public class ServiceMapApiV1 extends ServiceMapApi {
         BindingSet bindingSet = result.next();
 
         String valueOfArrivalTime = bindingSet.getValue("at").stringValue();
-        String valueOfDepartureTime = bindingSet.getValue("dt").stringValue();
+        String valueOfDepartureTime = valueOfArrivalTime;
+        if(bindingSet.getValue("dt")!=null)
+          valueOfDepartureTime = bindingSet.getValue("dt").stringValue();
         String valueOfRouteName = "";
         if(bindingSet.getValue("routeName")!=null)
           valueOfRouteName = JSONObject.escape(bindingSet.getValue("routeName").stringValue());
@@ -603,6 +605,10 @@ public class ServiceMapApiV1 extends ServiceMapApi {
         String valueOfLineDesc = JSONObject.escape(bindingSet.getValue("lineDesc").stringValue());
         String valueOfTrip = bindingSet.getValue("trip").stringValue();
         String valueOfDate = bindingSet.getValue("d").stringValue();
+        
+        if(!valueOfDepartureTime.contains(":")) {
+          valueOfDepartureTime = valueOfArrivalTime;
+        }
 
         String[] dta = fixTPLDateTime(valueOfDate, valueOfArrivalTime);
         String[] dtd = fixTPLDateTime(valueOfDate, valueOfDepartureTime);
@@ -3358,24 +3364,29 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             }
             
             Object value = d.get("value");
+            Object valueOut = value;
             //ServiceMap.println("value:"+value);
             if(value==null) {
               value = d.get("value_str");
               if(value!=null)
-                value = "\""+JSONObject.escape(value.toString())+"\"";
+                valueOut = "\""+JSONObject.escape(value.toString())+"\"";
               else {
                 value = d.get("value_obj");
                 if(value!=null) {
                   if(conf.get("elasticSearchValueObjAsString", "false").equals("true"))
+                    valueOut = value = gson.toJson(value);
+                  else {
                     value = gson.toJson(value);
-                  else
-                    value = "\""+JSONObject.escape(gson.toJson(value).toString())+"\"";
+                    valueOut = "\""+JSONObject.escape(value.toString())+"\"";
+                  }
                 }
-                else
-                  value = "\"\"";
+                else {
+                  valueOut = "\"\"";
+                  value = "";
+                }
               }
             } else {
-              value = "\""+value+"\"";
+              valueOut = "\""+value+"\"";
             }
             //ServiceMap.println(dts+" "+vn+":"+value);
 
@@ -3405,7 +3416,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               c=1;
             }
             if(out!=null)
-              out.print("  \""+vn+"\":{\"value\":"+value+"}");
+              out.print("  \""+vn+"\":{\"value\":"+valueOut+"}");
             rt.addProperty(vn.toString(),value.toString());
           }
           rtData.add(rt);

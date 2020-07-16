@@ -63,6 +63,13 @@ public class IoTChecker {
       Configuration conf = Configuration.getInstance();
       if(!conf.get("enableIoTChecker", "true").equals("true"))
         return true;
+      if(conf.get("iotCheckerExclude", null)!=null) {
+        String[] excl = conf.get("iotCheckerExclude", null).split(";");
+        for(String e: excl) {
+          if(serviceUri.contains(e.trim()))
+            return true;
+        }
+      }
       
       String accessToken = null;
       if(apiKey!=null && apiKey.startsWith("user:")) {
@@ -108,7 +115,7 @@ public class IoTChecker {
           String deviceId = m.group(2);
           try {
             deviceId = URLDecoder.decode(deviceId,"UTF8");
-           } catch(UnsupportedEncodingException e) {
+          } catch(UnsupportedEncodingException e) {
           }        
           elementId = m.group(1)+":"+deviceId;
         } else {        
@@ -127,7 +134,7 @@ public class IoTChecker {
         long start = System.currentTimeMillis();
         URIBuilder builder;
         if(accessToken!=null) {
-          builder = new URIBuilder(datamanagerEndpoint+"v3/apps/"+elementId+"/access/check");
+          builder = new URIBuilder(datamanagerEndpoint+"v3/apps/"+elementId.replace("/", "%252F")+"/access/check");
           builder.setParameter("sourceRequest", "servicemap")
                   .setParameter("elementType", "IOTID");
         } else {
@@ -160,7 +167,7 @@ public class IoTChecker {
           }          
         } else {
           ServiceMap.performance("IoTChecker "+builder.build()+" "+statusCode+" { } "+(System.currentTimeMillis()-start)+"ms");
-          ServiceMap.notifyException(null, "IoTChecker failed "+statusCode+" call to "+builder.build()+" accessToken:"+accessToken);
+          ServiceMap.notifyException(null, "IoTChecker for "+elementId+" failed "+statusCode+" call to "+builder.build()+" accessToken:"+accessToken);
         }
       } catch(Exception e) {
         ServiceMap.notifyException(e);

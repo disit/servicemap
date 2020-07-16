@@ -147,7 +147,7 @@ public class ConnectionPool {
   public static Connection getConnection() throws IOException, SQLException {
     if (connPool == null || dataSource == null) {
       Configuration conf = Configuration.getInstance();
-      String url = conf.get("urlMySqlDB", "")+conf.get("dbMySql", "ServiceMap")+"?useUnicode=true&characterEncoding=utf-8";
+      String url = conf.get("urlMySqlDB", "")+conf.get("dbMySql", "ServiceMap")+"?useUnicode=true&characterEncoding=utf-8&autoReconnect=true";
       int maxConnections = Integer.parseInt(conf.get("maxConnectionsMySql", "10"));
       int maxWait = Integer.parseInt(conf.get("maxWaitMySql", "1000"));
       String poolType = conf.get("poolTypeMySql", "block");

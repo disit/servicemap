@@ -40,11 +40,16 @@ package org.disit.servicemap;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonIOException;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSyntaxException;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -89,11 +94,14 @@ public class ServiceValuesServlet extends HttpServlet {
       return;
     }
     
-    JsonObject obj = null;
+    JsonObject obj;
     try {
       JsonParser parser = new JsonParser();
-      obj = parser.parse(request.getReader()).getAsJsonObject();
-    } catch (Exception e) {
+      InputStream inputStream = request.getInputStream();
+      BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream , StandardCharsets.UTF_8));
+      obj = parser.parse(reader).getAsJsonObject();
+    } catch (JsonIOException | JsonSyntaxException | IOException e) {
+      e.printStackTrace();
       ServiceMap.logError(request, response, 400, "invalid JSON object");
       return;
     }
@@ -114,24 +122,26 @@ public class ServiceValuesServlet extends HttpServlet {
     String reqFrom = request.getParameter("requestFrom");
     
     try {
-      if(path.equals("/register/")) {
-        if(registerValues(obj, request, response)) {
-          ServiceMap.updateResultsPerIP(ip, "api", 1);
-          ServiceMap.logAccess(request, null, "", null, obj.get("serviceUris").getAsString(), "api-values-register", null, null, null, null, "json", uid, reqFrom);
-        }
-      } else if(path.equals("/")) {
-        //save data to phoenix
-        if(saveValues(obj, request, response)) {
-          ServiceMap.updateResultsPerIP(ip, "api", 1);
-          ServiceMap.logAccess(request, null, "", null, obj.get("serviceUri").getAsString(), "api-values-post", null, null, null, null, "json", uid, reqFrom);
-        }
-      } else if(path.equals("/trends/")) {
-        if(saveTrends(obj, request, response)) {
-          ServiceMap.updateResultsPerIP(ip, "api", 1);
-          ServiceMap.logAccess(request, null, "", null, obj.get("serviceUri").getAsString(), "api-values-trends", null, null, null, null, "json", uid, reqFrom);
-        }
-      } else {
-        ServiceMap.logError(request, response, 400, "invalid path of request");
+      switch (path) {
+        case "/register/":
+          if(registerValues(obj, request, response)) {
+            ServiceMap.updateResultsPerIP(ip, "api", 1);
+            ServiceMap.logAccess(request, null, "", null, obj.get("serviceUris").getAsString(), "api-values-register", null, null, null, null, "json", uid, reqFrom);
+          } break;
+        case "/":
+          //save data to phoenix
+          if(saveValues(obj, request, response)) {
+            ServiceMap.updateResultsPerIP(ip, "api", 1);
+            ServiceMap.logAccess(request, null, "", null, obj.get("serviceUri").getAsString(), "api-values-post", null, null, null, null, "json", uid, reqFrom);
+          } break;
+        case "/trends/":
+          if(saveTrends(obj, request, response)) {
+            ServiceMap.updateResultsPerIP(ip, "api", 1);
+            ServiceMap.logAccess(request, null, "", null, obj.get("serviceUri").getAsString(), "api-values-trends", null, null, null, null, "json", uid, reqFrom);
+          } break;
+        default:
+          ServiceMap.logError(request, response, 400, "invalid path of request");
+          break;
       }
     } catch(Exception e) {
       ServiceMap.notifyException(e);
@@ -393,7 +403,29 @@ public class ServiceValuesServlet extends HttpServlet {
     }
     return true;
   }
-
+  
+/*
+  saveTrends
+  { 
+    "serviceUri":"...",
+    "valueNames":[ "vn1", "vn2" ],
+    "trendType": "type of trend",
+    "trends": {
+      "timeAggregation1" : [ 
+          ["hour1","value vn1","value vn2"],
+          ["hour2","value vn1","value vn2"]
+      ],
+      "timeAggregation2" : [ 
+          ["day1","value vn1","value vn2"],
+          ["day2","value vn1","value vn2"]
+      ],
+      "timeAggregation3" : [ 
+          ["month1","value vn1","value vn2"],
+          ["month2","value vn1","value vn2"]
+      ]
+    }
+  }
+  */
   private boolean saveTrends(JsonObject obj, HttpServletRequest request, HttpServletResponse response) throws Exception {
     JsonElement serviceUri = obj.get("serviceUri");
     if (serviceUri == null || !serviceUri.isJsonPrimitive()) {      
@@ -424,12 +456,12 @@ public class ServiceValuesServlet extends HttpServlet {
       
       JsonElement trendType = obj.get("trendType");
       if (trendType == null || !trendType.isJsonPrimitive()) {      
-        ServiceMap.logError(request, response, 400, "invalid object: missing trendType");
+        ServiceMap.logError(request, response, 400, "invalid object: missing or invalid trendType");
         return false;
       }
       JsonElement trends = obj.get("trends");
       if (trends == null || !trends.isJsonObject()) {      
-        ServiceMap.logError(request, response, 400, "invalid object: missing trendType");
+        ServiceMap.logError(request, response, 400, "invalid object: missing or invalid trends");
         return false;
       }
       
