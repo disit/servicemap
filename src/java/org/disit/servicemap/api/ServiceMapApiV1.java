@@ -3296,6 +3296,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
       SearchHit[] hits = r.getHits().getHits();
       long nfound = hits.length;
+      if(nfound==0)
+        nfound = r.getHits().totalHits;
       String jsonQuery = "NA";
       if(conf.get("elasticSearchDebugQuery", "false").equals("true")) {
         try {
