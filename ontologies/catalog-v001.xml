@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<catalog prefer="public" xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+    <group id="Folder Repository, directory=, recursive=true, Auto-Update=true, version=2" prefer="public" xml:base="">
+        <uri id="Automatically generated entry, Timestamp=1464787318656" name="http://purl.org/spar/cito/" uri="2014-05-22-cito-2_6_3.owl"/>
+        <uri id="Automatically generated entry, Timestamp=1464787318656" name="http://www.disit.org/km4city/schema" uri="km4c%20Virtuoso%201.6.2.owl"/>
+        <uri id="Automatically generated entry, Timestamp=1464787318656" name="http://www.opengis.net/ont/geosparql" uri="geosparql_vocab_all.rdf"/>
+        <uri id="Automatically generated entry, Timestamp=1464787318656" name="http://www.pms.ifi.uni-muenchen.de/OTN" uri="OTN.owl"/>
+        <uri id="Automatically generated entry, Timestamp=1464787318656" name="http://www.w3.org/2004/02/skos/core" uri="skos.rdf"/>
+        <uri id="Automatically generated entry, Timestamp=1464787318656" name="http://www.w3.org/2006/time" uri="time.owl"/>
+    </group>
+</catalog>
