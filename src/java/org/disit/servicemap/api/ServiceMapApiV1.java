@@ -3296,8 +3296,11 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
       SearchHit[] hits = r.getHits().getHits();
       long nfound = hits.length;
-      if(nfound==0)
-        nfound = r.getHits().totalHits;
+      if(nfound==0 && fromAggregation) {
+          Histogram agg = r.getAggregations().get("date_time");
+          if(!agg.getBuckets().isEmpty())
+            nfound = 1; //we don't need exact number
+      }
       String jsonQuery = "NA";
       if(conf.get("elasticSearchDebugQuery", "false").equals("true")) {
         try {
