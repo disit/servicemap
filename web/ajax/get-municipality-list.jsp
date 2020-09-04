@@ -1,3 +1,4 @@
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
 <%@page import="virtuoso.sesame2.driver.VirtuosoRepository"%>
 <%@page import="java.io.IOException"%>
 <%@page import="org.openrdf.model.Value"%>

@@ -1529,7 +1529,7 @@ public class ServiceMap {
   }
   
   public static boolean validateUID(String uid) {
-    if(uid==null || uid.length()<4)
+    if(uid==null || uid.length()<Integer.parseInt(Configuration.getInstance().get("minUidLength", "3")))
       return false;
     if(uid.matches("[0-9a-zA-Z]*"))
       return true;

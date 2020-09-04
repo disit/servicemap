@@ -1,3 +1,4 @@
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApi"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
 <%@page  import="java.io.IOException"%>
@@ -13,7 +14,6 @@
 <%@ page import="org.openrdf.query.TupleQuery"%>
 <%@ page import="java.text.ParseException"%>
 <%@ page import="java.text.SimpleDateFormat"%>
-
 <%@ page import="org.openrdf.query.TupleQueryResult"%>
 <%@ page import="org.openrdf.query.BindingSet"%>
 <%@ page import="org.openrdf.query.QueryLanguage"%>

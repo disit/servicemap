@@ -1,3 +1,4 @@
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
 <%@page import="org.json.simple.JSONArray"%>
 <%@page import="org.json.simple.JSONObject"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>
@@ -54,7 +55,7 @@
         String number = (String)obj.get("number");
         String uri;
         if(address!=null) {
-          address = address + ", " + number + ", ";
+          address = address + ", " + (number!=null ? number + ", " : "");
           uri=(String)obj.get("addressUri");
         }
         else {

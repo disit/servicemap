@@ -3275,7 +3275,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       }
       searchSourceBuilder.size(resultSize);
       if(valueName==null) {
-        searchSourceBuilder.aggregation(AggregationBuilders.terms("value_name").field("value_name.keyword").size(100).order(BucketOrder.key(true)));
+        searchSourceBuilder.aggregation(AggregationBuilders.terms("value_name").field("value_name.keyword").size(Integer.parseInt(conf.get("elasticSearchMaxAggVName", "100"))).order(BucketOrder.key(true)));
       }
       boolean fromAggregation = false;
       if(valueName!=null && fromTime!=null && (tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays", "20"))*24*60*60L) {

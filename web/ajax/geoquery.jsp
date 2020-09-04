@@ -1,3 +1,4 @@
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
 <%@page import="org.disit.servicemap.Configuration"%>
 <%@page import="org.openrdf.model.Literal"%>
 <%@page import="org.openrdf.model.Value"%>
