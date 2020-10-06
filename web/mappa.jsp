@@ -24,8 +24,6 @@
         <title>ServiceMap</title>
         <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/leaflet-gps.css" type="text/css" />
-        <!--<script src='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.js'></script>
-        <link href='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.css' rel='stylesheet' />-->
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.5.1/dist/leaflet.css"
    integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
    crossorigin="" />
@@ -1523,13 +1521,11 @@
                                     //http://a.tile.thunderforest.com/landscape/{z}/{x}/{y}.png
                                     //var osm = L.tileLayer('http://a.tile.thunderforest.com/landscape/{z}/{x}/{y}.png', {attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'});
 
-                                    var mbAttr = 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
-                                            '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-                                            'Imagery © <a href="http://mapbox.com">Mapbox</a>',
-                                            mbUrl = 'https://{s}.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=<%=mapAccessToken%>';
-                                    var streets = L.tileLayer(mbUrl, {id: 'mapbox.streets', attribution: mbAttr}),
-                                            satellite = L.tileLayer(mbUrl, {id: 'mapbox.streets-satellite', attribution: mbAttr}),
-                                            grayscale = L.tileLayer(mbUrl, {id: 'pbellini.f33fdbb7', attribution: mbAttr});
+                                    var mbAttr = '<%= Configuration.getInstance().get("mapAttribution","Map data &copy; <a href=\"http://openstreetmap.org\">OpenStreetMap</a> contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery &copy; <a href=\"http://mapbox.com\">Mapbox</a>")%>',
+                                        mbUrl = '<%= Configuration.getInstance().get("mapTilesUrl","https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=") + mapAccessToken%>';
+                                    var streets = L.tileLayer(mbUrl, {id: '<%= Configuration.getInstance().get("mapStreetsId", "mapbox/streets-v11") %>', attribution: mbAttr, tileSize: 512, zoomOffset: -1}),
+                                            satellite = L.tileLayer(mbUrl, {id: '<%= Configuration.getInstance().get("mapSatelliteId", "mapbox/satellite-streets-v11") %>', attribution: mbAttr, tileSize: 512, zoomOffset: -1}),
+                                            grayscale = L.tileLayer(mbUrl, {id: '<%= Configuration.getInstance().get("mapGrayscaleId", "mapbox/light-v10") %>', attribution: mbAttr, tileSize: 512, zoomOffset: -1});
                                     var map = L.map('map', {
                                         center: [<%= ServiceMap.getMapDefaultLatLng(request, "43.3555664, 11.0290384") %>],
                                         zoom: <%= ServiceMap.getMapDefaultZoom(request, "8") %>,
