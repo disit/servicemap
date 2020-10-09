@@ -3378,7 +3378,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
 
               Object vn = d.get("value_name");
 
-              if(conf.get("elasticSearchCheckDuplicates", "false").equals("true") && rt.has(vn.toString()) && dt.equals(cdt) && uuid.equals(cuuid)) {
+              if(conf.get("elasticSearchCheckDuplicates", "false").equals("true") && rt.has(vn.toString()) && dt.equals(cdt)) {
                 //ServiceMap.notifyException(null, "WARNING ESearch "+serviceUri+" duplicate value name "+vn+" @ "+dts);
                 ServiceMap.println("WARNING ESearch "+serviceUri+" duplicate value name "+vn+" @ "+dts);
                 continue;
