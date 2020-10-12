@@ -3488,12 +3488,14 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           try(Connection rtCon = ServiceMap.getRTConnection()) {
             if(rtCon!=null) {
               for(String a:customAttrs) {
-                JsonArray cdata = new JsonArray();            
-                ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
-                if(cdata.size()>0) {
-                  customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
-                  if(rtData.size()>0)
-                    rtData.get(0).getAsJsonObject().add(a, cdata.get(0));
+                if(valueName==null || a.equals(valueName)) {
+                  JsonArray cdata = new JsonArray();
+                  ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
+                  if(cdata.size()>0) {
+                    customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
+                    if(rtData.size()>0)
+                      rtData.get(0).getAsJsonObject().add(a, cdata.get(0));
+                  }
                 }
               }
               if(out!=null)
@@ -3641,10 +3643,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             if(rtCon!=null) {
               String customAttrLastValues = "";
               for(String a:customAttrs) {
-                JsonArray cdata = new JsonArray();            
-                ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
-                if(cdata.size()>0) 
-                  customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
+                if(valueName==null || a.equals(valueName)) {
+                  JsonArray cdata = new JsonArray();            
+                  ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
+                  if(cdata.size()>0) 
+                    customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
+                }
               }
               out.print(customAttrLastValues);
             }
