@@ -513,8 +513,10 @@ public class ServiceValuesServlet extends HttpServlet {
     String lastValue = request.getParameter("lastValue");
     String healthiness = request.getParameter("healthiness");
     String uid = request.getParameter("uid");
+    String trendType = request.getParameter("trendType");
+    String trendTimeAggregation = request.getParameter("trendTimeAggregation");
     
-    if(checkAccess(request, response)==null) 
+    if(conf.get("enableGetValuesAccessCheck", "false").equals("true") && checkAccess(request, response)==null) 
       return;
       
     if(uid!=null && !ServiceMap.validateUID(uid)) {
@@ -618,7 +620,7 @@ public class ServiceValuesServlet extends HttpServlet {
                   getValues(rtCon, conf, null, toTime, "1", serviceUri, e.getKey(), l, null);
                   e.getValue().getAsJsonObject().add("last", l.size()>0 ? l.get(0) : null);
                 }
-                e.getValue().getAsJsonObject().add("trends", getTrends(rtCon, conf, serviceUri, e.getKey()));
+                e.getValue().getAsJsonObject().add("trends", getTrends(rtCon, conf, serviceUri, e.getKey(), trendType, trendTimeAggregation));
               }
               rtCon.close();
             }
@@ -680,6 +682,11 @@ public class ServiceValuesServlet extends HttpServlet {
           if(healthiness!=null && healthiness.equals("true")) {
             JsonObject health = ServiceMap.computeHealthiness(rtData, attr, "valueAcqDate", toTime);
             result.add("health", health.get(valueName));
+          }
+          Connection rtCon = ServiceMap.getRTConnection();
+          if(rtCon!=null) {
+            result.add("trends", getTrends(rtCon, conf, serviceUri, valueName, trendType, trendTimeAggregation));
+            rtCon.close();
           }
           response.getWriter().print(result);
           ServiceMap.updateResultsPerIP(ip, "api", rtData.size());
@@ -955,11 +962,19 @@ public class ServiceValuesServlet extends HttpServlet {
     }
   }
 
-  public JsonObject getTrends(Connection rtCon, Configuration conf, String serviceUri, String valueName) throws SQLException, NumberFormatException {
+  public JsonObject getTrends(Connection rtCon, Configuration conf, String serviceUri, String valueName, String trendType, String timeAggregation) throws SQLException, NumberFormatException {
     Statement s = rtCon.createStatement();
     s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
     //ServiceDataTrends(serviceUri,valueName,trendType,timeAggregation,hour,\"value\")
-    String query = "SELECT trendType as \"trendType\",timeAggregation AS \"timeAggregation\",hour AS \"hour\",\"value\" FROM ServiceDataTrends WHERE serviceUri='"+serviceUri+"' AND valueName='"+valueName+"' ORDER BY trendType, timeAggregation";
+    String query;
+    if(timeAggregation == null && trendType == null)
+      query = "SELECT trendType as \"trendType\",timeAggregation AS \"timeAggregation\",hour AS \"hour\",\"value\" FROM ServiceDataTrends WHERE serviceUri='"+serviceUri+"' AND valueName='"+valueName+"' ORDER BY trendType, timeAggregation";
+    else if(trendType == null)
+      query = "SELECT trendType as \"trendType\",timeAggregation AS \"timeAggregation\",hour AS \"hour\",\"value\" FROM ServiceDataTrends WHERE serviceUri='"+serviceUri+"' AND valueName='"+valueName+"' AND timeAggregation='"+timeAggregation+"' ORDER BY trendType";
+    else if(trendType != null)
+      query = "SELECT trendType as \"trendType\",timeAggregation AS \"timeAggregation\",hour AS \"hour\",\"value\" FROM ServiceDataTrends WHERE serviceUri='"+serviceUri+"' AND valueName='"+valueName+"' AND trendType='"+trendType+"' AND timeAggregation='"+timeAggregation+"' ORDER BY trendType";
+    else
+      query = "SELECT trendType as \"trendType\",timeAggregation AS \"timeAggregation\",hour AS \"hour\",\"value\" FROM ServiceDataTrends WHERE serviceUri='"+serviceUri+"' AND valueName='"+valueName+"' AND trendType='"+trendType+"' ORDER BY timeAggregation";
     ServiceMap.println(query);
     ResultSet rs = s.executeQuery(query);
     int nCols = rs.getMetaData().getColumnCount();
@@ -969,25 +984,26 @@ public class ServiceValuesServlet extends HttpServlet {
     String ta = null;
     JsonObject aggregation = new JsonObject();
     while (rs.next()) {
-      String trendType = rs.getString(1);
-      String timeAggregation = rs.getString(2);
+      String trendType_ = rs.getString(1);
+      String timeAggr = rs.getString(2);
       String hour = rs.getString(3);
       String value = rs.getString(4);
-      if(tt!=null && !tt.equals(trendType)) {
+      if(tt!=null && !tt.equals(trendType_)) {
+        trend.add(ta, aggregation);
         trends.add(tt, trend);
         trend=new JsonObject();
         aggregation = new JsonObject();
         ta=null;
       }
-      if(ta==null || ta.equals(timeAggregation)) {
+      if(ta==null || ta.equals(timeAggr)) {
         aggregation.addProperty(hour, value);
       } else {
         trend.add(ta, aggregation);
         aggregation = new JsonObject();
         aggregation.addProperty(hour, value);
       }
-      ta=timeAggregation;
-      tt=trendType;
+      ta=timeAggr;
+      tt=trendType_;
     }
     if(ta!=null)
       trend.add(ta, aggregation);
