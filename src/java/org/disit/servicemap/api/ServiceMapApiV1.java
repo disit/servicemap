@@ -2489,7 +2489,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     out.println("}");
   }
 
-  public String queryService(JspWriter out, RepositoryConnection con, String serviceUri, String lang, String realtime, String valueName, String fromTime, String toTime, String checkHealthiness, String uid, List<String> serviceTypes) throws Exception {
+  public String queryService(JspWriter out, RepositoryConnection con, String serviceUri, String lang, String realtime, String valueName, String fromTime, String toTime, String checkHealthiness, String uid, List<String> serviceTypes, String format) throws Exception {
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "virtuoso");
     String km4cVersion = conf.get("km4cVersion", "new");
@@ -2573,8 +2573,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + " UNION { <" + serviceUri + "> rdfs:seeAlso ?linkDBpedia.}\n"
               + "}";
 
-      out.println("{ \"Service\":\n"
-              + "{\"type\": \"FeatureCollection\",\n"
+      if("json".equals(format))
+        out.println("{ \"Service\":");
+      out.println("{\"type\": \"FeatureCollection\",\n"
               + "\"features\": [\n");
       //ServiceMap.println(queryService);
       TupleQuery tupleQueryService = con.prepareTupleQuery(QueryLanguage.SPARQL, queryService);
@@ -2762,9 +2763,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         if(detailsQuery==null) {
           throw new Exception("Missing details query for "+serviceUri);
         }
-        
-        out.println("{ \"" + md.section + "\":\n"
-                + "{\"type\": \"FeatureCollection\",\n"
+        if("json".equals(format))
+          out.println("{ \"" + md.section + "\":");
+        out.println("{\"type\": \"FeatureCollection\",\n"
                 + "\"features\": [\n");
 
         detailsQuery = detailsQuery.replace("%SERVICE_URI",ServiceMap.urlEncode(serviceUri));
@@ -2868,13 +2869,14 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 + "    \"avgStars\": " + avgServiceStars[0] + ",\n"
                 + "    \"starsCount\": " + (int) avgServiceStars[1] + ",\n"
                 + (uid != null ? "    \"userStars\": " + ServiceMap.getServiceStarsByUid(serviceUri, uid) + ",\n" : "")
-                + "    \"comments\": " + ServiceMap.getServiceComments(serviceUri)
-                + "}\n"
-                + "}");
+                + "    \"comments\": " + ServiceMap.getServiceComments(serviceUri));
+            if("json".equals(format))
+                out.println("}\n}");
             p++;
           }
         }
-        out.println("]}");
+        if("json".equals(format))
+          out.println("]}");
     }
    
     serviceUri = ServiceMapping.getInstance().getServiceUriAlias(serviceUri);
@@ -3055,7 +3057,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     }
     if(rtCon!=null)
       rtCon.close();
-    out.println("}");
+    if("json".equals(format))
+      out.println("}");
+    else
+      out.println("}}]}");
     return r;
   }
 
@@ -3187,7 +3192,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             public RequestConfig.Builder customizeRequestConfig(
                     RequestConfig.Builder requestConfigBuilder) {
                 return requestConfigBuilder.setSocketTimeout(timeout);
-            }});
+            }}).setMaxRetryTimeoutMillis(timeout);
     if(conf.get("elasticSearchUser", null)!=null) {
       final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
       credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(conf.get("elasticSearchUser", null), conf.get("elasticSearchPassword", "")));
@@ -3278,13 +3283,22 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         searchSourceBuilder.aggregation(AggregationBuilders.terms("value_name").field("value_name.keyword").size(Integer.parseInt(conf.get("elasticSearchMaxAggVName", "100"))).order(BucketOrder.key(true)));
       }
       boolean fromAggregation = false;
-      if(valueName!=null && fromTime!=null && (tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays", "20"))*24*60*60L) {
-        searchSourceBuilder.aggregation(
-                AggregationBuilders.dateHistogram("date_time")
-                        .field(conf.get("elasticSearchAggField", "date_time"))
-                        .dateHistogramInterval(DateHistogramInterval.minutes(Integer.parseInt(conf.get("elasticSearchAvgMins", "15"))))
-                        .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
-        fromAggregation = true;
+      if(valueName!=null && fromTime!=null) {
+        if((tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays1", "100"))*24*60*60L) {
+          searchSourceBuilder.aggregation(
+                  AggregationBuilders.dateHistogram("date_time")
+                          .field(conf.get("elasticSearchAggField", "date_time"))
+                          .dateHistogramInterval(DateHistogramInterval.hours(Integer.parseInt(conf.get("elasticSearchAvgHours", "6"))))
+                          .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
+          fromAggregation = true;
+        } else if((tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays", "20"))*24*60*60L) {
+          searchSourceBuilder.aggregation(
+                  AggregationBuilders.dateHistogram("date_time")
+                          .field(conf.get("elasticSearchAggField", "date_time"))
+                          .dateHistogramInterval(DateHistogramInterval.minutes(Integer.parseInt(conf.get("elasticSearchAvgMins", "15"))))
+                          .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
+          fromAggregation = true;
+        }
       }
 
       sr.source(searchSourceBuilder);

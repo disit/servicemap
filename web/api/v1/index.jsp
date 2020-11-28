@@ -416,6 +416,9 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     String ua = request.getHeader("User-Agent");
     String reqFrom = request.getParameter("requestFrom");
     String requestType = (idService==null ? "api" : "details");
+    String format = request.getParameter("format");
+    if(format==null)
+      format = "json";
     if(! ServiceMap.checkIP(ip, requestType)) {
       ServiceMap.logError(request, response, 403,"API calls daily limit reached");
       return;
@@ -440,7 +443,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       String types = null;
       ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, serviceTypes);
       if(md!=null && (md.realTimeSqlQuery!=null || md.realTimeSparqlQuery!=null || md.realTimeSolrQuery!=null )) {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, toTime, checkHealthiness, uid, serviceTypes);        
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, toTime, checkHealthiness, uid, serviceTypes, format);        
       } 
       else if (serviceTypes.contains("http://vocab.gtfs.org/terms#Stop") && (serviceTypes.contains("BusStop")|| serviceTypes.contains("NearBusStops"))) {
         serviceMapApi.queryTplStop(out, con, idService, "BusStop", lang, realtime, uid, toTime);
@@ -470,14 +473,14 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
         types = "TransferServiceAndRenting;SensorSite";
       }
       else if (serviceTypes.contains("Service") || serviceTypes.contains("RegularService")) {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, toTime, checkHealthiness, uid, serviceTypes);
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, toTime, checkHealthiness, uid, serviceTypes, format);
       }
       else if (serviceTypes.contains("Event")) {
         serviceMapApi.queryEvent(out, con, idService, lang, uid);
         types = "Service;Event";
       }
       else {
-        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, toTime, checkHealthiness, uid, serviceTypes);
+        types = serviceMapApi.queryService(out, con, idService, lang, realtime, valueName, fromTime, toTime, checkHealthiness, uid, serviceTypes, format);
       }
       ServiceMap.logAccess(request, null, null, types, idService, "api-service-info", null, null, queryId, null, "json", uid, reqFrom);
       ServiceMap.updateResultsPerIP(ip, requestType, 1);
