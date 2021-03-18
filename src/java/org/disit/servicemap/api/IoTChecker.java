@@ -29,11 +29,14 @@ import java.util.regex.Pattern;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.disit.servicemap.Configuration;
@@ -44,23 +47,29 @@ public class IoTChecker {
     private static class IoTCacheData {
       boolean isPublic;
       long generationTime;
+      Map<String,Long> grantedUsers;
 
-      public IoTCacheData(boolean isPublic) {
+      public IoTCacheData(boolean isPublic, String user) {
         this.isPublic = isPublic;
         this.generationTime = System.currentTimeMillis();
+        this.grantedUsers = new HashMap<>();
+        if(!isPublic && user!=null)
+          this.grantedUsers.put(user, generationTime);
       }      
     }
     
     static private final Map<String,IoTCacheData> cache = new HashMap<>();
-    static private int nAccess = 0, nPublicHit = 0, nPrivateHit = 0;
+    static private int nAccess = 0, nPublicHit = 0, nPrivateHit = 0, nPrivateUserHit = 0, nRootAdminHits = 0, nPasswordHits = 0;
+    static private Object nRootAdminSynch = new Object();
+    static private Object nPasswordSynch = new Object();
 
     static public boolean checkIoTService(String serviceUri, String apiKey) throws IllegalAccessException {
-      if(!serviceUri.startsWith("http://www.disit.org/km4city/resource/iot/")) {
+      Configuration conf = Configuration.getInstance();
+      if(!serviceUri.startsWith(conf.get("iotCheckerIoTServiceUriPrefix", "http://www.disit.org/km4city/resource/iot/"))) {
         return true;
       }
       
       // check if the IoT is public or private
-      Configuration conf = Configuration.getInstance();
       if(!conf.get("enableIoTChecker", "true").equals("true"))
         return true;
       if(conf.get("iotCheckerExclude", null)!=null) {
@@ -72,27 +81,55 @@ public class IoTChecker {
       }
       
       String accessToken = null;
+      String user = null;
+      String role = null;
       if(apiKey!=null && apiKey.startsWith("user:")) {
-        accessToken = apiKey.split(" at:")[1];
+        String[] t = apiKey.split(" at:");
+        String[] tt = t[0].split(" role:");
+        user = tt[0].substring(5); //skip user:
+        role = tt[1];
+        accessToken = t[1];
+        if(role!=null && role.equals("RootAdmin")) {
+          synchronized(nRootAdminSynch) {
+            nRootAdminHits++;
+          }
+          ServiceMap.println("iotChecker "+serviceUri+" GRANTED ACCESS to RootAdmin");
+          return true;
+        }
       } else if(apiKey!=null && apiKey.equals(conf.get("iotCheckerPassword", "password"))) { //set in the configuration a VERY strong password
+          synchronized(nPasswordSynch) {
+            nPasswordHits++;
+          }
         System.out.println("IotChecker "+serviceUri+" GRANTED ACCESS using password");
         return true;
       }
       
       boolean isPublic = false;
       boolean allow = false;
+      IoTCacheData cacheData = null;
       synchronized(cache) {
-        IoTCacheData data = cache.get(serviceUri);
+        cacheData = cache.get(serviceUri);
         nAccess++;
-        if(data!=null && System.currentTimeMillis()-data.generationTime<=Integer.parseInt(conf.get("iotCacheMaxTime", "600"))*1000) {
-          if(data.isPublic) {
+        if(cacheData!=null && System.currentTimeMillis()-cacheData.generationTime<=Integer.parseInt(conf.get("iotCacheMaxTime", "600"))*1000) {
+          if(cacheData.isPublic) {
             nPublicHit++;
             return true;
-          }
-          else if(accessToken == null) {
+          } else if(accessToken == null) {
             nPrivateHit++;
             return false;
           }
+          if(conf.get("iotCheckerEnableUserCache", "false").equals("true")) {
+            Long lastUserAccess = cacheData.grantedUsers.get(user);
+            if(lastUserAccess!=null) {
+              if(System.currentTimeMillis()-lastUserAccess<=Integer.parseInt(conf.get("iotCacheUserMaxTime", "600"))*1000) {
+                nPrivateUserHit++;
+                return true;
+              } else
+                cacheData.grantedUsers.remove(user);
+            }
+          }
+        } else {
+          cacheData = null;
         }
       }
       // find if serviceUri is public
@@ -123,61 +160,76 @@ public class IoTChecker {
         }
       }
       ServiceMap.println("iotchecker: "+serviceUri+" "+elementId+" "+accessToken);
-      
-      HttpClient httpclient = HttpClients.createDefault();
-      HttpGet httpget = null;
-      HttpResponse response = null;
-    
-      String datamanagerEndpoint = conf.get("datamanagerEndpoint", "http://localhost:8080/datamanager/api/");
 
       try {
-        long start = System.currentTimeMillis();
-        URIBuilder builder;
-        if(accessToken!=null) {
-          builder = new URIBuilder(datamanagerEndpoint+"v3/apps/"+elementId.replace("/", "%252F")+"/access/check");
-          builder.setParameter("sourceRequest", "servicemap")
-                  .setParameter("elementType", "IOTID");
-        } else {
-          builder = new URIBuilder(datamanagerEndpoint+"v1/public/access/check");
-          builder.setParameter("sourceRequest", "servicemap")
-                  .setParameter("elementID", elementId)
-                  .setParameter("elementType", "IOTID");
-        }
-        httpget = new HttpGet(builder.build());
-        if(accessToken!=null) {
-          httpget.addHeader("Authorization", "Bearer "+accessToken);
-        }
-        
-        // Create a response handler
-        response = httpclient.execute(httpget);
+        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+          HttpGet httpget = null;
+          int CONNECTION_TIMEOUT_MS = Integer.parseInt(conf.get("iotCheckerDatamanagerTimeout", "60")) * 1000; // Timeout in millis.
+          RequestConfig requestConfig = RequestConfig.custom()
+            .setConnectionRequestTimeout(CONNECTION_TIMEOUT_MS)
+            .setConnectTimeout(CONNECTION_TIMEOUT_MS)
+            .setSocketTimeout(CONNECTION_TIMEOUT_MS)
+            .build();
 
-        int statusCode = response.getStatusLine().getStatusCode();
-        if(statusCode == 200) { //OK
-          String result = EntityUtils.toString(response.getEntity());
-          JsonParser parser = new JsonParser();
-          JsonObject resultJson = parser.parse(result).getAsJsonObject();
-          ServiceMap.performance("IoTChecker "+builder.build()+" 200 "+resultJson+" "+(System.currentTimeMillis()-start)+"ms");
-          String sResult = resultJson.get("result").getAsString();
-          String sMessage = resultJson.get("message").isJsonNull() ? "" : resultJson.get("message").getAsString();
-          if(sResult.equals("true") ) {
-            if(sMessage.contains("PUBLIC")) {
-              isPublic = true;
+          String datamanagerEndpoint = conf.get("datamanagerEndpoint", "http://localhost:8080/datamanager/api/");
+
+          long start = System.currentTimeMillis();
+          URIBuilder builder;
+          if(accessToken!=null) {
+            builder = new URIBuilder(datamanagerEndpoint+"v3/apps/"+elementId.replace("/", "%252F")+"/access/check");
+            builder.setParameter("sourceRequest", "servicemap")
+                    .setParameter("elementType", "IOTID");
+          } else {
+            builder = new URIBuilder(datamanagerEndpoint+"v1/public/access/check");
+            builder.setParameter("sourceRequest", "servicemap")
+                    .setParameter("elementID", elementId)
+                    .setParameter("elementType", "IOTID");
+          }
+          httpget = new HttpGet(builder.build());
+          httpget.setConfig(requestConfig);
+
+          if(accessToken!=null) {
+            httpget.addHeader("Authorization", "Bearer "+accessToken);
+          }
+
+          // Create a response handler
+          try (CloseableHttpResponse response= httpclient.execute(httpget)) {
+            int statusCode = response.getStatusLine().getStatusCode();
+            if(statusCode == 200) { //OK
+              String result = EntityUtils.toString(response.getEntity());
+              JsonParser parser = new JsonParser();
+              JsonObject resultJson = parser.parse(result).getAsJsonObject();
+              ServiceMap.performance("IoTChecker "+builder.build()+" 200 "+resultJson+" "+(System.currentTimeMillis()-start)+"ms");
+              String sResult = resultJson.get("result").getAsString();
+              String sMessage = resultJson.get("message").isJsonNull() ? "" : resultJson.get("message").getAsString();
+              if(sResult.equals("true") ) {
+                if(sMessage.contains("PUBLIC")) {
+                  isPublic = true;
+                }
+                allow = true;
+              }          
+            } else {
+              ServiceMap.performance("IoTChecker "+builder.build()+" "+statusCode+" { } "+(System.currentTimeMillis()-start)+"ms");
+              ServiceMap.notifyException(null, "IoTChecker for "+elementId+" failed "+statusCode+" call to "+builder.build()+" accessToken:"+accessToken);
             }
-            allow = true;
-          }          
-        } else {
-          ServiceMap.performance("IoTChecker "+builder.build()+" "+statusCode+" { } "+(System.currentTimeMillis()-start)+"ms");
-          ServiceMap.notifyException(null, "IoTChecker for "+elementId+" failed "+statusCode+" call to "+builder.build()+" accessToken:"+accessToken);
+          }
         }
       } catch(Exception e) {
         ServiceMap.notifyException(e);
         return false;
-      }
-      
+      } /*finally {
+        if(httpget!=null)
+          httpget.releaseConnection();
+      }*/
       synchronized(cache) {
         if(conf.get("iotCheckerForcePublicCache","true").equals("true") || isPublic || accessToken==null) {
-          cache.put(serviceUri, new IoTCacheData(isPublic));
+          if(cacheData==null || isPublic)
+            cache.put(serviceUri, new IoTCacheData(isPublic, user));
+          else {
+            cacheData.grantedUsers.put(user, System.currentTimeMillis());
+          }
         } else {
+          //not ForcePublicCache and is private and provided access token then non cache and recheck on next access
           cache.put(serviceUri, null);          
         }
       }
@@ -194,11 +246,13 @@ public class IoTChecker {
       synchronized(cache) {
         String hitPerc="NA";
         if(nAccess>0)
-          hitPerc = ((nPublicHit+nPrivateHit)*100.0/nAccess)+"%";
-        String r = "IoTPublicCache ( hit: pub "+nPublicHit+"+ priv "+nPrivateHit+" access:"+nAccess+" "+hitPerc+") <ol>";
+          hitPerc = ((nPublicHit+nPrivateHit+nPrivateUserHit)*100.0/nAccess)+"%";
+        String r = "IoTPublicCache ( nRootAdm: "+nRootAdminHits+" nPassw:"+nPasswordHits+" hit: pub "+nPublicHit+"+ priv "+nPrivateHit+" user "+nPrivateUserHit+" access:"+nAccess+" "+hitPerc+") <ol>";
         for(Entry<String,IoTCacheData> d: cache.entrySet()) {
           if(d.getValue()!=null) {
-            r+="<li>"+d.getKey()+": "+(d.getValue().isPublic ? "public" : "private")+" "+(System.currentTimeMillis()-d.getValue().generationTime)+"ms old</li>";
+            Map<String, Long> u = d.getValue().grantedUsers;
+            String users = u.keySet().toString();
+            r+="<li>"+d.getKey()+": "+(d.getValue().isPublic ? "public" : "private")+" "+(System.currentTimeMillis()-d.getValue().generationTime)/1000.0+"s old, grantedusers:"+users+"</li>";
           } else {
             r+="<li>"+d.getKey()+": null </li>";            
           }

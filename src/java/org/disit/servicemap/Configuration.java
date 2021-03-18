@@ -94,6 +94,10 @@ public class Configuration {
     }
     return value;
   }
+
+  public void set(String key, String value) {
+    map.put(key, value);
+  }
   
   public String asHtml() {
     String html="<p>"+System.getProperty("user.home")+PROP+"</p><ul>";

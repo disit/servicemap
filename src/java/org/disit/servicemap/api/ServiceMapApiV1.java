@@ -948,6 +948,14 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     final String km4cVersion = conf.get("km4cVersion", "new");
     final int MAX_RESULTS = Integer.parseInt(conf.get("maxResults", "50000"));
     
+    String fromTime = null;
+    if(valueName!=null && conf.get("fromTimeLimitDays", null) != null) {
+      DateFormat dateFormatterT = new SimpleDateFormat(ServiceMap.dateFormatT);
+      Date fTime = new Date(new Date().getTime() - Integer.parseInt(conf.get("fromTimeLimitDays", "1"))*24*60*60*1000);
+      
+      fromTime = dateFormatterT.format(fTime);
+    }
+    
     String lang_tmp = "";
     if (language == null) {
       lang_tmp = "en";
@@ -1242,7 +1250,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                   + "\"serviceType\": \"TransferServiceAndRenting_SensorSite\",\n"
                   + "\"serviceUri\": \"" + valueOfIdService + "\",\n"
                   + "\"distance\": \"" + valueOfDist + "\",\n"
-                  + (valueName!=null ? "\"lastValue\": " + lastRealTimeValue(valueOfIdService, valueName, apiKey, con) + "," : "")
+                  + (valueName!=null ? "\"lastValue\": " + lastRealTimeValue(valueOfIdService, valueName, fromTime, apiKey, con) + "," : "")
                   + "\"photoThumbs\": " + ServiceMap.getServicePhotos(valueOfIdService,"thumbs") + "\n"
                   + "},\n"
                   + "\"id\": " + Integer.toString(i + 1) + "\n"
@@ -1457,7 +1465,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                   + (valueOfAgName!=null ? "   \"agency\": \"" + valueOfAgName + "\",\n" : "")
                   + (valueOfAgUri!=null ? "   \"agencyUri\": \"" + valueOfAgUri + "\",\n" : "")
                   + "\"multimedia\": \"" + valueOfMultimedia + "\"\n"
-                  + (valueName!=null ? ",\"lastValue\": " + lastRealTimeValue(valueOfSer, valueName, apiKey, con) : "")
+                  + (valueName!=null ? ",\"lastValue\": " + lastRealTimeValue(valueOfSer, valueName, fromTime, apiKey, con) : "")
                   + "},\n"
                   + "\"id\": " + Integer.toString(w + 1) + "\n"
                   + "}");
@@ -2573,7 +2581,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + " UNION { <" + serviceUri + "> rdfs:seeAlso ?linkDBpedia.}\n"
               + "}";
 
-      if("json".equals(format))
+      if(!"geojson".equals(format))
         out.println("{ \"Service\":");
       out.println("{\"type\": \"FeatureCollection\",\n"
               + "\"features\": [\n");
@@ -2763,7 +2771,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         if(detailsQuery==null) {
           throw new Exception("Missing details query for "+serviceUri);
         }
-        if("json".equals(format))
+        if(!"geojson".equals(format))
           out.println("{ \"" + md.section + "\":");
         out.println("{\"type\": \"FeatureCollection\",\n"
                 + "\"features\": [\n");
@@ -2870,12 +2878,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 + "    \"starsCount\": " + (int) avgServiceStars[1] + ",\n"
                 + (uid != null ? "    \"userStars\": " + ServiceMap.getServiceStarsByUid(serviceUri, uid) + ",\n" : "")
                 + "    \"comments\": " + ServiceMap.getServiceComments(serviceUri));
-            if("json".equals(format))
+            if(!"geojson".equals(format))
                 out.println("}\n}");
             p++;
           }
         }
-        if("json".equals(format))
+        if(!"geojson".equals(format))
           out.println("]}");
     }
    
@@ -3173,54 +3181,13 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     }
     solr.shutdown();
   }
-
+  
   private void realTimeElasticSearchQuery(Configuration conf, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, String toTime, int limit, JspWriter out, JsonArray rtData) throws Exception {
-    //get RT data from Elastic
-    String[] hosts = conf.get("elasticSearchHosts", "localhost").split(",");
-    int port = Integer.parseInt(conf.get("elasticSearchPort", "9200"));
+    RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf);
     String[] index = conf.get("elasticSearchIndex", "sensorindex").split(";");
 
-    HttpHost[] httpHosts = new HttpHost[hosts.length];
-    for(int i=0; i<hosts.length; i++)
-      httpHosts[i] = new HttpHost(hosts[i],port, conf.get("elasticSearchScheme", "http"));
-    final int timeout = Integer.parseInt(conf.get("elasticSearchTimeout", "30000"));
-    final int threadCount = Integer.parseInt(conf.get("elasticSearchThreadCount", "0"));
-    RestClientBuilder restClientBuilder = RestClient.builder(httpHosts);
-    restClientBuilder.setRequestConfigCallback(
-        new RestClientBuilder.RequestConfigCallback() {
-            @Override
-            public RequestConfig.Builder customizeRequestConfig(
-                    RequestConfig.Builder requestConfigBuilder) {
-                return requestConfigBuilder.setSocketTimeout(timeout);
-            }}).setMaxRetryTimeoutMillis(timeout);
-    if(conf.get("elasticSearchUser", null)!=null) {
-      final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-      credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(conf.get("elasticSearchUser", null), conf.get("elasticSearchPassword", "")));
-      restClientBuilder.setHttpClientConfigCallback(new HttpClientConfigCallback() {
-        @Override
-        public HttpAsyncClientBuilder customizeHttpClient(
-                HttpAsyncClientBuilder httpClientBuilder) {
-            return httpClientBuilder
-                .setDefaultCredentialsProvider(credentialsProvider);
-        }
-      });
-    }
-    if(threadCount>0) {
-      restClientBuilder.setHttpClientConfigCallback(new HttpClientConfigCallback() {
-          @Override
-          public HttpAsyncClientBuilder customizeHttpClient(
-                  HttpAsyncClientBuilder httpClientBuilder) {
-              return httpClientBuilder.setDefaultIOReactorConfig(
-                  IOReactorConfig.custom()
-                      .setIoThreadCount(threadCount)
-                      .build());
-          }
-      });
-    }
-    RestHighLevelClient client = new RestHighLevelClient(restClientBuilder);
-
     try {
-      String q = "serviceUri:\""+serviceUri+"\"";
+      String q = "serviceUri.keyword:\""+serviceUri+"\"";
 
       DateFormat dateFormatterT = new SimpleDateFormat(ServiceMap.dateFormatT);
       Date tTime = new Date();
@@ -3230,7 +3197,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       Date fTime = new Date();
       if(fromTime!=null) {
         fTime = dateFormatterT.parse(fromTime);
-      }
+      } 
       if(fromTime!=null || toTime!=null) {
         DateFormat dateFormatterGMT = new SimpleDateFormat(ServiceMap.dateFormatGMT);
         String fq = null;
@@ -3252,18 +3219,25 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         q += " AND "+fq;
       }
       if(valueName!=null) {
-        q += " AND value_name:\"" + valueName + "\"";
+        q += " AND value_name.keyword:\"" + valueName + "\"";
       }
       if(conf.get("elasticSearchFilterEmptyValue","false").equals("true")) {
         q += " AND NOT value_str.keyword:\"\"";
       }
       int resultSize = Integer.parseInt(conf.get("elasticSearchMaxSize", "10000"));
       if(fromTime == null) {
-        if(rtAttributes!=null)
-          resultSize = (rtAttributes.entrySet().size()+10) * limit;
-        else
-          resultSize = 10 * limit;
-      }
+        if(limit<0)
+          limit=-limit;
+        if(valueName!=null) {
+          resultSize = limit;
+        } else {
+          if(rtAttributes!=null)
+            resultSize = (rtAttributes.entrySet().size()+10) * limit;
+          else
+            resultSize = 10 * limit;
+        }
+      } else if(limit<0)
+        resultSize=-limit;
       SearchRequest sr = new SearchRequest();
       SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder(); 
       searchSourceBuilder.query(QueryBuilders.boolQuery().must(
@@ -3275,7 +3249,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 .sort("uuid.keyword", SortOrder.ASC)
                 .sort("value_name.keyword", SortOrder.ASC);
       } else {
-        searchSourceBuilder.sort("date_time", SortOrder.DESC)
+        if(valueName != null)
+          searchSourceBuilder.sort("date_time", SortOrder.DESC);
+        else
+          searchSourceBuilder.sort("date_time", SortOrder.DESC)
                 .sort("value_name.keyword", SortOrder.ASC);        
       }
       searchSourceBuilder.size(resultSize);
@@ -3709,8 +3686,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       out.println(", \"realtime\": ");
     if(conf.get("disablePhoenixQuery", "false").equals("true")) {
       if(out!=null)
-        out.println("{}");
+        out.println("{\"error\":\"problems with phoenix\"}");
       ServiceMap.notifyException(null,"ERROR PHOENIX DISABLED "+serviceUri);
+      return;
     }
     try {
       Connection rtCon = ServiceMap.getRTConnection();
@@ -3884,7 +3862,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       }
       ServiceMap.performance("phoenix time realtime: "+(System.currentTimeMillis()-ts)+"ms "+serviceUri+" from:"+fromTime+" to:"+toTime);
     } catch(PhoenixIOException e) {
-      if(out!=null) out.println("{}");
+      if(out!=null) out.println("{\"error\":\"problems with phoenix\"}");
       ServiceMap.notifyException(e);
       conf.getSet("disablePhoenixQuery", "true");
     }catch(Exception e) {
@@ -3893,7 +3871,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     }
   }
 
-  private String lastRealTimeValue(String serviceUri, String valueName, String apiKey, RepositoryConnection con) {
+  private String lastRealTimeValue(String serviceUri, String valueName, String fromTime, String apiKey, RepositoryConnection con) {
     try {
       ArrayList<String> serviceTypes = ServiceMap.getTypes(con, serviceUri, true, apiKey);
       ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, serviceTypes);
@@ -3923,14 +3901,14 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           }
         }
         if (md.realTimeSqlQuery != null && md.realTimeSolrQuery == null) {
-          realTimeSqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, null, null, 1, conf, serviceTypes, null, rtData);
+          realTimeSqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, fromTime, null, 1, conf, serviceTypes, null, rtData);
         } else if (md.realTimeSparqlQuery != null && md.realTimeSolrQuery == null) {
-          realTimeSparqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, null, null, 1, conf, con, conf.get("sparqlType", "virtuoso"), null, rtData);
+          realTimeSparqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, fromTime, null, 1, conf, con, conf.get("sparqlType", "virtuoso"), null, rtData);
         } else if (md.realTimeSolrQuery != null) {
           if (md.realTimeSolrQuery.equals("true") || md.realTimeSolrQuery.equals("solr")) {
-            realTimeSolrQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, null, null, 1, null, rtData);
+            realTimeSolrQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, null, 1, null, rtData);
           } else if (md.realTimeSolrQuery.equals("elasticsearch")) {
-            realTimeElasticSearchQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, null, null, 1, null, rtData);
+            realTimeElasticSearchQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, null, -1, null, rtData);
           }
         }
       }

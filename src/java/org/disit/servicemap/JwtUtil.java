@@ -6,24 +6,19 @@
 package org.disit.servicemap;
 
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.SignatureException;
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.math.BigInteger;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
 import java.util.List;
@@ -61,7 +56,7 @@ public class JwtUtil {
     final public String role;
     final public String accessToken;
     
-    private User(String u, String r, String at) {
+    User(String u, String r, String at) {
       username = u;
       role = r;
       accessToken = at;
@@ -75,6 +70,10 @@ public class JwtUtil {
     String roles[] = new String[] {"RootAdmin", "ToolAdmin", "AreaManager", "Manager", "Observer"};
     Jws<Claims> t = Jwts.parser().setSigningKey(pk).setAllowedClockSkewSeconds(10).parseClaimsJws(accessToken);
     String u = (String) t.getBody().get("username");
+    if(u==null)
+      u = (String) t.getBody().get("preferred_username");
+    if(u==null)
+      throw new Exception("username not found in "+accessToken);
     List<String> rr = null;
     Map<String,List<String>> x = (Map<String,List<String>>) t.getBody().get("realm_access");
     if(x!=null) {
@@ -108,9 +107,16 @@ public class JwtUtil {
   }
   
   static public User getUserFromRequest(HttpServletRequest r) throws Exception {
-    String token = getTokenFromRequest(r);
-    if(token!=null)
-      return getUserFromJwt(token);
+    try {
+      String token = getTokenFromRequest(r);
+      if(token!=null)
+        return getUserFromJwt(token);
+    } catch(SignatureException e) {
+      Configuration conf = Configuration.getInstance();
+      if(!conf.get("disableJwtSignatureException", "false").equals("true")) {
+        throw e;
+      }
+    }
     return null;
   }
   
@@ -139,5 +145,9 @@ public class JwtUtil {
 
     pk = keyFactory.generatePublic(new RSAPublicKeySpec(modulus, publicExponent));
 
+  }
+  
+  static public void reset() {
+    pk = null;
   }
 }

@@ -134,6 +134,15 @@ public class CheckParameters {
       }
     return null;
   }
+
+  public static String checkDate(String date) {
+      try {
+        new SimpleDateFormat("yyyy-MM-dd").parse(date);
+      } catch(ParseException e) {
+        return "invalid date (yyyy-mm-dd) string "+e.getMessage(); 
+      }
+    return null;
+  }
   
   public static String checkUri(String uri) {
     if(uri==null || !uri.matches("^https?://[-a-zA-Z\\.0-9_/%\\+ :;()]*$"))
@@ -145,5 +154,14 @@ public class CheckParameters {
     if(apikey==null || !apikey.matches("[0-9A-Fa-f]+"))
       return "invalid apikey";
     return null;
+  }
+  
+  public static String checkEnum(String v, String[] values) {
+    for(String vv:values) {
+      if(v.equals(vv)) {
+        return null;
+      }
+    }
+    return "invalid value "+v+" ";
   }
 }
