@@ -48,6 +48,7 @@ public class IoTChecker {
       boolean isPublic;
       long generationTime;
       Map<String,Long> grantedUsers;
+      int nHits = 0;
 
       public IoTCacheData(boolean isPublic, String user) {
         this.isPublic = isPublic;
@@ -113,9 +114,11 @@ public class IoTChecker {
         if(cacheData!=null && System.currentTimeMillis()-cacheData.generationTime<=Integer.parseInt(conf.get("iotCacheMaxTime", "600"))*1000) {
           if(cacheData.isPublic) {
             nPublicHit++;
+            cacheData.nHits++;
             return true;
           } else if(accessToken == null) {
             nPrivateHit++;
+            cacheData.nHits++;
             return false;
           }
           if(conf.get("iotCheckerEnableUserCache", "false").equals("true")) {
@@ -123,6 +126,7 @@ public class IoTChecker {
             if(lastUserAccess!=null) {
               if(System.currentTimeMillis()-lastUserAccess<=Integer.parseInt(conf.get("iotCacheUserMaxTime", "600"))*1000) {
                 nPrivateUserHit++;
+                cacheData.nHits++;
                 return true;
               } else
                 cacheData.grantedUsers.remove(user);
@@ -133,7 +137,7 @@ public class IoTChecker {
         }
       }
       // find if serviceUri is public
-      Pattern p = Pattern.compile("^.*\\/iot\\/([a-zA-Z\\-_0-9]*)\\/([a-zA-Z0-9_]*)\\/(.*)");
+      Pattern p = Pattern.compile("^.*\\/iot\\/([a-zA-Z\\-_0-9]*)\\/([a-zA-Z0-9\\-_]*)\\/(.*)");
       Matcher m = p.matcher(serviceUri);
       String elementId;
       // if an occurrence if a pattern was found in a given string...
@@ -159,7 +163,7 @@ public class IoTChecker {
           throw new IllegalAccessException("invalid iot uri "+serviceUri);
         }
       }
-      ServiceMap.println("iotchecker: "+serviceUri+" "+elementId+" "+accessToken);
+      ServiceMap.println("iotchecker: "+serviceUri+" "+elementId+" "+user+" "+accessToken);
 
       try {
         try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
@@ -199,7 +203,10 @@ public class IoTChecker {
               String result = EntityUtils.toString(response.getEntity());
               JsonParser parser = new JsonParser();
               JsonObject resultJson = parser.parse(result).getAsJsonObject();
-              ServiceMap.performance("IoTChecker "+builder.build()+" 200 "+resultJson+" "+(System.currentTimeMillis()-start)+"ms");
+              String u = "";
+              if(user!=null && conf.get("iotCheckerLogUsername", "false").equals("true"))
+                u = " user:"+user;
+              ServiceMap.performance("IoTChecker "+builder.build()+" 200 "+resultJson+u+" "+(System.currentTimeMillis()-start)+"ms");
               String sResult = resultJson.get("result").getAsString();
               String sMessage = resultJson.get("message").isJsonNull() ? "" : resultJson.get("message").getAsString();
               if(sResult.equals("true") ) {
@@ -224,9 +231,10 @@ public class IoTChecker {
       synchronized(cache) {
         if(conf.get("iotCheckerForcePublicCache","true").equals("true") || isPublic || accessToken==null) {
           if(cacheData==null || isPublic)
-            cache.put(serviceUri, new IoTCacheData(isPublic, user));
+            cache.put(serviceUri, new IoTCacheData(isPublic, allow ? user : null));
           else {
-            cacheData.grantedUsers.put(user, System.currentTimeMillis());
+            if(allow)
+              cacheData.grantedUsers.put(user, System.currentTimeMillis());
           }
         } else {
           //not ForcePublicCache and is private and provided access token then non cache and recheck on next access
@@ -238,7 +246,17 @@ public class IoTChecker {
 
     static public void reset() {
       synchronized(cache) {
+        nAccess = 0;
+        nPrivateHit = 0;
+        nPublicHit = 0;
+        nPrivateUserHit = 0;
         cache.clear();
+      }
+      synchronized(nPasswordSynch) {
+        nPasswordHits = 0;
+      }
+      synchronized(nRootAdminSynch) {
+        nRootAdminHits = 0;
       }
     }
     
@@ -252,7 +270,7 @@ public class IoTChecker {
           if(d.getValue()!=null) {
             Map<String, Long> u = d.getValue().grantedUsers;
             String users = u.keySet().toString();
-            r+="<li>"+d.getKey()+": "+(d.getValue().isPublic ? "public" : "private")+" "+(System.currentTimeMillis()-d.getValue().generationTime)/1000.0+"s old, grantedusers:"+users+"</li>";
+            r+="<li>"+d.getKey()+": "+(d.getValue().isPublic ? "public" : "private")+" "+(System.currentTimeMillis()-d.getValue().generationTime)/1000.0+"s old, grantedusers:"+users+" hits:"+d.getValue().nHits+"</li>";
           } else {
             r+="<li>"+d.getKey()+": null </li>";            
           }
