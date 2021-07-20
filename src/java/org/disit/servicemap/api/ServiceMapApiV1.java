@@ -939,7 +939,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     return 0;
   }
 
-  public int queryLatLngServices(JspWriter out, RepositoryConnection con, final String[] coords, String categorie, final String textToSearch, final String raggioBus, String raggioSensori, final String raggioServizi, String risultatiBus, String risultatiSensori, String risultatiServizi, final String language, String cat_servizi, final boolean getGeometry, final boolean inside, boolean photos, final String makeFullCount, final String value_type, final String graphUri, String valueName, final String apiKey) throws Exception {
+  public int queryLatLngServices(JspWriter out, RepositoryConnection con, final String[] coords, String categorie, final String textToSearch, final String raggioBus, String raggioSensori, final String raggioServizi, String risultatiBus, String risultatiSensori, String risultatiServizi, final String language, String cat_servizi, final boolean getGeometry, final boolean inside, boolean photos, final String makeFullCount, final String value_type, final String graphUri, String valueName, final String apiKey, String model) throws Exception {
     ServiceMap.println("API-LatLngServices START");
     long tss = System.currentTimeMillis();
     
@@ -1063,6 +1063,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     + "SELECT DISTINCT ?bs (STR(?nome) AS ?nomeFermata) ?bslat ?bslong ?ag ?agname ?sameas ?dist ?x WHERE {\n"
                     + " ?bs geo:lat ?bslat.\n"
                     + " ?bs geo:long ?bslong.\n"
+                    + ServiceMap.modelSearchQueryFragment("?bs", model)
                     + ServiceMap.graphSearchQueryFragment("?bs", graphUri)
                     + ServiceMap.geoSearchQueryFragment("?bs", coords, raggioBus, geoMode)
                     + " ?bs rdf:type km4c:BusStop.\n"
@@ -1198,12 +1199,13 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     + " ?sensor rdf:type km4c:SensorSite.\n"
                     + " ?sensor geo:lat ?lat.\n"
                     + " ?sensor geo:long ?long.\n"
-                    + " ?sensor dcterms:identifier ?idSensore.\n"
+                    + " OPTIONAL {?sensor dcterms:identifier ?idSensore.}\n"
                     + " OPTIONAL {?sensor schema:name ?name.}\n"
                     + ServiceMap.textSearchQueryFragment("?sensor", "?p", textToSearch)
                     + ServiceMap.geoSearchQueryFragment("?sensor", coords, raggioBus, geoMode)
                     + ServiceMap.valueTypeSearchQueryFragment("?sensor", value_type)
                     + ServiceMap.graphSearchQueryFragment("?sensor", graphUri)
+                    + ServiceMap.modelSearchQueryFragment("?sensor", model)
                     + ServiceMap.graphAccessQueryFragment("?sensor", apiKey)
                     + "} "
                     + (type != null ? "}" : "ORDER BY ?dist" + limitNearSensori);
@@ -1228,7 +1230,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
 
         while (resultNearSensori.hasNext() && numeroSensori < resSensori) {
           BindingSet bindingSetNearSensori = resultNearSensori.next();
-          String valueOfId = bindingSetNearSensori.getValue("idSensore").stringValue();
+          String valueOfId = "unknown";
+          if(bindingSetNearSensori.getValue("idSensore")!=null)
+            valueOfId = bindingSetNearSensori.getValue("idSensore").stringValue();
           String valueOfName = valueOfId;
           if(bindingSetNearSensori.getValue("name")!=null)
             valueOfName = bindingSetNearSensori.getValue("name").stringValue();
@@ -1329,6 +1333,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                       + ServiceMap.geoSearchQueryFragment("?ser", coords, raggioServizi, geoMode)
                       + ServiceMap.valueTypeSearchQueryFragment("?ser", value_type)
                       + ServiceMap.graphSearchQueryFragment("?ser", graphUri)
+                      + ServiceMap.modelSearchQueryFragment("?ser", model)
                       + ServiceMap.graphAccessQueryFragment("?ser", apiKey)
                       /*+ " }\n"*/)
                     + fc
@@ -2715,8 +2720,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         valueOfSTypeIta = valueOfSTypeIta.replace("@it", "");
         TOS = valueOfSTypeIta;
 
-        Normalizer.normalize(valueOfNote, Normalizer.Form.NFD).replaceAll("[^\\p{ASCII}]", "");
-        valueOfNote = valueOfNote.replaceAll("[^A-Za-z0-9 \\.:;,]+", "");
+        if(conf.get("normalizeNotes", "false").equals("true")) {
+          Normalizer.normalize(valueOfNote, Normalizer.Form.NFD).replaceAll("[^\\p{ASCII}]", "");
+          valueOfNote = valueOfNote.replaceAll("[^A-Za-z0-9 \\.:;,]+", "");
+        }
 
         float[] avgServiceStars = ServiceMap.getAvgServiceStars(serviceUri);
 
@@ -4051,8 +4058,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
 
       NOS = valueOfName;
 
-      Normalizer.normalize(valueOfNote, Normalizer.Form.NFD).replaceAll("[^\\p{ASCII}]", "");
-      valueOfNote = valueOfNote.replaceAll("[^A-Za-z0-9 \\.,:;]+", "");
+      if(conf.get("normalizeNotes", "false").equals("true")) {
+        Normalizer.normalize(valueOfNote, Normalizer.Form.NFD).replaceAll("[^\\p{ASCII}]", "");
+        valueOfNote = valueOfNote.replaceAll("[^A-Za-z0-9 \\.,:;|]+", "");
+      }
 
       if (i != 0) {
         out.println(", ");

@@ -778,6 +778,12 @@ public class ServiceMap {
     return subj+" sosa:observes <"+value_type+">.\n";
   }
 
+  static public String modelSearchQueryFragment(String subj, String model) {
+    if(model==null || model.trim().isEmpty())
+      return "";
+    return subj+" km4c:model \""+model.trim()+"\".\n";
+  }
+
   static public String graphSearchQueryFragment(String subj, String graphUri) {
     if (graphUri==null) {
       return "";

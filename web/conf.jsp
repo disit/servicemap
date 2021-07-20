@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.JwtUtil"%>
 <%@page import="org.disit.servicemap.api.IoTChecker"%>
 <%@page import="org.disit.servicemap.ServiceMapping"%>
 <%/* ServiceMap.
@@ -37,6 +38,7 @@
           conf.load();
           ServiceMapping.reset();
           ServiceMap.resetTplAgencies();
+          JwtUtil.reset();
           IoTChecker.reset();
         }
         out.println(conf.asHtml());

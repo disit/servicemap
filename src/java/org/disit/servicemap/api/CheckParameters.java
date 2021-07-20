@@ -117,7 +117,7 @@ public class CheckParameters {
   }
   
   public static String checkAlphanumString(String s) {
-    if(!s.matches("^[\\p{L}0-9 ]*$"))
+    if(!s.matches("^[\\p{L}0-9 _\\-\\.]*$"))
       return "invalid alphanum string";
     return null;
   }

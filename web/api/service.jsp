@@ -37,7 +37,7 @@
 
    You should have received a copy of the GNU Affero General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
-
+  response.setContentType("application/json; charset=UTF-8");
   RepositoryConnection con = ServiceMap.getSparqlConnection();
   String idService = request.getParameter("serviceUri");
   String ip = ServiceMap.getClientIpAddress(request);
@@ -527,10 +527,10 @@
           valueOfSTypeIta = valueOfSTypeIta.replace(" ", "_");
           valueOfSTypeIta = valueOfSTypeIta.replaceAll("[^\\P{Punct}_]+", "");
         }
-
-        Normalizer.normalize(valueOfNote, Normalizer.Form.NFD).replaceAll("[^\\p{ASCII}]", "");
-        valueOfNote = valueOfNote.replaceAll("[^A-Za-z0-9 ]+", "");
-
+        if(conf.get("normalizeNotes", "false").equals("true")) {
+          Normalizer.normalize(valueOfNote, Normalizer.Form.NFD).replaceAll("[^\\p{ASCII}]", "");
+          valueOfNote = valueOfNote.replaceAll("[^A-Za-z0-9 ]+", "");
+        }
         String valueOfLSUri = "";
         String valueOfLSName = "";
         if (bindingSetService.getValue("lsUri") != null) {

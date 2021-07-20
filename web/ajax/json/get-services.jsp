@@ -106,8 +106,10 @@
     ServiceMap.logAccess(request, null, centroRicerca, categorie, null, "ui-services-by-gps", numeroRisultatiServizi, raggioServizi, null, textFilter, null, null, null);
 
     String apiKey = (String)request.getSession().getAttribute("apikey");
+    String model = request.getParameter("model");
+    
     try {
-      serviceMapApi.queryLatLngServices(out, con, coord, categorie, textFilter,raggioServizi,raggioServizi,raggioServizi,numeroRisultatiServizi,numeroRisultatiServizi,numeroRisultatiServizi,null, cat_servizi, false, inside, true, fullCount, value_type, graphUri, null, apiKey);
+      serviceMapApi.queryLatLngServices(out, con, coord, categorie, textFilter,raggioServizi,raggioServizi,raggioServizi,numeroRisultatiServizi,numeroRisultatiServizi,numeroRisultatiServizi,null, cat_servizi, false, inside, true, fullCount, value_type, graphUri, null, apiKey, model);
     } catch(IllegalArgumentException e) {
       response.sendError(400);
     } catch (Exception e) {

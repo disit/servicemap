@@ -75,6 +75,7 @@ String value_type = request.getParameter("value_type");
 String graphUri = request.getParameter("graphUri");
 String valueName = request.getParameter("valueName");
 String apikey = request.getParameter("apikey");
+String model = request.getParameter("model");
         
 if(idService==null && selection==null && queryId==null && search==null && showBusPosition==null) {
     ServiceMap.logError(request, response, 400, "please specify 'selection', 'search', 'serviceUri' or 'queryId' parameters");
@@ -100,7 +101,10 @@ if(apikey!=null && (check=CheckParameters.checkApiKey(apikey))!=null) {
 if(apikey==null && u!=null) {
   apikey="user:"+u.username+" role:"+u.role+" at:"+u.accessToken;
 }
-  
+if(model!=null && (check = CheckParameters.checkAlphanumString(model))!=null) {
+  ServiceMap.logError(request, response, 400, check);
+  return;  
+}
 if ("html".equals(request.getParameter("format")) || (request.getParameter("format") == null && request.getParameter("queryId") != null)) {%>
 <jsp:include page="../../mappa.jsp" > <jsp:param name="mode" value="query"/> </jsp:include>
 <%
@@ -547,7 +551,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
           }
           // get services by lat/long
           if(coords!=null && (coords.length==2 || coords.length==4 || (coords.length==1 && (coords[0].startsWith("wkt:") || selection.startsWith("geo:") || selection.startsWith("graph:"))))) {
-            int results = serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, true, fullCount, value_type, graphUri, valueName, apikey);
+            int results = serviceMapApi.queryLatLngServices(out, con, coords, categorie, textToSearch, raggioBus, raggioSensori, raggioServizi, risultatiBus, risultatiSensori, risultatiServizi, lang, null, getGeometry, findInside, true, fullCount, value_type, graphUri, valueName, apikey, model);
             ServiceMap.updateResultsPerIP(ip, requestType, results);
             ServiceMap.logAccess(request, null, selection, categorie, null, "api-services-by-gps", risultati, raggi, queryId, textToSearch, "json", uid, reqFrom);
           }

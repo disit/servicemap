@@ -21,6 +21,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -97,7 +98,7 @@ public class IoTChecker {
           ServiceMap.println("iotChecker "+serviceUri+" GRANTED ACCESS to RootAdmin");
           return true;
         }
-      } else if(apiKey!=null && apiKey.equals(conf.get("iotCheckerPassword", "password"))) { //set in the configuration a VERY strong password
+      } else if(apiKey!=null && Arrays.asList(conf.get("iotCheckerPassword", "password").split(";")).contains(apiKey)) { //set in the configuration a VERY strong password
           synchronized(nPasswordSynch) {
             nPasswordHits++;
           }
