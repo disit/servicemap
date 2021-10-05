@@ -37,7 +37,7 @@
         if(request.getParameter("reset")!=null) {
           conf.load();
           ServiceMapping.reset();
-          ServiceMap.resetTplAgencies();
+          ServiceMap.reset();
           JwtUtil.reset();
           IoTChecker.reset();
         }

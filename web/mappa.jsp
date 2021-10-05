@@ -296,12 +296,12 @@
                     </div>                          
                     <div id="tabs-addr-search">
                         <div class="use-case-addr-search">
-                                exclude POI:<input type="checkbox" id="quick-search-poi">
-                                AND mode:<input type="checkbox" checked="checked" id="quick-search-and">
-                                sort by distance:<input type="checkbox" checked="checked" id="quick-search-sortdist"><br>
-                                position:<input id="quick-search-position" value="">
-                                maxDists:<input id="quick-search-maxdists" value=""><br>
-                                categories:<input id="quick-search-categories" value="BusStop;StreetNumber;Municipality">
+                                exclude POI: <input type="checkbox" id="quick-search-poi">
+                                AND mode: <input type="checkbox" checked="checked" id="quick-search-and">
+                                sort by distance: <input type="checkbox" checked="checked" id="quick-search-sortdist"><br>
+                                position: <input id="quick-search-position" value="" placeholder="latitude;longitude">
+                                maxDists (km): <input id="quick-search-maxdists" value="" size="4"><br>
+                                categories: <input id="quick-search-categories" value="BusStop;StreetNumber;Municipality">
                                 <input id="quick-search" >
                         </div>
                     </div>                          
@@ -803,7 +803,7 @@
                                         var numBusstop = 0;
                                         var numSensor = 0;
                                         var numTotRes = 0;
-                                        text = escape(text);
+                                        text = encodeURIComponent(text);
                                         $('#loading').show();
                                         svuotaLayers();
                                         query = saveQueryFreeText(text, limit);
@@ -1230,7 +1230,7 @@
                                         }
                                     }
                                     function showResultsFreeSearch(textToSearch, limit) {
-                                        textToSearch = escape(textToSearch);
+                                        textToSearch = encodeURIComponent(textToSearch);
                                         $('#loading').show();
                                         $.ajax({
                                             data: {
@@ -1274,7 +1274,7 @@
                                             error: function (request, status, error) {
                                                 $('#loading').hide();
                                                 console.log(error);
-                                                alert('Error in searching ' + text + "\n The error is " + error);
+                                                alert('Error in searching ' + decodeURIComponent(text) + "\n The error is " + error);
                                             }
                                         });
                                     }
@@ -1368,6 +1368,14 @@
                                                     alert("no info found for service " + serviceUri);
                                                 }
                                                 $('#loading').hide();
+                                            },
+                                            error: function(jqXHR, textStatus, errorThrown ) {
+                                              $('#loading').hide();
+                                              console.log(jqXHR, textStatus, errorThrown);
+                                              var msg = "Problems accessing to "+serviceUri;
+                                              if(jqXHR.responseJSON?.message)
+                                                msg = jqXHR.responseJSON.message;
+                                              alert(msg);
                                             }
                                         });
                                     }

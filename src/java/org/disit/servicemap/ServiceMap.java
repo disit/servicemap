@@ -46,6 +46,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -109,6 +110,8 @@ public class ServiceMap {
   static private BufferedWriter errorLog = null;
   
   static private Map<String,String> icons = null; 
+  
+  static private List<String> macroCategories = null;
 
   static public String dateFormatT = "yyyy-MM-dd'T'HH:mm:ss";
   static public String dateFormatTmin = "yyyy-MM-dd'T'HH:mm";
@@ -319,6 +322,15 @@ public class ServiceMap {
     if(s==null)
       return null;
     return JSONObject.escape(s); //)s.replace("\"", "\\\"").replace("\t", "\\t").replace("\n", "\\n");
+  }
+  
+  static public String decodeOrionForbiddenChars(String s) {
+    if(s==null)
+      return null;
+    if(s.indexOf('%')>=0)
+      return s.replace("%27", "\'").replace("%28","(").replace("%29",")").replace("%3C","<").replace("%3E",">").replace("%22","\"").replace("%3D","=").replace("%3B",";");
+    else
+      return s;
   }
 
   static final public String prefixes =
@@ -537,21 +549,8 @@ public class ServiceMap {
     String passMySql = conf.get("passMySql", "");
 
     if(!km4cVersion.equals("old")) {
-      /*int n=0;
-      for(String c:listaCategorie) {
-        if(!c.equals("Service") && !c.equals("NearBusStops") && !c.equals("RoadSensor")) {
-          if(n>0)
-            filtroQuery += "UNION";
-          filtroQuery += " { ?ser a km4c:"+(c.substring(0, 1).toUpperCase()+c.substring(1))+(sparqlType.equals("virtuoso")? " OPTION (inference \"urn:ontology\")":"")+".}\n";
-          n++;
-        }
-      }*/
-      //if(listaCategorie.contains("theatre"))
-      //  listaCategorie.add("teathre"); //FIX DA RIMUOVERE
       String microCat="";
-      String mCats[] = {"Accommodation", "Advertising", "AgricultureAndLivestock", "CivilAndEdilEngineering", "CulturalActivity", "EducationAndResearch", "Emergency", "Environment", "Entertainment", "FinancialService",
-        "GovernmentOffice", "HealthCare", "IndustryAndManufacturing", "MiningAndQuarrying", "ShoppingAndService", "TourismService", "TransferServiceAndRenting", "UtilitiesAndSupply", "Wholesale", "WineAndFood","IoTDevice"};
-      List<String> macroCats=Arrays.asList(mCats); //TODO prendere da query e fare caching
+      List<String> macroCats = getMacroCategories();
       int n=0;      
       for(String c:listaCategorie) {
         //FIX temporaneo
@@ -1289,8 +1288,9 @@ public class ServiceMap {
     return tplAgencies.get(agency_id);    
   }
   
-  static synchronized public void resetTplAgencies() {
-    tplAgencies=null;
+  static synchronized public void reset() {
+    tplAgencies = null;
+    macroCategories = null;
   }
 
   static public String makeServiceType(String category, String type) {
@@ -2292,4 +2292,32 @@ public class ServiceMap {
     return new RestHighLevelClient(restClientBuilder);    
   }
 
+  public synchronized static List<String> getMacroCategories() throws Exception {
+    if(macroCategories == null) {
+      //String mCats[] = {"Accommodation", "Advertising", "AgricultureAndLivestock", "CivilAndEdilEngineering", "CulturalActivity", "EducationAndResearch", "Emergency", "Environment", "Entertainment", "FinancialService",
+      //  "GovernmentOffice", "HealthCare", "IndustryAndManufacturing", "MiningAndQuarrying", "ShoppingAndService", "TourismService", "TransferServiceAndRenting", "UtilitiesAndSupply", "Wholesale", "WineAndFood","IoTDevice"};
+      
+      macroCategories = new LinkedList<>();
+      RepositoryConnection con = ServiceMap.getSparqlConnection();
+      try {
+        String query = "SELECT ?m {\n" +
+          "  ?m rdfs:subClassOf km4c:Service.\n" +
+          "  filter exists {?c rdfs:subClassOf ?m.}\n" +
+          "}";
+        TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+        long start = System.nanoTime();
+        TupleQueryResult result = tq.evaluate();
+        ServiceMap.logQuery(query, "get-macrocats", "virtuoso", "", System.nanoTime()-start);
+        while(result.hasNext()) {
+          BindingSet binding = result.next();
+          String m=binding.getValue("m").stringValue();
+          macroCategories.add(m.substring(m.lastIndexOf("#")+1));
+        }
+        ServiceMap.println("macroCats: "+macroCategories);
+      } finally {
+        con.close();
+      }
+    }
+    return macroCategories;
+  }
 }

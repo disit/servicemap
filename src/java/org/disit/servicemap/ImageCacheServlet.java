@@ -52,9 +52,10 @@ public class ImageCacheServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException, UnsupportedEncodingException {
+    String imgUrl=null;
     try {
       Configuration conf = Configuration.getInstance();
-      String imgUrl=request.getParameter("imageUrl");
+      imgUrl=request.getParameter("imageUrl");
       if(imgUrl==null) {
         response.sendError(400, "missing imageUrl parameter");
         return;
@@ -124,6 +125,8 @@ public class ImageCacheServlet extends HttpServlet {
       ServiceMap.logAccess(request, null, null, null, null, "api-imgcache", null, null, null, null, null, null, null);
     } catch (Exception ex) {
       ServiceMap.notifyException(ex);
+      if(imgUrl !=null)
+        response.sendRedirect(imgUrl);
     }
   }
 

@@ -3226,7 +3226,14 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         q += " AND "+fq;
       }
       if(valueName!=null) {
-        q += " AND value_name.keyword:\"" + valueName + "\"";
+        String[] vns = valueName.split(";");
+        q += " AND (";
+        for(int i=0;i<vns.length;i++) {
+          if(i!=0)
+            q += " OR ";
+          q += "value_name.keyword:\"" + valueName + "\"";
+        }
+        q += ")";
       }
       if(conf.get("elasticSearchFilterEmptyValue","false").equals("true")) {
         q += " AND NOT value_str.keyword:\"\"";
@@ -3256,9 +3263,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 .sort("uuid.keyword", SortOrder.ASC)
                 .sort("value_name.keyword", SortOrder.ASC);
       } else {
-        if(valueName != null)
+        /*if(valueName != null)
           searchSourceBuilder.sort("date_time", SortOrder.DESC);
-        else
+        else*/
           searchSourceBuilder.sort("date_time", SortOrder.DESC)
                 .sort("value_name.keyword", SortOrder.ASC);        
       }
@@ -3388,7 +3395,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               if(value==null) {
                 value = d.get("value_str");
                 if(value!=null)
-                  valueOut = "\""+JSONObject.escape(value.toString())+"\"";
+                  valueOut = "\""+JSONObject.escape(ServiceMap.decodeOrionForbiddenChars(value.toString()))+"\"";
                 else {
                   value = d.get("value_obj");
                   if(value!=null) {
@@ -5606,7 +5613,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
   
   public int queryLocationSearch(JspWriter out, String search, String searchMode, String position, String maxDists, boolean excludePOI, String categories, String maxResults, boolean sortByDist) throws Exception {
     Configuration conf = Configuration.getInstance();
-    String urlString = conf.get("solrKm4cIndexUrl", "http://192.168.0.207:8983/solr/km4c-index");
+    String urlString = conf.get("solrKm4cIndexUrl", "http://localhost:8983/solr/km4c-index");
     String fuzzyMatch = conf.get("solrFuzzyValue", "0.7");
     String exactMatch = conf.get("solrExactMatch", "0");
     String prefixMatch = conf.get("solrPrefixMatch", "1");
@@ -5614,7 +5621,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     int i=0;
     try {
       String tilde = "~";
-      String[] s=search.split("[^0-9A-Za-z']+");
+      String[] s=search.split("[^0-9\\p{L}']+");
       String ss = "";
       boolean haveNumber = false;
       for(String x:s) {
@@ -5679,9 +5686,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       query.addField("municipalityName_s_lower");
       query.addField("name_s_lower");
       query.addField("score");
+      long startTime = System.currentTimeMillis();
       QueryResponse qr=solr.query(query);
+      long endTime = System.currentTimeMillis();
       SolrDocumentList sdl=qr.getResults();
       long nfound=sdl.getNumFound();
+      ServiceMap.performance("locationSearch SOLR query:\""+ss+"\" found: "+nfound+" time: "+(endTime-startTime)+"ms");
 
       out.println("{\"type\": \"FeatureCollection\",\n"
               + "\"count\": "+nfound+",\n"
