@@ -1,3 +1,4 @@
+<%@page contentType="application/json" pageEncoding="UTF-8"%>
 <%@include file= "/include/parameters.jsp" %>
 <%
 /* ServiceMap.

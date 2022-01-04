@@ -1,3 +1,4 @@
+<%@page contentType="application/json" pageEncoding="UTF-8"%>
 <%@page import="org.disit.servicemap.api.IoTChecker"%>
 <%@page import="java.io.IOException"%>
 <%@page import="org.openrdf.model.Value"%>

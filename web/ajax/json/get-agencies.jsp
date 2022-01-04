@@ -1,3 +1,4 @@
+<%@page contentType="application/json" pageEncoding="UTF-8"%>
 <%@page import="org.disit.servicemap.api.CheckParameters"%>
 <%@page import="org.json.simple.parser.JSONParser"%>
 <%@page import="org.disit.servicemap.api.ServiceMapApiV1"%>

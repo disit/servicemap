@@ -1,3 +1,4 @@
+<%@page contentType="application/json" pageEncoding="UTF-8"%>
 <%@page import="java.io.IOException"%>
 <%@page import="org.openrdf.model.Value"%>
 <%@page import="java.util.*"%>

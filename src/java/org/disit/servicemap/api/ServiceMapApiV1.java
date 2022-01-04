@@ -831,17 +831,20 @@ public class ServiceMapApiV1 extends ServiceMapApi {
             "PREFIX dcterms:<http://purl.org/dc/terms/>\n" +
             "PREFIX ogis:<http://www.opengis.net/ont/geosparql#>\n" +
             "SELECT DISTINCT ?line ?shape ?bss ?bse (min(?trip) as ?routeId) ?polyline {{\n" +
-            "SELECT ?line ?trip (MAX(?st) as ?mx) (MIN(?st) as ?mn) {\n" +
+            "SELECT ?line ?trip ?mn (str(max(xsd:integer(?ss))) as ?maxStop)  {\n" +
             stopFilter +
+            "?mn gtfs:trip ?trip.\n" +
+            "?mn gtfs:stopSequence \"01\".\n" +
             "?st gtfs:trip ?trip.\n" +
-            //"?trip gtfs:service/dcterms:date ?d.\n" +
-            //"filter(xsd:date(?d)=xsd:date(now()))\n" +
+            "?st gtfs:stopSequence ?ss.\n" +
             lineFilter +
             "OPTIONAL{?trip gtfs:route/gtfs:shortName ?line1.}\n" +
             "?trip gtfs:route/gtfs:longName ?line2.\n" +
             "BIND(if(?line1,?line1,?line2) as ?line)" +
-            "} GROUP BY ?line ?trip\n" +
+            "} GROUP BY ?line ?trip ?mn\n" +
             "}\n" +
+            "?mx gtfs:trip ?trip.\n" +
+            "?mx gtfs:stopSequence ?maxStop.\n" +
             "?trip ogis:hasGeometry ?shape.\n" +
             (getGeometry ? "?shape ogis:asWKT ?polyline.\n" : "" ) +
             "?mx gtfs:stop/foaf:name ?bse.\n" +
@@ -3405,10 +3408,19 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                       value = gson.toJson(value);
                       valueOut = "\""+JSONObject.escape(value.toString())+"\"";
                     }
-                  }
-                  else {
-                    valueOut = "\"\"";
-                    value = "";
+                  } else {
+                    value = d.get("value_arr_obj");
+                    if(value!=null) {
+                      if(conf.get("elasticSearchValueObjAsString", "false").equals("true"))
+                        valueOut = value = gson.toJson(value);
+                      else {
+                        value = gson.toJson(value);
+                        valueOut = "\""+JSONObject.escape(value.toString())+"\"";
+                      }
+                    } else {
+                      valueOut = "\"\"";
+                      value = "";
+                    }
                   }
                 }
               } else {

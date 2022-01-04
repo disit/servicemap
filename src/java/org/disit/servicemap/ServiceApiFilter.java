@@ -35,7 +35,7 @@ public class ServiceApiFilter implements javax.servlet.Filter {
 
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         ((HttpServletResponse) response).addHeader("Access-Control-Allow-Methods", "GET, OPTIONS, HEAD, POST");
-        ((HttpServletResponse) response).addHeader("Access-Control-Allow-Headers", "Content-Type, kbn-version");
+        ((HttpServletResponse) response).addHeader("Access-Control-Allow-Headers", "Content-Type, kbn-version, Authorization");
         ((HttpServletResponse) response).addHeader("Access-Control-Max-Age", "86400");
         // pass the request along the filter chain
         chain.doFilter(request, response);
