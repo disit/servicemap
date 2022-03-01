@@ -1345,7 +1345,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     + (!km4cVersion.equals("old")
                             ? " ?ser a ?sType. FILTER(?sType!=km4c:RegularService && ?sType!=km4c:Service && ?sType!=km4c:DigitalLocation && ?sType!=km4c:TransverseService && ?sType!=km4c:BusStop && ?sType!=km4c:SensorSite)\n"
                             + filtroDL
-                            + " ?sType rdfs:subClassOf ?sCategory. FILTER(?sCategory != <http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing>)\n"
+                            + " ?sType rdfs:subClassOf* ?sCategory. FILTER(?sCategory != <http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing>)\n"
                             + " ?sCategory rdfs:subClassOf km4c:Service.\n"
                             + " ?sType rdfs:label ?sTypeLang. FILTER(LANG(?sTypeLang)=\"" + lang + "\")\n" : "")
                     + (getGeometry || inside ? " OPTIONAL {?ser opengis:hasGeometry [opengis:asWKT ?wktGeometry]. BIND(!STRSTARTS(?wktGeometry,\"POINT\") as ?hasGeometry)}\n" : "")
@@ -1589,9 +1589,6 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     logQuery(queryText, "API-free-text-search", sparqlType, textToSearch + ";" + limit, System.nanoTime() - start);
     int i = 0;
     out.println("{");
-    if (fullCount >= 0) {
-      out.println(" \"fullCount\": " + fullCount + ",");
-    }
     out.println(" \"type\": \"FeatureCollection\",\n"
             + " \"features\": [");
     while (result.hasNext()) {
@@ -1599,6 +1596,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
 
       String serviceUri = bindingSet.getValue("ser").stringValue();
       if(!IoTChecker.checkIoTService(serviceUri, apikey)) {
+        fullCount--;
         continue;
       }
       
@@ -1728,7 +1726,11 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + " }");
       i++;
     }
-    out.println("]}");
+    out.println("]");
+    if (fullCount >= 0) {
+      out.println(",\"fullCount\": " + fullCount);
+    }
+    out.println("}");
     return i;
   }
 
