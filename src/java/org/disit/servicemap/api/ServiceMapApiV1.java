@@ -54,7 +54,9 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -951,6 +953,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     final String km4cVersion = conf.get("km4cVersion", "new");
     final int MAX_RESULTS = Integer.parseInt(conf.get("maxResults", "50000"));
     
+    boolean removeDuplicates = Boolean.parseBoolean(conf.get("removeDuplicates", "true"));
+    
     String fromTime = null;
     if(valueName!=null && conf.get("fromTimeLimitDays", null) != null) {
       DateFormat dateFormatterT = new SimpleDateFormat(ServiceMap.dateFormatT);
@@ -1018,6 +1022,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     }
     args += categorie + ";" + textToSearch + ";" + raggioBus;
     out.println("{");
+    
+    Set<String> uniqueServiceUri = new TreeSet<>();
+
     try {
       if (searchBusStop && !inside) {
         String type;
@@ -1085,20 +1092,34 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     + (type != null ? "}" : " ORDER BY ?dist"+limitNearBusStop);
           }
         };
-        if("true".equals(makeFullCount))
-          fullCount = ServiceMap.countQuery(con, queryNearBusStop);
+        if("true".equals(makeFullCount)) {
+          if(!risultatiServizi.equals("0"))
+            fullCount = ServiceMap.countQuery(con, queryNearBusStop);
+          else
+            fullCount = 0;
+        }
 
         TupleQueryResult resultNearBS = ServiceMap.geoSparqlQuery(con, queryNearBusStop, null,"API-nearbusstop", args);
         out.println("\"BusStops\": {");
-        if (fullCount >= 0) {
-          out.println("\"fullCount\": " + fullCount + ",");
-        }
+
         out.println("\"type\": \"FeatureCollection\",\n"
                 + "\"features\":[");
         int s = 0;
+        int nBusDup = 0;
         while (resultNearBS.hasNext() && s < resBusStop) {
           BindingSet bindingSetNearBS = resultNearBS.next();
           String valueOfBS = bindingSetNearBS.getValue("bs").stringValue();
+          
+          //check duplicates
+          if(removeDuplicates) {
+            if(uniqueServiceUri.contains(valueOfBS)) {
+              nBusDup++;
+              continue;
+            } else {
+              uniqueServiceUri.add(valueOfBS);
+            }
+          }
+          
           String valueOfNomeFermata = JSONObject.escape(bindingSetNearBS.getValue("nomeFermata").stringValue());
           String valueOfBSLat = bindingSetNearBS.getValue("bslat").stringValue();
           String valueOfBSLong = bindingSetNearBS.getValue("bslong").stringValue();
@@ -1151,7 +1172,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           s++;
           numeroBus++;
         }
-        out.println("]}");
+        out.println("]");
+        if (fullCount >= 0) {
+          out.println(",\"fullCount\": " + (risultatiServizi.equals("0") ? numeroBus : fullCount - nBusDup) );
+          ServiceMap.println("fullBusCount:" + fullCount + " busCount:" + numeroBus + " dupBusCount:" + nBusDup);
+        }
+        out.println("}");        
       }
 
       if (searchSensorSite && !inside) {
@@ -1215,8 +1241,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           }
         };
 
-        if("true".equals(makeFullCount))
-          fullCount = ServiceMap.countQuery(con, queryNearSensors);
+        if("true".equals(makeFullCount)) {
+          if(!risultatiServizi.equals("0"))
+            fullCount = ServiceMap.countQuery(con, queryNearSensors);
+          else
+            fullCount = 0;
+        }
 
         TupleQueryResult resultNearSensori = ServiceMap.geoSparqlQuery(con, queryNearSensors, null, "API-nearsensori", args);
 
@@ -1225,21 +1255,32 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         } else {
           out.println(",\"SensorSites\": {");
         }
-        if (fullCount >= 0) {
-          out.println("\"fullCount\": " + fullCount + ",");
-        }
         out.println("\"type\": \"FeatureCollection\",\n"
               + "\"features\": [");
 
+        uniqueServiceUri = new TreeSet<>();
+        int nSnsDup = 0;
+        
         while (resultNearSensori.hasNext() && numeroSensori < resSensori) {
           BindingSet bindingSetNearSensori = resultNearSensori.next();
+          
+          //check if duplicated result
+          String valueOfIdService = bindingSetNearSensori.getValue("sensor").stringValue();
+          if(removeDuplicates) {
+            if(uniqueServiceUri.contains(valueOfIdService)) {
+              nSnsDup++;
+              continue;
+            } else {
+              uniqueServiceUri.add(valueOfIdService);
+            }
+          }
+          
           String valueOfId = "unknown";
           if(bindingSetNearSensori.getValue("idSensore")!=null)
             valueOfId = bindingSetNearSensori.getValue("idSensore").stringValue();
           String valueOfName = valueOfId;
           if(bindingSetNearSensori.getValue("name")!=null)
             valueOfName = bindingSetNearSensori.getValue("name").stringValue();
-          String valueOfIdService = bindingSetNearSensori.getValue("sensor").stringValue();
           String valueOfLat = bindingSetNearSensori.getValue("lat").stringValue();
           String valueOfLong = bindingSetNearSensori.getValue("long").stringValue();
           String valueOfDist = bindingSetNearSensori.getValue("dist").stringValue();      
@@ -1266,7 +1307,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           i++;
           numeroSensori++;
         }
-        out.println("]}");
+        out.println("]");
+        if (fullCount >= 0) {
+          out.println(",\"fullCount\": " + (risultatiServizi.equals("0") ? numeroSensori : fullCount - nSnsDup) );
+          ServiceMap.println("fullSnsCount: " + fullCount + " snsCount:" + numeroSensori + " dupSnsCount:" + nSnsDup);
+        }
+        out.println("}");
       }
 
       //if (!categorie.equals("BusStop") && !categorie.equals("SensorSite") && !categorie.equals("SensorSite;BusStop") && !categorie.equals("BusStop;SensorSite")) {
@@ -1361,8 +1407,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           }
         };
 
-        if("true".equals(makeFullCount))
-          fullCount = ServiceMap.countQuery(con, queryNearServices);
+        if("true".equals(makeFullCount)) { 
+          if(!risultatiServizi.equals("0"))
+            fullCount = ServiceMap.countQuery(con, queryNearServices);
+          else
+            fullCount = 0;
+        }
 
         TupleQueryResult result = ServiceMap.geoSparqlQuery(con, queryNearServices, null, "API-nearservices", args);
         if (!searchBusStop && !searchSensorSite || inside) {
@@ -1370,18 +1420,28 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         } else {
           out.println(", \"Services\":{");
         }
-        if (fullCount >= 0) {
-          out.println("\"fullCount\": " + fullCount + ",");
-        }
         out.println("\"type\": \"FeatureCollection\",\n"
                 + "\"features\": [");
+        uniqueServiceUri = new TreeSet<>();
         int w = 0;
+        int nSrvDup = 0;
+        int nSrvPrv = 0;
         while (result.hasNext() && numeroServizi < resServizi ) {
           BindingSet bindingSet = result.next();
           
           String valueOfSer = bindingSet.getValue("ser").stringValue();
+          if(removeDuplicates) {
+            if(uniqueServiceUri.contains(valueOfSer)) {
+              nSrvDup++;
+              continue;
+            } else {
+              uniqueServiceUri.add(valueOfSer);
+            }
+          }
+
           // check if is private or public and if user can see it
           if(!IoTChecker.checkIoTService(valueOfSer, apiKey)) {
+              nSrvPrv++;
               continue;
           }
 
@@ -1480,7 +1540,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           w++;
           numeroServizi++;
         }
-        out.println("]}");
+        out.println("]");
+        if (fullCount >= 0) {
+          out.println(",\"fullCount\": " + (risultatiServizi.equals("0") ? numeroServizi : fullCount - nSrvDup - nSrvPrv) );
+          ServiceMap.println("fullSrvCount:" + fullCount + " srvCount:" + numeroServizi + " dupSrvCount:" + nSrvDup + " privSrvCount:" + nSrvPrv);
+        }
+        out.println("}");
       }
     } finally {
       out.println("}");

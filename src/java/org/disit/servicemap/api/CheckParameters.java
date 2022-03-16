@@ -151,7 +151,7 @@ public class CheckParameters {
   }
   
   public static String checkApiKey(String apikey) {
-    if(apikey==null || !apikey.matches("[0-9A-Fa-f]+"))
+    if(apikey==null || !apikey.matches("[0-9A-Za-z]+"))
       return "invalid apikey";
     return null;
   }

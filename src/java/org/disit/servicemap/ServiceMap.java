@@ -630,20 +630,22 @@ public class ServiceMap {
 
     int n = 0;
     if (sparqlType.equals("virtuoso")) {
-        String[] s = textToSearch.split(" +");
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < s.length; i++) {
-          String word = s[i].trim().replaceAll("[^a-zA-Z0-9]", "");
-          if(!removeStopWords || !stopWords.contains(word)) {
-            if(n>0)
-              sb.append(" and ");
-            sb.append("'"+word+"'");
-            n++;
-          }
+        if(!textToSearch.startsWith("(")) {
+            String[] s = textToSearch.split(" +");
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < s.length; i++) {
+              String word = s[i].trim().replaceAll("[^a-zA-Z0-9]", "");
+              if(!word.isEmpty() && (!removeStopWords || !stopWords.contains(word))) {
+                if(n>0)
+                  sb.append(" and ");
+                sb.append("'"+word+"'");
+                n++;
+              }
+            }
+            textToSearch = sb.toString();
+            if("".equals(textToSearch))
+              return "";
         }
-        textToSearch = sb.toString();
-        if("".equals(textToSearch))
-          return "";
     }
     ServiceMap.println("search "+textToSearch);
     return " "+subj+" "+pred+" ?txt.\n"
