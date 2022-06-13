@@ -1569,7 +1569,6 @@ public class ServiceMap {
   
   public static Connection getRTConnection() throws Exception {
     Configuration conf = Configuration.getInstance();
-    //"jdbc:phoenix:192.168.0.118,192.168.0.124,192.168.0.129:2181:/hbase"
     String phoenixJDBC = conf.get("phoenixJDBC", null);
     if(phoenixJDBC == null)
       return null;
@@ -1580,7 +1579,6 @@ public class ServiceMap {
   
   public static Connection getRTConnection2() throws Exception {
     Configuration conf = Configuration.getInstance();
-    //"jdbc:phoenix:192.168.0.229,192.168.0.230,192.168.0.236:2181:/hbase-unsecure"
     String phoenixJDBC2 = conf.get("phoenixJDBC2", null);
     if(phoenixJDBC2 == null)
       return null;

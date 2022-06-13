@@ -39,7 +39,6 @@ if ("html".equals(request.getParameter("format"))) {%>
     ServiceMap.logAccess(request, null, "", null, null, "api-tpl-bus-stops", null, null, null, null, "html", uid, reqFrom);
 } else { //format JSON
     response.setContentType("application/json; charset=UTF-8");
-    response.addHeader("Access-Control-Allow-Origin", "*");
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
     RepositoryConnection con = ServiceMap.getSparqlConnection();

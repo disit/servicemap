@@ -190,7 +190,6 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
   } else { //format json
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
     response.setContentType("application/json; charset=UTF-8");
-    response.addHeader("Access-Control-Allow-Origin", "*");
 
     String realtime = request.getParameter("realtime");
     if(!"false".equals(realtime))

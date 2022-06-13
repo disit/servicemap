@@ -650,7 +650,7 @@ public class ServiceValuesServlet extends HttpServlet {
     else if(!path.endsWith("/"))
       path += "/";
 
-    response.addHeader("Access-Control-Allow-Origin", "*");
+    //response.addHeader("Access-Control-Allow-Origin", "*");
     response.addHeader("Content-Type", "application/json");
 
     String serviceUri = request.getParameter("serviceUri");

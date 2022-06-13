@@ -137,6 +137,8 @@ public class ConnectionPool {
   }
   
   public static String getStatus() {
+    if(connPool == null)
+      return "NO POOL";
     GenericObjectPool cp = connPool.getConnectionPool();
     
     return "Max: " + cp.getMaxActive() + "; "

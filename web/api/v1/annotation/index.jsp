@@ -19,6 +19,5 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
     response.setContentType("application/json; charset=UTF-8");
-    response.addHeader("Access-Control-Allow-Origin", "*");
     ServiceMap.logError(request, response, HttpServletResponse.SC_BAD_REQUEST, "API UNDER DEVELOPMENT");
 %>

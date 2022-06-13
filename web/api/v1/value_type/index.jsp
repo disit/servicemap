@@ -20,7 +20,6 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 response.setContentType("application/json; charset=UTF-8");
-response.addHeader("Access-Control-Allow-Origin", "*");
 RepositoryConnection con = ServiceMap.getSparqlConnection();
 try {
   ServiceMapApiV1 api=new ServiceMapApiV1();

@@ -116,8 +116,23 @@ public class CheckParameters {
     return null;
   }
   
+  public static String checkInteger(String n) {
+    try {
+      Integer.parseInt(n);
+    } catch(NumberFormatException e) {
+      return "invalid integer '"+n+"'";
+    }
+    return null;
+  }
+
   public static String checkAlphanumString(String s) {
     if(!s.matches("^[\\p{L}0-9 _\\-\\.]*$"))
+      return "invalid alphanum string";
+    return null;
+  }
+  
+  public static String checkExtAlphanumString(String s) {
+    if(!s.matches("^[\\p{L}0-9 _\\-\\.;:=]*$"))
       return "invalid alphanum string";
     return null;
   }

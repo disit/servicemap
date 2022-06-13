@@ -63,7 +63,6 @@
 <%
   
     response.setContentType("application/json; charset=UTF-8");
-    response.addHeader("Access-Control-Allow-Origin", "*");
  
     Connection conMySQL = null;
     PreparedStatement stmt = null;

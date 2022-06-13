@@ -71,7 +71,6 @@
   } else { //format json
     request.setCharacterEncoding("UTF-8");
     response.setContentType("application/json; charset=UTF-8");
-    response.addHeader("Access-Control-Allow-Origin", "*");
     ServiceMapApiV1 serviceMapApi = new ServiceMapApiV1();
 
     String srcLatLng[] = ServiceMap.parsePosition(source, apikey);

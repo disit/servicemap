@@ -30,14 +30,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 
-@WebFilter(asyncSupported = true, urlPatterns = { "/api/v1/*" })
+@WebFilter(asyncSupported = true, urlPatterns = { "/api/*" })
 public class ServiceApiFilter implements javax.servlet.Filter {
 
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         ((HttpServletResponse) response).addHeader("Access-Control-Allow-Methods", "GET, OPTIONS, HEAD, POST");
         ((HttpServletResponse) response).addHeader("Access-Control-Allow-Headers", "Content-Type, kbn-version, Authorization");
         ((HttpServletResponse) response).addHeader("Access-Control-Max-Age", "86400");
-        // pass the request along the filter chain
+        ((HttpServletResponse) response).addHeader("Access-Control-Allow-Origin", "*");
         chain.doFilter(request, response);
     }
 

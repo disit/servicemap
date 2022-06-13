@@ -171,8 +171,8 @@ public class PhotoUploadServlet extends HttpServlet {
       } finally {
         conMySQL.close();
       }
-      response.addHeader("Access-Control-Allow-Origin", "*");
-      response.addHeader("Access-Control-Allow-Methods", "POST");
+      //response.addHeader("Access-Control-Allow-Origin", "*");
+      //response.addHeader("Access-Control-Allow-Methods", "POST");
       response.setHeader("Location", request.getRequestURI()+"/"+file.getName());
       String baseApiUrl = conf.get("baseApiUrl", "http://www.disit.org/ServiceMap/api/");
       ServiceMap.sendEmail(conf.get("validationEmail","pierfrancesco.bellini@unifi.it"), "KM4CITY new photo uploaded for "+serviceName, 
@@ -189,7 +189,7 @@ public class PhotoUploadServlet extends HttpServlet {
 
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    response.addHeader("Access-Control-Allow-Origin", "*");
+    //response.addHeader("Access-Control-Allow-Origin", "*");
     String uri=request.getRequestURI();
     String file=uri.substring(uri.lastIndexOf("photo/")+6);
     if(file.isEmpty() || file.startsWith("..")) {
