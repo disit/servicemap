@@ -74,7 +74,7 @@ public class IoTSearchApi  {
     try {
       String q = null;
       if(model!=null)
-        q = "deviceModel:"+model;
+        q = "deviceModel:\""+QueryParserBase.escape(model)+"\"";
       if(categories!=null) {
         String[] cats = categories.split(";");
         if(q==null)

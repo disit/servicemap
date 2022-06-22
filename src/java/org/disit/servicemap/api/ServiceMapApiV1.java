@@ -5393,7 +5393,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       String queryForLine = "";
       if(busStop!=null && busStop.startsWith("http://")) {
         if(CheckParameters.checkUri(busStop)!=null) 
-          throw new IllegalArgumentException("invalid URI");
+          throw new IllegalArgumentException("invalid URI "+busStop);
        queryForLine = "PREFIX km4c:<http://www.disit.org/km4city/schema#>"
               + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>"
               + "select distinct ?id ?line ?desc ?ag ?agname where {\n"
