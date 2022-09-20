@@ -510,25 +510,24 @@ public class ServiceMapApiV1 extends ServiceMapApi {
     Map<String,String> gtfsrtPassages = null;
     if(conf.get("gtfsRealtime","Helsingin seudun liikenne").contains(agencyName)) {
       Connection rtcon = ServiceMap.getRTConnection2();
-      if(rtcon==null) {
-        throw new Exception("missing hbase phoenix connection");
+      if(rtcon!=null) {
+        //find passage
+        gtfsrtPassages = new HashMap<>();
+        Statement stmt = rtcon.createStatement();
+        stmt.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
+        String gtfsrtTable = conf.get("gtfsRealTimeTable", "gtfsrTripupdate_hel");
+        long ts = System.currentTimeMillis();
+        ResultSet rs = stmt.executeQuery("SELECT tripUri, convert_tz(arrivalTime,'UTC','"+timeZoneId+"') FROM " + gtfsrtTable + " WHERE stopUri='" + stopUri + "' AND arrivalTime>=NOW()");
+        while(rs.next()) {
+          String gtfsTripUri = rs.getString(1);
+          String gtfsRtArrivalTime = rs.getString(2);
+          ServiceMap.println(stopUri+" "+gtfsTripUri+" --> "+gtfsRtArrivalTime);
+          gtfsrtPassages.put(gtfsTripUri, gtfsRtArrivalTime);
+        }
+        ServiceMap.performance("GTFSRT checked stop "+stopUri+" time:"+(System.currentTimeMillis()-ts)+"ms");
+        stmt.close();
+        rtcon.close();
       }
-      //find passage
-      gtfsrtPassages = new HashMap<>();
-      Statement stmt = rtcon.createStatement();
-      stmt.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
-      String gtfsrtTable = conf.get("gtfsRealTimeTable", "gtfsrTripupdate_hel");
-      long ts = System.currentTimeMillis();
-      ResultSet rs = stmt.executeQuery("SELECT tripUri, convert_tz(arrivalTime,'UTC','"+timeZoneId+"') FROM " + gtfsrtTable + " WHERE stopUri='" + stopUri + "' AND arrivalTime>=NOW()");
-      while(rs.next()) {
-        String gtfsTripUri = rs.getString(1);
-        String gtfsRtArrivalTime = rs.getString(2);
-        ServiceMap.println(stopUri+" "+gtfsTripUri+" --> "+gtfsRtArrivalTime);
-        gtfsrtPassages.put(gtfsTripUri, gtfsRtArrivalTime);
-      }
-      ServiceMap.performance("GTFSRT checked stop "+stopUri+" time:"+(System.currentTimeMillis()-ts)+"ms");
-      stmt.close();
-      rtcon.close();
     }
     Map<String,String> gtfsrtAlerts = null;
     if(conf.get("gtfsAlerts","Helsingin seudun liikenne").contains(agencyName)) {
@@ -2572,7 +2571,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     out.println("}");
   }
 
-  public String queryService(JspWriter out, RepositoryConnection con, String serviceUri, String lang, String realtime, String valueName, String fromTime, String toTime, String checkHealthiness, String uid, List<String> serviceTypes, String format) throws Exception {
+  public String queryService(JspWriter out, RepositoryConnection con, String serviceUri, String lang, String realtime, String valueName, String fromTime, String toTime, String aggregation, String checkHealthiness, String uid, List<String> serviceTypes, String format) throws Exception {
     Configuration conf = Configuration.getInstance();
     String sparqlType = conf.get("sparqlType", "virtuoso");
     String km4cVersion = conf.get("km4cVersion", "new");
@@ -3127,7 +3126,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           if(md.realTimeSolrQuery.equals("true") || md.realTimeSolrQuery.equals("solr"))
             realTimeSolrQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, toTime, limit, out, rtData);
           else if(md.realTimeSolrQuery.equals("elasticsearch"))
-            realTimeElasticSearchQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, toTime, limit, out, rtData);
+            realTimeElasticSearchQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, toTime, aggregation, limit, out, rtData);
         }
       }
     }
@@ -3259,7 +3258,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     solr.shutdown();
   }
   
-  private void realTimeElasticSearchQuery(Configuration conf, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, String toTime, int limit, JspWriter out, JsonArray rtData) throws Exception {
+  private void realTimeElasticSearchQuery(Configuration conf, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, String toTime, String aggregation, int limit, JspWriter out, JsonArray rtData) throws Exception {
     RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf);
     String[] index = conf.get("elasticSearchIndex", "sensorindex").split(";");
 
@@ -3344,21 +3343,46 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         searchSourceBuilder.aggregation(AggregationBuilders.terms("value_name").field("value_name.keyword").size(Integer.parseInt(conf.get("elasticSearchMaxAggVName", "100"))).order(BucketOrder.key(true)));
       }
       boolean fromAggregation = false;
+      String resultAggregation = null;
       if(valueName!=null && fromTime!=null) {
-        if((tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays1", "100"))*24*60*60L) {
+        if(aggregation!=null) {
+          String[] aggr = aggregation.split("-");
+          int aggrVal = Integer.parseInt(aggr[0]);
+          if(aggrVal>0) {
+            String aggrType = aggr[1];
+            DateHistogramInterval dhInterval = null;
+            if(aggrType.equals("minute"))
+              dhInterval= DateHistogramInterval.minutes(aggrVal);
+            else if(aggrType.equals("hour"))
+              dhInterval= DateHistogramInterval.hours(aggrVal);
+            else if(aggrType.equals("day"))
+              dhInterval= DateHistogramInterval.days(aggrVal);
+            searchSourceBuilder.aggregation(
+                    AggregationBuilders.dateHistogram("date_time")
+                            .field(conf.get("elasticSearchAggField", "date_time"))
+                            .dateHistogramInterval(dhInterval)
+                            .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
+            fromAggregation = true;
+          }
+          resultAggregation = aggregation;
+        } else if((tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays1", "100"))*24*60*60L) {
+          String elasticSearchAvgHours = conf.get("elasticSearchAvgHours", "6");
           searchSourceBuilder.aggregation(
                   AggregationBuilders.dateHistogram("date_time")
                           .field(conf.get("elasticSearchAggField", "date_time"))
-                          .dateHistogramInterval(DateHistogramInterval.hours(Integer.parseInt(conf.get("elasticSearchAvgHours", "6"))))
+                          .dateHistogramInterval(DateHistogramInterval.hours(Integer.parseInt(elasticSearchAvgHours)))
                           .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
           fromAggregation = true;
+          resultAggregation = elasticSearchAvgHours+"-hours";
         } else if((tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays", "20"))*24*60*60L) {
+          String elasticSearchAvgMins = conf.get("elasticSearchAvgMins", "15");
           searchSourceBuilder.aggregation(
                   AggregationBuilders.dateHistogram("date_time")
                           .field(conf.get("elasticSearchAggField", "date_time"))
-                          .dateHistogramInterval(DateHistogramInterval.minutes(Integer.parseInt(conf.get("elasticSearchAvgMins", "15"))))
+                          .dateHistogramInterval(DateHistogramInterval.minutes(Integer.parseInt(elasticSearchAvgMins)))
                           .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
           fromAggregation = true;
+          resultAggregation = elasticSearchAvgMins+"-minute";
         }
       }
 
@@ -3412,6 +3436,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           out.println("]},");
 
           out.println(" \"results\": {");
+          if(resultAggregation != null)
+            out.println(" \"aggregation\": \""+resultAggregation+"\",");
           out.println(" \"bindings\": [");
         }
         
@@ -3462,6 +3488,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               Object value = d.get("value");
               Object valueOut = value;
               //ServiceMap.println("value:"+value);
+              boolean elasticSearchValueObjAsString = conf.get("elasticSearchValueObjAsString", "false").equals("true");
               if(value==null) {
                 value = d.get("value_str");
                 if(value!=null)
@@ -3469,7 +3496,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                 else {
                   value = d.get("value_obj");
                   if(value!=null) {
-                    if(conf.get("elasticSearchValueObjAsString", "false").equals("true"))
+                    if(elasticSearchValueObjAsString)
                       valueOut = value = gson.toJson(value);
                     else {
                       value = gson.toJson(value);
@@ -3478,15 +3505,28 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                   } else {
                     value = d.get("value_arr_obj");
                     if(value!=null) {
-                      if(conf.get("elasticSearchValueObjAsString", "false").equals("true"))
+                      if(elasticSearchValueObjAsString)
                         valueOut = value = gson.toJson(value);
                       else {
                         value = gson.toJson(value);
                         valueOut = "\""+JSONObject.escape(value.toString())+"\"";
                       }
                     } else {
-                      valueOut = "\"\"";
-                      value = "";
+                      value = d.get("value_bool");
+                      if(value!=null) {
+                        valueOut = "\""+value+"\"";
+                      } else {
+                        value = d.get("value_json_str");
+                        if(value!=null) {
+                          if(elasticSearchValueObjAsString)
+                            valueOut = value;
+                          else
+                            valueOut = "\""+JSONObject.escape(value.toString())+"\"";
+                        } else {
+                          valueOut = "\"\"";
+                          value = "";
+                        }
+                      }
                     }
                   }
                 }
@@ -3780,13 +3820,16 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     if(conf.get("disablePhoenixQuery", "false").equals("true")) {
       if(out!=null)
         out.println("{\"error\":\"problems with phoenix\"}");
-      ServiceMap.notifyException(null,"ERROR PHOENIX DISABLED "+serviceUri);
+      //ServiceMap.notifyException(null,"ERROR PHOENIX DISABLED "+serviceUri);
       return;
     }
     try {
       Connection rtCon = ServiceMap.getRTConnection();
       if(rtCon==null) {
-        throw new Exception("missing hbase phoenix connection");
+        if(out!=null)
+          out.println("{\"error\":\"no connection with phoenix\"}");
+        //throw new Exception("missing hbase phoenix connection");
+        return;
       }
       //Connection rtCon2 = ServiceMap.getRTConnection2();
       Statement s = rtCon.createStatement();
@@ -4001,7 +4044,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           if (md.realTimeSolrQuery.equals("true") || md.realTimeSolrQuery.equals("solr")) {
             realTimeSolrQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, null, 1, null, rtData);
           } else if (md.realTimeSolrQuery.equals("elasticsearch")) {
-            realTimeElasticSearchQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, null, -1, null, rtData);
+            realTimeElasticSearchQuery(conf, rtAttributes, customAttrs, serviceUri, valueName, fromTime, null, null, -1, null, rtData);
           }
         }
       }
@@ -5526,16 +5569,21 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     if(maxFeet==null)
       maxFeet = "0.1";
     
+    long tOsmSrc = 0, tOsmDst = 0;
     String srcnode="",dstnode="", nid;
     if(conf.get("useInternalOsm","true").equals("true")) {
       if(srcLatLng.length>=2) {
+        long ts = System.currentTimeMillis();
         nid = ServiceMap.getOsmNodeId(srcLatLng[0], srcLatLng[1], transport);
+        tOsmSrc = System.currentTimeMillis() - ts;
         if(nid!=null)
           srcnode = "\"lat\":"+srcLatLng[0]+",\"lon\":"+srcLatLng[1]+",\"node_id\":\""+nid+"\"";
       } else
         srcnode = "\"lat\":0,\"lon\":0,\"node_id\":\""+srcLatLng[0]+"\"";
       if(dstLatLng.length>=2) {
+        long ts = System.currentTimeMillis();
         nid = ServiceMap.getOsmNodeId(dstLatLng[0], dstLatLng[1], transport);
+        tOsmDst = System.currentTimeMillis() - ts;
         if(nid!=null)
           dstnode = "\"lat\":"+dstLatLng[0]+",\"lon\":"+dstLatLng[1]+",\"node_id\":\""+nid+"\"";      
       } else {
@@ -5545,6 +5593,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       srcnode = "\"lat\":"+srcLatLng[0]+",\"lon\":"+srcLatLng[1];      
       dstnode = "\"lat\":"+dstLatLng[0]+",\"lon\":"+dstLatLng[1];      
     }
+
     String JSON="{\"message_version\":\"1.0\",\n"+
       "\"journey\":{\n"+
       "\"search_route_type\": \""+routeType+"\",\n"+
@@ -5675,6 +5724,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           ServiceMap.logNoRoute(r);
         }
         long time=System.currentTimeMillis()-start;
+        r.put("elapsed_osmsrc_ms", tOsmSrc);
+        r.put("elapsed_osmdst_ms", tOsmDst);
         r.put("elapsed_ms", time);
         out.print(r.toString());
       } else {

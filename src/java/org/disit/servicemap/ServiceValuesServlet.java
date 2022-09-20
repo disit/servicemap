@@ -388,7 +388,9 @@ public class ServiceValuesServlet extends HttpServlet {
       }
       Connection conn = ServiceMap.getRTConnection();
       if(conn==null) {
-        throw new Exception("missing hbase phoenix connection");
+        ServiceMap.logError(request, response, 500, "failed hbase phoenix connection");
+        return false;
+        //throw new Exception("missing hbase phoenix connection");
       }
       try {
         for(JsonElement a : attributes.getAsJsonArray()) {
@@ -490,7 +492,9 @@ public class ServiceValuesServlet extends HttpServlet {
       
       Connection conn = ServiceMap.getRTConnection();
       if(conn==null) {
-        throw new Exception("missing hbase phoenix connection");
+        //throw new Exception("missing hbase phoenix connection");
+        ServiceMap.logError(request, response, 500, "failed hbase phoenix connection");
+        return false;
       }
       
       try {
@@ -997,7 +1001,9 @@ public class ServiceValuesServlet extends HttpServlet {
     try {
       Connection rtCon = ServiceMap.getRTConnection();
       if(rtCon==null) {
-        throw new Exception("missing hbase phoenix connection");
+        //throw new Exception("missing hbase phoenix connection");
+        ServiceMap.println("realTimeSqlQuery2 missing hbase phoenix connection");
+        return;
       }
       Statement s = rtCon.createStatement();
       s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
@@ -1092,7 +1098,9 @@ public class ServiceValuesServlet extends HttpServlet {
     try {
       Connection rtCon = ServiceMap.getRTConnection();
       if(rtCon==null) {
-        throw new Exception("missing hbase phoenix connection");
+        //throw new Exception("missing hbase phoenix connection");
+        ServiceMap.println("realTimeSqlQuery missing hbase phoenix connection");
+        return;
       }
       Statement s = rtCon.createStatement();
       s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));

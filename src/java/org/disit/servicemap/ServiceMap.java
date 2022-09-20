@@ -29,6 +29,7 @@ import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
@@ -68,13 +69,18 @@ import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.http.HttpHost;
+import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.HttpClient;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
+import org.apache.http.util.EntityUtils;
 import org.disit.servicemap.api.CheckParameters;
 import org.disit.servicemap.api.SparqlQuery;
 import org.elasticsearch.client.RestClient;
@@ -82,6 +88,7 @@ import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
 import org.openrdf.query.BindingSet;
 import org.openrdf.query.MalformedQueryException;
 import org.openrdf.query.QueryEvaluationException;
@@ -1282,7 +1289,9 @@ public class ServiceMap {
       while(result.hasNext()) {
         BindingSet binding = result.next();
         String[] a = binding.getValue("a").stringValue().split("_Agency_");
-        tplAgencies.put(a[1],a[0]);
+        if(a.length==2) {
+          tplAgencies.put(a[1],a[0]);
+        }
       }
       ServiceMap.println(tplAgencies);
     }
@@ -1949,7 +1958,7 @@ public class ServiceMap {
       start=System.nanoTime();
       JSONObject firstGeo = (JSONObject)((JSONObject) stops.get(0)).get("geometry");
       JSONObject lastGeo = (JSONObject)((JSONObject) stops.get(stops.size()-1)).get("geometry");
-      String queryTrip = "SELECT ?wkt { <"+trip+"> <http://www.opengis.net/ont/geosparql#hasGeometry>/geo:geometry ?wkt }";
+      String queryTrip = "SELECT ?wkt { <"+trip+"> <http://www.opengis.net/ont/geosparql#hasGeometry>/<http://www.opengis.net/ont/geosparql#asWKT> ?wkt }";
       String tripWKT = null;
       TupleQuery tqq = con.prepareTupleQuery(QueryLanguage.SPARQL, queryTrip);
       TupleQueryResult r = tqq.evaluate();
@@ -1958,7 +1967,12 @@ public class ServiceMap {
         tripWKT = binding.getValue("wkt").stringValue();
       }
       r.close();
+      ServiceMap.println("trip:"+trip+" WKT: "+tripWKT);
       if(tripWKT!=null) {
+        if(tripWKT.startsWith("LINESTRING((")) {
+          tripWKT = "LINESTRING("+tripWKT.substring(12, tripWKT.length()-1);
+          ServiceMap.println("fixed WKT:"+tripWKT);
+        }
         WKTReader wktReader=new WKTReader();
         Geometry g=wktReader.read(tripWKT);
         Coordinate[] coords = g.getCoordinates();
@@ -1985,7 +1999,7 @@ public class ServiceMap {
             lastMinDist = dLast;
           }
         }
-        //ServiceMap.println("first: "+foundFirst+" last:"+foundLast);
+        ServiceMap.println("first: "+foundFirst+"("+firstMinDist+") last:"+foundLast+"("+lastMinDist+")");
         if(foundFirst>=0 && foundLast>=0) {
           wkt += first.x + " " + first.y +",";
           for(int i=foundFirst+1; i<foundLast; i++) {
@@ -2030,7 +2044,36 @@ public class ServiceMap {
     repo.initialize();
     con = repo.getConnection();
     String query = null;
-    if(transport.equals(("car"))) {
+    String OsmFindNodeModeCar = conf.get("OsmFindNodeModeCar", "API");
+    if (OsmFindNodeModeCar.equals("API") && transport.equals("car") ) {
+      //use OSM api to find the node
+      String url = "https://router.project-osrm.org/route/v1/driving/" + lon + "," + lat + ";" + lon + "," + lat + "?overview=false&annotations=nodes";
+      HttpClient httpclient = HttpClients.createDefault();
+      HttpGet httpGet = null;
+      HttpResponse response = null;    
+      try {
+        httpGet = new HttpGet(url);
+        // Create a response handler
+        response = httpclient.execute(httpGet);
+
+        int statusCode = response.getStatusLine().getStatusCode();
+        if(statusCode == 200) {
+          String resultJson = EntityUtils.toString(response.getEntity());
+          JSONParser parser = new JSONParser();
+          JSONObject r = (JSONObject)parser.parse(new StringReader(resultJson));
+          JSONArray routes = (JSONArray) r.get("routes");
+          JSONArray legs = (JSONArray)((JSONObject)routes.get(0)).get("legs");
+          JSONObject annotation = (JSONObject)((JSONObject)legs.get(0)).get("annotation");
+          JSONArray nodes = (JSONArray)(annotation.get("nodes"));
+          return nodes.get(0).toString();
+        } else {
+          return null;
+        }
+      } finally {
+        httpclient.getConnectionManager().closeExpiredConnections();
+        httpclient.getConnectionManager().shutdown();
+      }      
+    } else if(OsmFindNodeModeCar.equals("SPARQL") && transport.equals("car")) {
       query = "select ?n {\n" +
         "?n a km4c:Node.\n" +
         "?n geo:geometry ?g.\n" +

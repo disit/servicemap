@@ -60,6 +60,7 @@
   }
 
   String selection = request.getParameter("selection");
+  String serviceUri = request.getParameter("serviceUri");
   String model = request.getParameter("model");
   String fromResult = request.getParameter("fromResult");
   String valueFilters = request.getParameter("valueFilters");
@@ -68,6 +69,7 @@
   String categories = request.getParameter("categories");
   String maxDists = request.getParameter("maxDists");
   String maxResults = request.getParameter("maxResults");
+  String text = request.getParameter("text");
 
   if (selection == null && model==null && valueFilters==null && categories==null) {
     ServiceMap.logError(request, response, 400, "please specify 'selection' or 'model' or 'valueFilter' or 'categories'  parameter");
@@ -80,6 +82,17 @@
   }
   if(selection==null)
     selection = "";
+  
+  String[] suris = null;
+  if (serviceUri!=null) {
+    suris = IoTSearchApi.processServiceUris(serviceUri);
+    for(String s: suris) {
+      if((check = CheckParameters.checkUri(s))!=null) {
+        ServiceMap.logError(request, response, 400, "invalid 'serviceUri' parameter: "+s+" "+check);  
+        return;
+      }
+    }
+  }
     
   if (model != null && (check = CheckParameters.checkAlphanumString(model)) != null) {
     ServiceMap.logError(request, response, 400, "invalid 'model' parameter: "+check);
@@ -179,7 +192,7 @@
     // get services by lat/long
     if (coords == null || coords.length == 2 || coords.length == 4 ) {
       try {
-        int results = iotSearchApi.iotSearch(out, coords, categories, model, maxDists, valueFilters, u, fromResult, maxResults, values, sortOnValue);
+        int results = iotSearchApi.iotSearch(out, coords, suris, categories, model, maxDists, valueFilters, u, fromResult, maxResults, values, sortOnValue, text);
         ServiceMap.updateResultsPerIP(ip, requestType, results);
         ServiceMap.logAccess(request, null, selection, categories, null, "api-iot-search", maxResults, maxDists, null, null, "json", null, reqFrom);
       } catch (IllegalArgumentException e) {
