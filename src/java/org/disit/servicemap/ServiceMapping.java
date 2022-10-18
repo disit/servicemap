@@ -200,8 +200,18 @@ public class ServiceMapping {
     if(version<1)
       return null;
     for(Map.Entry<String,MappingData> e:maps.get(version-1).entrySet()) {
-      if(types.contains(e.getKey()))
+      String[] tt = e.getKey().split(";");
+      //check if all mapping types are in the types
+      boolean allIn = true;
+      for(String x:tt) {
+        if(!types.contains(x)) {
+          allIn = false;
+          break;
+        }
+      }
+      if(allIn) {
         return e.getValue();
+      }
     }
     return getMappingForServiceType(version-1, types);    
   }

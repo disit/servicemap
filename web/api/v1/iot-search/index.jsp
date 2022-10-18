@@ -70,6 +70,7 @@
   String maxDists = request.getParameter("maxDists");
   String maxResults = request.getParameter("maxResults");
   String text = request.getParameter("text");
+  String notHealty = request.getParameter("notHealthy");
 
   if (selection == null && model==null && valueFilters==null && categories==null) {
     ServiceMap.logError(request, response, 400, "please specify 'selection' or 'model' or 'valueFilter' or 'categories'  parameter");
@@ -116,6 +117,10 @@
   }
   if (values != null && (check = CheckParameters.checkExtAlphanumString(values)) != null) {
     ServiceMap.logError(request, response, 400, "invalid 'values' parameter: "+check);
+    return;
+  }
+  if(notHealty!=null && (check = CheckParameters.checkEnum(notHealty, new String[] {"true","false"})) != null) {
+    ServiceMap.logError(request, response, 400, "invalid 'notHealthy' parameter: "+check);
     return;
   }
   
@@ -181,7 +186,7 @@
       }
     }
     if (selection.startsWith("wkt:") || selection.startsWith("geo:") || selection.startsWith("graph:")) {
-        response.sendError(400, "selection type not supported ");
+        response.sendError(400, "selection type wkt, geo and graph are not supported ");
     } else if (selection.contains(";")) {
       coords = selection.split(";");
       //check are all double
@@ -192,7 +197,7 @@
     // get services by lat/long
     if (coords == null || coords.length == 2 || coords.length == 4 ) {
       try {
-        int results = iotSearchApi.iotSearch(out, coords, suris, categories, model, maxDists, valueFilters, u, fromResult, maxResults, values, sortOnValue, text);
+        int results = iotSearchApi.iotSearch(out, coords, suris, categories, model, maxDists, valueFilters, u, fromResult, maxResults, values, sortOnValue, text, notHealty);
         ServiceMap.updateResultsPerIP(ip, requestType, results);
         ServiceMap.logAccess(request, null, selection, categories, null, "api-iot-search", maxResults, maxDists, null, null, "json", null, reqFrom);
       } catch (IllegalArgumentException e) {

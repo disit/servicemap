@@ -16,6 +16,7 @@
 package org.disit.servicemap.api;
 
 import com.google.gson.Gson;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,14 +36,18 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.ScriptQueryBuilder;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.GeoDistanceSortBuilder;
+import org.elasticsearch.search.sort.ScriptSortBuilder;
+import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
 import org.json.simple.JSONObject;
 
@@ -66,11 +71,11 @@ public class IoTSearchApi {
     }
   }
 
-  public int iotSearch(JspWriter out, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text) throws Exception {
+  public int iotSearch(JspWriter out, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String notHealthy) throws Exception {
     Configuration conf = Configuration.getInstance();
 
     RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf);
-    String[] index = conf.get("elasticSearchDevicesIndex", "devices-state-test-1").split(";");
+    String[] index = conf.get("elasticSearchDevicesIndex", "devices-state-test-2").split(";");
 
     Set<String> fieldList = new HashSet<>();
     if (fields != null) {
@@ -82,7 +87,7 @@ public class IoTSearchApi {
     Set<String> skipFields = new HashSet<>(Arrays.asList("src", "uuid", "username",
             "user_delegations", "organization_delegations", "sensorID", "latlon",
             "kind", "groups"));
-    List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", "deviceName", "deviceModel", "date_time");
+    List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", "deviceName", "deviceModel", "date_time", "expected_next_date_time", "deviceDelay_s");
     try {
       String q = null;
       if (serviceUris != null && serviceUris.length > 0) {
@@ -121,6 +126,7 @@ public class IoTSearchApi {
         }
         q += ")";
       }
+      ArrayList<String[]> delayConds = new ArrayList<>();
       if (condition != null) {
         String[] conds = condition.split(";");
         for (String c : conds) {
@@ -128,6 +134,24 @@ public class IoTSearchApi {
           //out.println(Arrays.asList(cc));
           if (cc.length != 3 && cc.length != 4) {
             throw new IllegalArgumentException("invalid condition " + c);
+          }
+          cc[0] = cc[0].trim();
+          if(cc[0].equals("deviceDelay_s")) {
+            String[] delayCond = new String[2];
+            if(cc.length==3) {
+              delayCond[0] = cc[1]; //op
+              delayCond[1] = cc[2]; //value
+            } else {
+              delayCond[0] = cc[1]+cc[2]; //op
+              delayCond[1] = cc[3]; //value
+            }
+            if(!"/</<=/>/>=/".contains("/" + delayCond[0] + "/")) {
+              throw new IllegalArgumentException("invalid operator " + delayCond[0] + " in special condition " + c);
+            }
+            Double.parseDouble(delayCond[1]);
+            
+            delayConds.add(delayCond);
+            continue;
           }
           if (q == null) {
             q = "";
@@ -209,6 +233,15 @@ public class IoTSearchApi {
         }
         //q += " AND " + text;
       }
+      
+      if("true".equals(notHealthy)) {
+        if (q != null) {
+          q += " AND";
+        } else {
+          q = "";
+        }
+        q += " expected_next_date_time:<now"+conf.get("elasticSearchDevicesHealthyDelay", "-1m");
+      }
 
       SearchRequest sr = new SearchRequest();
 
@@ -240,10 +273,18 @@ public class IoTSearchApi {
       if (q != null) {
         dataQuery = QueryBuilders.queryStringQuery(q).defaultField("serviceUri").lenient(Boolean.TRUE);
       }
-      searchSourceBuilder.query(QueryBuilders.boolQuery().must(
-              dataQuery
-      ).filter(geoQuery)
-      );
+      BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(dataQuery).filter(geoQuery);
+      
+      for(String[] delayCnd: delayConds) {
+        Map<String, Object> params = new HashMap<>();
+        Script delay_s_script = new Script(ScriptType.INLINE, "painless",
+                      "Instant Currentdate = Instant.ofEpochMilli(new Date().getTime());\n" +
+                      "Instant Startdate = Instant.ofEpochMilli(doc['date_time'].value.getMillis());\n" +
+                      "ChronoUnit.SECONDS.between(Startdate, Currentdate) "+delayCnd[0]+" "+delayCnd[1]+";", params);
+        boolQuery.filter(QueryBuilders.scriptQuery(delay_s_script));
+      }
+      
+      searchSourceBuilder.query(boolQuery);
       searchSourceBuilder.size(limit == null ? 100 : Integer.parseInt(limit));
       searchSourceBuilder.from(offset == null ? 0 : Integer.parseInt(offset));
 
@@ -259,6 +300,7 @@ public class IoTSearchApi {
         }
       }
 
+      boolean sortOnDelay = false;
       if (sortField != null && !sortField.equals("none")) {
         String[] sortF = sortField.split(":");
         String check;
@@ -280,11 +322,19 @@ public class IoTSearchApi {
         if (sortF.length > 2) {
           unmappedType = sortF[2];
         }
-        if (stdFields.contains(sortF[0].trim())) {
-          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0]).order(order).unmappedType(unmappedType));
+        if(sortF[0].equals("deviceDelay_s")) {
+          sortOnDelay = true;
+          Map<String, Object> params = new HashMap<>();
+          Script delay_s_script = new Script(ScriptType.INLINE, "painless",
+                        "Instant Currentdate = Instant.ofEpochMilli(new Date().getTime());\n" +
+                        "Instant Startdate = Instant.ofEpochMilli(doc['date_time'].value.getMillis());\n" +
+                        "ChronoUnit.SECONDS.between(Startdate, Currentdate);", params);
+          searchSourceBuilder.sort(SortBuilders.scriptSort(delay_s_script, ScriptSortBuilder.ScriptSortType.NUMBER).order(order));
+        } else if (stdFields.contains(sortF[0].trim())) {
+          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".keyword").order(order).unmappedType(unmappedType));
         } else {
           searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value").order(order).unmappedType(unmappedType));
-          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str").order(order).unmappedType(unmappedType));
+          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str.keyword").order(order).unmappedType(unmappedType));
         }
       }
 
@@ -345,6 +395,9 @@ public class IoTSearchApi {
             value = "\"" + JSONObject.escape(value.toString()) + "\"";
           }
           out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
+        }
+        if(sortOnDelay) {
+          out.println(",\"deviceDelay_s\":" + hits[i].getSortValues()[0]);
         }
         if (coords != null) {
           out.println(",\"geo_distance\":" + fld.get("geo_distance").getValue());
