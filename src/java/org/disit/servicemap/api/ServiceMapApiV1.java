@@ -533,23 +533,25 @@ public class ServiceMapApiV1 extends ServiceMapApi {
     if(conf.get("gtfsAlerts","Helsingin seudun liikenne").contains(agencyName)) {
       long ts = System.currentTimeMillis();
       Connection rtcon = ServiceMap.getRTConnection2();
-      //find active alerts
-      gtfsrtAlerts = new HashMap<>();
-      Statement stmt = rtcon.createStatement();
-      stmt.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
-      String table = conf.get("gtfsAlertsTable", "Bus_hsl_yaml_RT_temp");
-      ResultSet rs = stmt.executeQuery("SELECT tripuri,effect,descren FROM " + table + " where alertstart<=NOW() AND ALERTEND>=NOW()");
-      int na=0;
-      while(rs.next()) {
-        String tripUri = rs.getString(1);
-        String gtfsEffect = rs.getString(2);
-        String gtfsDescrEn = rs.getString(3);
-        gtfsrtAlerts.put(tripUri, "{\"effect\":\""+gtfsEffect+"\",\"description\":\""+gtfsDescrEn+"\"}");
-        na++;
+      if(rtcon!=null) {
+        //find active alerts
+        gtfsrtAlerts = new HashMap<>();
+        Statement stmt = rtcon.createStatement();
+        stmt.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
+        String table = conf.get("gtfsAlertsTable", "Bus_hsl_yaml_RT_temp");
+        ResultSet rs = stmt.executeQuery("SELECT tripuri,effect,descren FROM " + table + " where alertstart<=NOW() AND ALERTEND>=NOW()");
+        int na=0;
+        while(rs.next()) {
+          String tripUri = rs.getString(1);
+          String gtfsEffect = rs.getString(2);
+          String gtfsDescrEn = rs.getString(3);
+          gtfsrtAlerts.put(tripUri, "{\"effect\":\""+gtfsEffect+"\",\"description\":\""+gtfsDescrEn+"\"}");
+          na++;
+        }
+        stmt.close();
+        rtcon.close();
+        ServiceMap.performance("GTFSALERT nalert:"+na+" time:"+(System.currentTimeMillis()-ts)+"ms");
       }
-      stmt.close();
-      rtcon.close();
-      ServiceMap.performance("GTFSALERT nalert:"+na+" time:"+(System.currentTimeMillis()-ts)+"ms");
     }
 
     String queryString = "prefix dcterms:<http://purl.org/dc/terms/>\n" +
