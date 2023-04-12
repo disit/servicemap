@@ -261,7 +261,7 @@ public class ServiceMap {
         ServiceMap.notifyException(e);
       }
     }
-    if (conf.get("phoenixAccessLog", "true").equals("true")) {
+    if (conf.get("phoenixAccessLog", "false").equals("true")) {
       executor.submit(new Runnable() {
         @Override
         public void run() {
@@ -641,7 +641,7 @@ public class ServiceMap {
             String[] s = textToSearch.split(" +");
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < s.length; i++) {
-              String word = s[i].trim().replaceAll("[^a-zA-Z0-9]", "");
+              String word = s[i].trim().replaceAll("[^a-zA-Z0-9_\\-]", "");
               if(!word.isEmpty() && (!removeStopWords || !stopWords.contains(word))) {
                 if(n>0)
                   sb.append(" and ");

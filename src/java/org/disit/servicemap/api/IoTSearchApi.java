@@ -16,13 +16,18 @@
 package org.disit.servicemap.api;
 
 import com.google.gson.Gson;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import javax.servlet.jsp.JspWriter;
 import org.apache.lucene.queryparser.classic.QueryParserBase;
@@ -42,6 +47,13 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
+import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregator;
+import org.elasticsearch.search.aggregations.metrics.tophits.TopHits;
+import org.elasticsearch.search.aggregations.pipeline.PipelineAggregatorBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.GeoDistanceSortBuilder;
@@ -74,7 +86,7 @@ public class IoTSearchApi {
     Configuration conf = Configuration.getInstance();
 
     RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf);
-    String[] index = conf.get("elasticSearchDevicesIndex", "devices-state-test-2").split(";");
+    String[] index = conf.get("elasticSearchDevicesIndex", "devices-state").split(";");
 
     Set<String> fieldList = new HashSet<>();
     if (fields != null) {
@@ -90,156 +102,26 @@ public class IoTSearchApi {
     try {
       String q = null;
       if (serviceUris != null && serviceUris.length > 0) {
-        q = "(";
-        boolean first = true;
-        for (String suri : serviceUris) {
-          if (!first) {
-            q += "OR ";
-          }
-          q += "serviceUri:\"" + QueryParserBase.escape(suri.trim()) + "\" ";
-          first = false;
-        }
-        q += ")";
+        q = serviceUriQueryBuilder(q, serviceUris);
       }
       if (model != null) {
-        if (q == null) {
-          q = "";
-        } else {
-          q += " AND ";
-        }
-        q += "deviceModel:\"" + QueryParserBase.escape(model) + "\"";
+        q = modelQueryBuilder(q, model);
       }
       if (categories != null) {
-        String[] cats = categories.split(";");
-        if (q == null) {
-          q = "(";
-        } else {
-          q += " AND (";
-        }
-        for (int i = 0; i < cats.length; i++) {
-          String c = cats[i];
-          if (i > 0) {
-            q += " OR ";
-          }
-          q += "nature:" + c + " OR subnature:" + c;
-        }
-        q += ")";
+        q = categoriesQueryBuilder(q, categories);
       }
       ArrayList<String[]> delayConds = new ArrayList<>();
       if (condition != null) {
-        String[] conds = condition.split(";");
-        for (String c : conds) {
-          String[] cc = c.split("((?=(:|=|!|>|<))|(?<=(:|=|!|>|<)))");
-          //out.println(Arrays.asList(cc));
-          if (cc.length != 3 && cc.length != 4) {
-            throw new IllegalArgumentException("invalid condition " + c);
-          }
-          cc[0] = cc[0].trim();
-          if(cc[0].equals("deviceDelay_s")) {
-            String[] delayCond = new String[2];
-            if(cc.length==3) {
-              delayCond[0] = cc[1]; //op
-              delayCond[1] = cc[2]; //value
-            } else {
-              delayCond[0] = cc[1]+cc[2]; //op
-              delayCond[1] = cc[3]; //value
-            }
-            if(!"/</<=/>/>=/".contains("/" + delayCond[0] + "/")) {
-              throw new IllegalArgumentException("invalid operator " + delayCond[0] + " in special condition " + c);
-            }
-            Double.parseDouble(delayCond[1]);
-            
-            delayConds.add(delayCond);
-            continue;
-          }
-          if (q == null) {
-            q = "";
-          } else {
-            q += " AND ";
-          }
-          if (cc.length == 3) {
-            switch (cc[1]) {
-              case ":":
-                q += cc[0] + ".value_str:\"" + QueryParserBase.escape(cc[2]) + "\"";
-                break;
-              case "=":
-                q += cc[0] + ".value:" + Double.parseDouble(cc[2]);
-                break;
-              case "<":
-                q += cc[0] + ".value:<" + Double.parseDouble(cc[2]);
-                break;
-              case ">":
-                q += cc[0] + ".value:>" + Double.parseDouble(cc[2]);
-                break;
-              default:
-                throw new IllegalArgumentException("invalid operator " + cc[1] + " in condition " + c);
-            }
-          } else if (cc.length == 4) {
-            String op = cc[1] + cc[2];
-            switch (op) {
-              case "<=":
-                q += cc[0] + ".value:<=" + Double.parseDouble(cc[3]);
-                break;
-              case ">=":
-                q += cc[0] + ".value:>=" + Double.parseDouble(cc[3]);
-                break;
-              default:
-                throw new IllegalArgumentException("invalid operator " + op + " in condition " + c);
-            }
-          }
-        }
+        q = conditionQueryBuilder(q, condition, delayConds);
       }
-      if (user == null || !user.role.equals("RootAdmin")) {
-        if (q != null) {
-          q += " AND";
-        } else {
-          q = "";
-        }
-        q += " (user_delegations:" + Encrypter.encrypt("ANONYMOUS");
-        if (user != null) {
-          String encUsername = Encrypter.encrypt(user.username);
-          q += " OR username:" + encUsername + " OR user_delegations:" + encUsername;
-          //TODO add organization and group delegation
-        }
-        q += ")";
-      }
+      q = userQueryBuilder(q, user);
 
       if (text != null) {
-        String[] words = text.split("\\s+");
-        boolean isPhrase = false;
-        String word = "";
-        for (String w : words) {
-          if (isPhrase && !w.endsWith("\"")) {
-            word += " " + w;
-          } else if (w.startsWith("\"") && !isPhrase && w.length() > 1 && !w.endsWith("\"")) {
-            word += " " + w.substring(1);
-            isPhrase = true;
-          } else if ((!w.startsWith("\"") /*|| w.length()==1*/) && w.endsWith("\"")) {
-            word += " " + w.substring(0, w.length() - 1);
-            isPhrase = false;
-            if (word.trim().length() > 1) {
-              q += " AND *:\"" + QueryParserBase.escape(word.trim()) + "\"";
-            }
-            word = "";
-          } else {
-            if (w.startsWith("\"") && w.endsWith("\"") && w.length() > 1) {
-              w = w.substring(1, w.length() - 1);
-            }
-            if (w.length() > 0 && !w.equals("\"")) {
-              q += " AND *:\"" + QueryParserBase.escape(w) + "\"";
-            }
-          }
-        }
-        //q += " AND " + text;
+        q = textQueryBuilder(q, text);
       }
       
       if("true".equals(notHealthy)) {
-        if (q != null) {
-          q += " AND";
-        } else {
-          q = "";
-        }
-        q += " expected_next_date_time:<now"+conf.get("elasticSearchDevicesHealthyDelay", "-1m");
+        q = notHealthyQuery(q, conf);
       }
 
       SearchRequest sr = new SearchRequest();
@@ -448,4 +330,493 @@ public class IoTSearchApi {
       client.close();
     }
   }
+
+  private static String conditionQueryBuilder(String q, String condition, ArrayList<String[]> delayConds) throws IllegalArgumentException {
+    String[] conds = condition.split(";");
+    for (String c : conds) {
+      String[] cc = c.split("((?=(:|=|!|>|<))|(?<=(:|=|!|>|<)))");
+      //out.println(Arrays.asList(cc));
+      if (cc.length != 3 && cc.length != 4) {
+        throw new IllegalArgumentException("invalid condition " + c);
+      }
+      cc[0] = cc[0].trim();
+      if(cc[0].equals("deviceDelay_s")) {
+        if(delayConds == null)
+          throw new IllegalArgumentException("variable 'deviceDelay_s' cannot be used with over-time search");
+        String[] delayCond = new String[2];
+        if(cc.length==3) {
+          delayCond[0] = cc[1]; //op
+          delayCond[1] = cc[2]; //value
+        } else {
+          delayCond[0] = cc[1]+cc[2]; //op
+          delayCond[1] = cc[3]; //value
+        }
+        if(!"/</<=/>/>=/".contains("/" + delayCond[0] + "/")) {
+          throw new IllegalArgumentException("invalid operator " + delayCond[0] + " in special condition " + c);
+        }
+        Double.parseDouble(delayCond[1]);
+        
+        delayConds.add(delayCond);
+        continue;
+      }
+      if (q == null) {
+        q = "";
+      } else {
+        q += " AND ";
+      }
+      if (cc.length == 3) {
+        switch (cc[1]) {
+          case ":":
+            q += cc[0] + ".value_str:\"" + QueryParserBase.escape(cc[2]) + "\"";
+            break;
+          case "=":
+            q += cc[0] + ".value:" + Double.parseDouble(cc[2]);
+            break;
+          case "<":
+            q += cc[0] + ".value:<" + Double.parseDouble(cc[2]);
+            break;
+          case ">":
+            q += cc[0] + ".value:>" + Double.parseDouble(cc[2]);
+            break;
+          default:
+            throw new IllegalArgumentException("invalid operator " + cc[1] + " in condition " + c);
+        }
+      } else if (cc.length == 4) {
+        String op = cc[1] + cc[2];
+        switch (op) {
+          case "<=":
+            q += cc[0] + ".value:<=" + Double.parseDouble(cc[3]);
+            break;
+          case ">=":
+            q += cc[0] + ".value:>=" + Double.parseDouble(cc[3]);
+            break;
+          default:
+            throw new IllegalArgumentException("invalid operator " + op + " in condition " + c);
+        }
+      }
+    }
+    return q;
+  }
+
+  private String categoriesQueryBuilder(String q, String categories) {
+    String[] cats = categories.split(";");
+    if (q == null) {
+      q = "(";
+    } else {
+      q += " AND (";
+    }
+    for (int i = 0; i < cats.length; i++) {
+      String c = cats[i];
+      if (i > 0) {
+        q += " OR ";
+      }
+      q += "nature:" + c + " OR subnature:" + c;
+    }
+    q += ")";
+    return q;
+  }
+
+  private static String serviceUriQueryBuilder(String q, String[] serviceUris) {
+    if(q == null)
+      q = "(";
+    else
+      q += "AND (";
+    boolean first = true;
+    for (String suri : serviceUris) {
+      if (!first) {
+        q += "OR ";
+      }
+      q += "serviceUri:\"" + QueryParserBase.escape(suri.trim()) + "\" ";
+      first = false;
+    }
+    q += ")";
+    return q;
+  }
+
+  private static String notHealthyQuery(String q, Configuration conf) {
+    if (q != null) {
+      q += " AND";
+    } else {
+      q = "";
+    }
+    q += " expected_next_date_time:<now"+conf.get("elasticSearchDevicesHealthyDelay", "-1m");
+    return q;
+  }
+
+  public int iotSearchOverTimeRange(JspWriter out, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String fromTime, String toTime, String aggregate) throws Exception {
+    Configuration conf = Configuration.getInstance();
+
+    RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf);
+    String[] index = conf.get("elasticSearchFullDevicesIndex", "ot-devices-state-disit").split(";");
+
+    Set<String> fieldList = new HashSet<>();
+    if (fields != null) {
+      Collections.addAll(fieldList, fields.split(";"));
+      fieldList.add("serviceUri");
+      fieldList.add("nature");
+      fieldList.add("subnature");
+    }
+    Set<String> skipFields = new HashSet<>(Arrays.asList("src", "uuid", "username",
+            "user_delegations", "organization_delegations", "sensorID", "latlon",
+            "kind", "groups"));
+    List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", "deviceName", "deviceModel");
+    try {
+      String q = null;
+      if (serviceUris != null && serviceUris.length > 0) {
+        q = serviceUriQueryBuilder(q, serviceUris);
+      }
+      if (model != null) {
+        q = modelQueryBuilder(q, model);
+      }
+      if (categories != null) {
+        q = categoriesQueryBuilder(q, categories);
+      }
+      if (condition != null) {
+        q = conditionQueryBuilder(q, condition, null);
+      }
+      q = userQueryBuilder(q,user);
+
+      if (text != null) {
+        q = textQueryBuilder(q, text);
+      }
+      
+      q = fromToTimeQueryBuilder(q, fromTime, toTime);
+
+      SearchRequest sr = new SearchRequest();
+
+      SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+
+      QueryBuilder geoQuery = QueryBuilders.matchAllQuery();
+      double lat = 0, lon = 0;
+      if (coords != null) {
+        switch (coords.length) {
+          case 2:
+            lat = Double.parseDouble(coords[0]);
+            lon = Double.parseDouble(coords[1]);
+            geoQuery = QueryBuilders.geoDistanceQuery("latlon").distance(maxDist + "km").point(lat, lon);
+            break;
+          case 4:
+            lat = (Double.parseDouble(coords[0]) + Double.parseDouble(coords[2])) / 2;
+            lon = (Double.parseDouble(coords[1]) + Double.parseDouble(coords[3])) / 2;
+            geoQuery = QueryBuilders.geoBoundingBoxQuery("latlon").setCorners(
+                    Double.parseDouble(coords[2]), Double.parseDouble(coords[1]),
+                    Double.parseDouble(coords[0]), Double.parseDouble(coords[3])
+            );
+            break;
+          default:
+            throw new IllegalArgumentException("selection type not supported");
+        }
+      }
+
+      QueryBuilder dataQuery = QueryBuilders.matchAllQuery();
+      if (q != null) {
+        dataQuery = QueryBuilders.queryStringQuery(q).defaultField("serviceUri").lenient(Boolean.TRUE);
+      }
+      BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(dataQuery).filter(geoQuery);
+           
+      searchSourceBuilder.query(boolQuery);
+      boolean aggreg = ("true".equalsIgnoreCase(aggregate));
+
+      int lmt = limit == null ? 100 : Integer.parseInt(limit);
+      searchSourceBuilder.size( aggreg ? 0 : lmt);
+      searchSourceBuilder.from(offset == null ? 0 : Integer.parseInt(offset));
+      
+      if (coords != null) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("lat", lat);
+        params.put("lon", lon);
+        searchSourceBuilder.scriptField("geo_distance",
+                new Script(ScriptType.INLINE, "painless",
+                        "doc['latlon'].arcDistance(params.lat,params.lon)/1000", params));
+        if (sortField == null && !aggreg) {
+          searchSourceBuilder.sort(new GeoDistanceSortBuilder("latlon", lat, lon));
+        }
+      }
+      
+      if (!aggreg && sortField != null && !sortField.equals("none")) {
+        String[] sortF = sortField.split(":");
+        String check;
+        if ((check = CheckParameters.checkAlphanumString(sortF[0])) != null) {
+          throw new IllegalArgumentException("sort value name is not valid: " + check);
+        }
+        if (sortF.length > 1 && (check = CheckParameters.checkEnum(sortF[1], new String[]{"asc", "desc"})) != null) {
+          throw new IllegalArgumentException("invalid sort type asc/desc");
+        }
+        if (sortF.length > 2 && (check = CheckParameters.checkEnum(sortF[2], new String[]{"string", "date", "long", "short"})) != null) {
+          throw new IllegalArgumentException("invalid sort datatype string/date/long/short");
+        }
+
+        SortOrder order = SortOrder.ASC;
+        if (sortF.length > 1 && sortF[1].equals("desc")) {
+          order = SortOrder.DESC;
+        }
+        String unmappedType = "string";
+        if (sortF.length > 2) {
+          unmappedType = sortF[2];
+        }
+        if (stdFields.contains(sortF[0].trim())) {
+          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".keyword").order(order).unmappedType(unmappedType));
+        } else {
+          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value").order(order).unmappedType(unmappedType));
+          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str.keyword").order(order).unmappedType(unmappedType));
+        }
+      }
+      
+      if(aggreg) {
+        //perform serviceUri aggregation
+        searchSourceBuilder.aggregation(AggregationBuilders.terms("serviceUri_agg").field("serviceUri.keyword").size(lmt)
+                .subAggregation(AggregationBuilders.topHits("sample").size(1))
+        );
+        searchSourceBuilder.size(0);
+      }
+
+      searchSourceBuilder.fetchSource(true);
+      sr.source(searchSourceBuilder);
+
+      if (conf.get("elasticSearchScrollSearch", "false").equals("true")) {
+        sr.scroll(TimeValue.timeValueMinutes(1));
+      }
+
+      sr.indices(index);
+
+      long ts = System.currentTimeMillis();
+      SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
+      String jsonQuery = "NA";
+      if (conf.get("elasticSearchDebugQuery", "false").equals("true")) {
+        try {
+          jsonQuery = searchSourceBuilder.toString();
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      }
+      if(!aggreg) {
+        SearchHit[] hits = r.getHits().getHits();
+        long nfound = r.getHits().totalHits;
+
+        ServiceMap.performance("elasticsearch device " + q + "  : " + (System.currentTimeMillis() - ts) + "ms nfound:" + nfound + " query:" + jsonQuery);
+
+        out.println("{");
+        out.println("\"type\":\"FeatureCollection\"");
+        if (conf.get("debug", "false").equals("true")) {
+          out.println(",\"query\":\"" + JSONObject.escape(q) + "\"");
+        }
+        out.println(",\"fullCount\":" + nfound);
+        out.println(",\"features\":[");
+        Gson gson = new Gson();
+
+        for (int i = 0; i < hits.length; i++) {
+          Map<String, Object> src = hits[i].getSourceAsMap();
+          Map<String, DocumentField> fld = hits[i].getFields();
+          String[] latlon = ((String) src.get("latlon")).split(",");
+          out.println((i > 0 ? "," : "") + "{\"type\":\"Feature\"");
+          out.println(", \"geometry\":{ \"type\":\"Point\", \"coordinates\":[" + latlon[1] + "," + latlon[0] + "] }");
+          out.println(", \"properties\":{");
+          int p = 0;
+          for (String f : stdFields) {
+            Object value = src.get(f);
+            if (value == null) {
+              continue;
+            }
+            if (value instanceof Map) {
+              Map vv = (Map) value;
+              if (vv.containsKey("value")) {
+                value = vv.get("value");
+              } else if (vv.containsKey("value_str")) {
+                value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
+              }
+            } else {
+              value = "\"" + JSONObject.escape(value.toString()) + "\"";
+            }
+            out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
+          }
+          if (coords != null) {
+            out.println(",\"geo_distance\":" + fld.get("geo_distance").getValue());
+          }
+          out.println(",\"values\":{");
+          p = 0;
+          Set<String> flds;
+          if (fieldList.isEmpty()) {
+            flds = src.keySet();
+          } else {
+            flds = new HashSet(fieldList);
+          }
+          for (String f : flds) {
+            if (skipFields.contains(f) || stdFields.contains(f)) {
+              continue;
+            }
+            Object value = src.get(f);
+            if (value == null) {
+              continue;
+            }
+
+            if (value instanceof Map) {
+              Map vv = (Map) value;
+              if (vv.containsKey("value")) {
+                value = vv.get("value");
+              } else if (vv.containsKey("value_str")) {
+                value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
+              } else if (vv.containsKey("value_arr_obj")) {
+                value = gson.toJson(vv.get("value_arr_obj"));
+                if (conf.get("elasticSearchValueObjAsString", "false").equals("false")) {
+                  value = "\"" + JSONObject.escape(value.toString()) + "\"";
+                }
+              } else if (vv.containsKey("value_obj")) {
+                value = gson.toJson(vv.get("value_obj"));
+                if (conf.get("elasticSearchValueObjAsString", "false").equals("false")) {
+                  value = "\"" + JSONObject.escape(value.toString()) + "\"";
+                }
+              }
+            } else {
+              value = "\"" + JSONObject.escape(value.toString()) + "\"";
+            }
+            out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
+          }
+          out.println("}}}");
+        }
+        out.println("]}");
+        return (int) hits.length; 
+      } else {
+        ServiceMap.performance("elasticsearch device aggregation " + q + "  : " + (System.currentTimeMillis() - ts) + "ms query:" + jsonQuery);
+
+        out.println("{");
+        out.println("\"type\":\"FeatureCollection\"");
+        if (conf.get("debug", "false").equals("true")) {
+          out.println(",\"query\":\"" + JSONObject.escape(q) + "\"");
+        }
+        Aggregations a = r.getAggregations();
+        Terms terms = a.get("serviceUri_agg");
+        List<? extends Terms.Bucket> b = terms.getBuckets();
+        out.println(",\"sumOtherDocs\":"+terms.getSumOfOtherDocCounts());
+        out.println(",\"features\":[");
+        int i=0;
+        for(Terms.Bucket x: b) {
+          TopHits sample = x.getAggregations().get("sample");
+          Map<String, Object> src = sample.getHits().getHits()[0].getSourceAsMap();
+          String[] latlon = ((String) src.get("latlon")).split(",");
+          out.println((i++ > 0 ? "," : "") + "{\"type\":\"Feature\"");
+          out.println(", \"geometry\":{ \"type\":\"Point\", \"coordinates\":[" + latlon[1] + "," + latlon[0] + "] }");
+          out.println(", \"properties\":{");
+          int p=0;
+          for (String f : stdFields) {
+            Object value = src.get(f);
+            if (value == null) {
+              continue;
+            }
+            if (value instanceof Map) {
+              Map vv = (Map) value;
+              if (vv.containsKey("value")) {
+                value = vv.get("value");
+              } else if (vv.containsKey("value_str")) {
+                value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
+              }
+            } else {
+              value = "\"" + JSONObject.escape(value.toString()) + "\"";
+            }
+            out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
+          }
+          out.println(", \"aggregationCount\": "+x.getDocCount());
+          out.println("}}");
+        }
+        out.println("]}");
+        return b.size();
+      }
+    } finally {
+      client.close();
+    }
+  }
+
+  private static String fromToTimeQueryBuilder(String q, String fromTime, String toTime) throws ParseException {
+    DateFormat dateFormatterT = new SimpleDateFormat(ServiceMap.dateFormatT);
+    Date tTime = new Date();
+    if(toTime!=null) {
+      tTime = dateFormatterT.parse(toTime);
+    }
+    Date fTime = new Date();
+    if(fromTime!=null) {
+      fTime = dateFormatterT.parse(fromTime);
+    }
+    if(fromTime!=null || toTime!=null) {
+      DateFormat dateFormatterGMT = new SimpleDateFormat(ServiceMap.dateFormatGMT);
+      String fq = null;
+      String toTimeZ = null;
+      String fromTimeZ = null;
+      if(fromTime!=null) {
+        fromTimeZ = dateFormatterGMT.format(fTime);
+      }
+      if(toTime!=null) {
+        toTimeZ = dateFormatterGMT.format(tTime);
+      }
+      if(fromTime!=null && toTime==null)
+        fq = "date_time:["+fromTimeZ+" TO *]";
+      else if(fromTime==null && toTime!=null)
+        fq = "date_time:[* TO "+toTimeZ+"]";
+      else
+        fq = "date_time:["+fromTimeZ+" TO "+toTimeZ+"]";
+      q += " AND "+fq;
+    }
+    return q;
+  }
+
+  private String modelQueryBuilder(String q, String model) {
+    if (q == null) {
+      q = "";
+    } else {
+      q += " AND ";
+    }
+    q += "deviceModel:\"" + QueryParserBase.escape(model) + "\"";
+    return q;
+  }
+
+  private static String textQueryBuilder(String q, String text) {
+    String[] words = text.split("\\s+");
+    boolean isPhrase = false;
+    String word = "";
+    for (String w : words) {
+      if (isPhrase && !w.endsWith("\"")) {
+        word += " " + w;
+      } else if (w.startsWith("\"") && !isPhrase && w.length() > 1 && !w.endsWith("\"")) {
+        word += " " + w.substring(1);
+        isPhrase = true;
+      } else if ((!w.startsWith("\"") /*|| w.length()==1*/) && w.endsWith("\"")) {
+        word += " " + w.substring(0, w.length() - 1);
+        isPhrase = false;
+        if (word.trim().length() > 1) {
+          q += " AND *:\"" + QueryParserBase.escape(word.trim()) + "\"";
+        }
+        word = "";
+      } else {
+        if (w.startsWith("\"") && w.endsWith("\"") && w.length() > 1) {
+          w = w.substring(1, w.length() - 1);
+        }
+        if (w.length() > 0 && !w.equals("\"")) {
+          q += " AND *:\"" + QueryParserBase.escape(w) + "\"";
+        }
+      }
+    }
+    //q += " AND " + text;
+    return q;
+  }
+
+  private static String anonymous = null;
+  
+  private static String userQueryBuilder(String q, User user) throws Exception {
+    if (user == null || !user.role.equals("RootAdmin")) {
+      if (q != null) {
+        q += " AND";
+      } else {
+        q = "";
+      }
+      if(anonymous == null)
+        anonymous = Encrypter.encrypt("ANONYMOUS");
+      q += " (user_delegations:" + anonymous;
+      if (user != null) {
+        String encUsername = Encrypter.encrypt(user.username);
+        q += " OR username:" + encUsername + " OR user_delegations:" + encUsername;
+        //TODO add organization and group delegation
+      }
+      q += ")";
+    }
+    return q;
+  }
+  
 }

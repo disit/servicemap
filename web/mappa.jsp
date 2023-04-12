@@ -620,7 +620,9 @@
                                 <br/>
                                 <input type="checkbox" name="public-transport-line" value="PublicTransportLine" id="PublicTransportLine" class="macrocategory" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Urban_bus.png' height='23' width='20' align='top'/> <span class="public-transport-line macrocategory-label">Public Transport Line</span> 
                                 <br />
-                                <input type="checkbox" name="road-sensor" value="SensorSite" id="Sensor" class="macrocategory" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_SensorSite.png' height='23' width='20' align='top'/> <span class="road-sensor macrocategory-label">Road Sensors</span> 
+                                <input type="checkbox" name="traffic-sensor" value="Traffic_sensor" id="Traffic_sensor" class="macrocategory" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_Traffic_sensor.png' height='23' width='20' align='top'/> <span class="road-sensor macrocategory-label">Traffic_sensor</span> 
+                                <br />
+                                <input type="checkbox" name="road-sensor" value="SensorSite" id="Sensor" class="macrocategory" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_SensorSite.png' height='23' width='20' align='top'/> <span class="road-sensor macrocategory-label">SensorSite</span> 
                                 <br />
                                 <input type="checkbox" name="near-bus-stops" value="BusStop" class="macrocategory" id="Bus" /> <img src='${pageContext.request.contextPath}/img/mapicons/TransferServiceAndRenting_BusStop.png' height='23' width='20' align='top'/> <span class="near-bus-stops macrocategory-label">Bus Stops</span>
                                 <br />

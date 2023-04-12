@@ -3337,8 +3337,13 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         /*if(valueName != null)
           searchSourceBuilder.sort("date_time", SortOrder.DESC);
         else*/
-          searchSourceBuilder.sort("date_time", SortOrder.DESC)
-                .sort("value_name.keyword", SortOrder.ASC);        
+          searchSourceBuilder.sort("date_time", SortOrder.DESC);
+          String sortBy = conf.get("elasticSearchLimitQuerySortBy", "none");
+          if(fromTime==null && limit!=0) {
+            if(!sortBy.equals("none"))
+              searchSourceBuilder.sort(sortBy + ".keyword", SortOrder.ASC);
+          } else
+            searchSourceBuilder.sort("value_name.keyword", SortOrder.ASC); //problems if multiple values at the same date_time
       }
       searchSourceBuilder.size(resultSize);
       if(valueName==null) {
@@ -3474,6 +3479,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     throw exc;
               }
               
+              ServiceMap.println("d: "+d);
               String uuid = (String)d.get("uuid");
 
               /*int offset=TimeZone.getDefault().getOffset(dt.getTime());
