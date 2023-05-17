@@ -360,8 +360,8 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
     }
     String aggregation = request.getParameter("aggregation");
     if(aggregation!=null) {
-      if(!aggregation.matches("^\\d*-(day|hour|minute)$")) {
-        ServiceMap.logError(request, response, 400, "invalid 'aggregation' parameter expected <n>-day,<n>-hour or <n>-minute");
+      if(!aggregation.equals("no") && !aggregation.matches("^\\d*-(day|hour|minute)$")) {
+        ServiceMap.logError(request, response, 400, "invalid 'aggregation' parameter expected <n>-day, <n>-hour, <n>-minute or 'no'");
         return;
       }
     }

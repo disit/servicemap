@@ -3353,25 +3353,27 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       String resultAggregation = null;
       if(valueName!=null && fromTime!=null) {
         if(aggregation!=null) {
-          String[] aggr = aggregation.split("-");
-          int aggrVal = Integer.parseInt(aggr[0]);
-          if(aggrVal>0) {
-            String aggrType = aggr[1];
-            DateHistogramInterval dhInterval = null;
-            if(aggrType.equals("minute"))
-              dhInterval= DateHistogramInterval.minutes(aggrVal);
-            else if(aggrType.equals("hour"))
-              dhInterval= DateHistogramInterval.hours(aggrVal);
-            else if(aggrType.equals("day"))
-              dhInterval= DateHistogramInterval.days(aggrVal);
-            searchSourceBuilder.aggregation(
-                    AggregationBuilders.dateHistogram("date_time")
-                            .field(conf.get("elasticSearchAggField", "date_time"))
-                            .dateHistogramInterval(dhInterval)
-                            .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
-            fromAggregation = true;
+          if(!aggregation.equals("no")) {
+            String[] aggr = aggregation.split("-");
+            int aggrVal = Integer.parseInt(aggr[0]);
+            if(aggrVal>0) {
+              String aggrType = aggr[1];
+              DateHistogramInterval dhInterval = null;
+              if(aggrType.equals("minute"))
+                dhInterval= DateHistogramInterval.minutes(aggrVal);
+              else if(aggrType.equals("hour"))
+                dhInterval= DateHistogramInterval.hours(aggrVal);
+              else if(aggrType.equals("day"))
+                dhInterval= DateHistogramInterval.days(aggrVal);
+              searchSourceBuilder.aggregation(
+                      AggregationBuilders.dateHistogram("date_time")
+                              .field(conf.get("elasticSearchAggField", "date_time"))
+                              .dateHistogramInterval(dhInterval)
+                              .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
+              fromAggregation = true;
+            }
+            resultAggregation = aggregation;
           }
-          resultAggregation = aggregation;
         } else if((tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays1", "100"))*24*60*60L) {
           String elasticSearchAvgHours = conf.get("elasticSearchAvgHours", "6");
           searchSourceBuilder.aggregation(

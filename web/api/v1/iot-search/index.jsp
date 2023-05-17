@@ -73,7 +73,7 @@
   String notHealty = request.getParameter("notHealthy");
 
   if (selection == null && model==null && valueFilters==null && categories==null) {
-    ServiceMap.logError(request, response, 400, "please specify 'selection' or 'model' or 'valueFilter' or 'categories'  parameter");
+    ServiceMap.logError(request, response, 400, "please specify 'selection' or 'model' or 'valueFilters' or 'categories'  parameter");
     return;
   }
   String check;
