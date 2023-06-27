@@ -530,35 +530,42 @@ public class IoTSearchApi {
                         "doc['latlon'].arcDistance(params.lat,params.lon)/1000", params));
         if (sortField == null && !aggreg) {
           searchSourceBuilder.sort(new GeoDistanceSortBuilder("latlon", lat, lon));
+          sortField = "latlon";
         }
       }
       
-      if (!aggreg && sortField != null && !sortField.equals("none")) {
-        String[] sortF = sortField.split(":");
-        String check;
-        if ((check = CheckParameters.checkAlphanumString(sortF[0])) != null) {
-          throw new IllegalArgumentException("sort value name is not valid: " + check);
-        }
-        if (sortF.length > 1 && (check = CheckParameters.checkEnum(sortF[1], new String[]{"asc", "desc"})) != null) {
-          throw new IllegalArgumentException("invalid sort type asc/desc");
-        }
-        if (sortF.length > 2 && (check = CheckParameters.checkEnum(sortF[2], new String[]{"string", "date", "long", "short"})) != null) {
-          throw new IllegalArgumentException("invalid sort datatype string/date/long/short");
-        }
+      if (!aggreg) {
+        if(sortField==null)
+          sortField = "date_time:desc";
+        if(!sortField.equals("none") && !sortField.equals("latlon")) {
+          String[] sortF = sortField.split(":");
+          String check;
+          if ((check = CheckParameters.checkAlphanumString(sortF[0])) != null) {
+            throw new IllegalArgumentException("sort value name is not valid: " + check);
+          }
+          if (sortF.length > 1 && (check = CheckParameters.checkEnum(sortF[1], new String[]{"asc", "desc"})) != null) {
+            throw new IllegalArgumentException("invalid sort type asc/desc");
+          }
+          if (sortF.length > 2 && (check = CheckParameters.checkEnum(sortF[2], new String[]{"string", "date", "long", "short"})) != null) {
+            throw new IllegalArgumentException("invalid sort datatype string/date/long/short");
+          }
 
-        SortOrder order = SortOrder.ASC;
-        if (sortF.length > 1 && sortF[1].equals("desc")) {
-          order = SortOrder.DESC;
-        }
-        String unmappedType = "string";
-        if (sortF.length > 2) {
-          unmappedType = sortF[2];
-        }
-        if (stdFields.contains(sortF[0].trim())) {
-          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".keyword").order(order).unmappedType(unmappedType));
-        } else {
-          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value").order(order).unmappedType(unmappedType));
-          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str.keyword").order(order).unmappedType(unmappedType));
+          SortOrder order = SortOrder.ASC;
+          if (sortF.length > 1 && sortF[1].equals("desc")) {
+            order = SortOrder.DESC;
+          }
+          String unmappedType = "string";
+          if (sortF.length > 2) {
+            unmappedType = sortF[2];
+          }
+          if(sortF[0].trim().equals("date_time")) {
+            searchSourceBuilder.sort(new FieldSortBuilder("date_time").order(order));
+          } else if (stdFields.contains(sortF[0].trim())) {
+            searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".keyword").order(order).unmappedType(unmappedType));
+          } else {
+            searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value").order(order).unmappedType(unmappedType));
+            searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str.keyword").order(order).unmappedType(unmappedType));
+          }
         }
       }
       
