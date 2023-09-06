@@ -302,8 +302,8 @@ public class IoTSearchApi {
 
           if (value instanceof Map) {
             Map vv = (Map) value;
-            if (vv.containsKey("value")) {
-              value = vv.get("value");
+            if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
+              //nothing to do
             } else if (vv.containsKey("value_str")) {
               value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
             } else if (vv.containsKey("value_arr_obj")) {
@@ -658,8 +658,8 @@ public class IoTSearchApi {
 
             if (value instanceof Map) {
               Map vv = (Map) value;
-              if (vv.containsKey("value")) {
-                value = vv.get("value");
+              if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
+                //nothing to do
               } else if (vv.containsKey("value_str")) {
                 value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
               } else if (vv.containsKey("value_arr_obj")) {
