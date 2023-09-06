@@ -97,7 +97,7 @@ public class IoTSearchApi {
     }
     Set<String> skipFields = new HashSet<>(Arrays.asList("src", "uuid", "username",
             "user_delegations", "organization_delegations", "sensorID", "latlon",
-            "kind", "groups"));
+            "kind", "groups", "value_name", "value_type"));
     List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", "deviceName", "deviceModel", "date_time", "expected_next_date_time", "deviceDelay_s");
     try {
       String q = null;
@@ -267,8 +267,8 @@ public class IoTSearchApi {
           }
           if (value instanceof Map) {
             Map vv = (Map) value;
-            if (vv.containsKey("value")) {
-              value = vv.get("value");
+            if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
+              //nothing to do
             } else if (vv.containsKey("value_str")) {
               value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
             }
@@ -458,7 +458,7 @@ public class IoTSearchApi {
     }
     Set<String> skipFields = new HashSet<>(Arrays.asList("src", "uuid", "username",
             "user_delegations", "organization_delegations", "sensorID", "latlon",
-            "kind", "groups"));
+            "kind", "groups", "value_name", "value_type"));
     List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", "deviceName", "deviceModel");
     try {
       String q = null;
@@ -626,8 +626,8 @@ public class IoTSearchApi {
             }
             if (value instanceof Map) {
               Map vv = (Map) value;
-              if (vv.containsKey("value")) {
-                value = vv.get("value");
+              if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
+                //nothing to do
               } else if (vv.containsKey("value_str")) {
                 value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
               }

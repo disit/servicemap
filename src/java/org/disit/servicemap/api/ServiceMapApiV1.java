@@ -3097,7 +3097,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           fromTime = null;
         }
       }
-      if(valueName!=null && rtAttributes.has(valueName) && 
+      if(valueName!=null && rtAttributes!=null && rtAttributes.has(valueName) && 
               rtAttributes.getAsJsonObject(valueName).get("attr_type")!=null &&
               rtAttributes.getAsJsonObject(valueName).get("attr_type").getAsString().equals("CustomAttribute")) {
         // is stored with values
