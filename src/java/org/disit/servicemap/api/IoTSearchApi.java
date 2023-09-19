@@ -226,6 +226,9 @@ public class IoTSearchApi {
         sr.scroll(TimeValue.timeValueMinutes(1));
       }
 
+      if(conf.get("elasticSearchScrollSearchIoT","false").equals("true"))
+        sr.scroll(TimeValue.timeValueMinutes(5));
+
       sr.indices(index);
 
       long ts = System.currentTimeMillis();
@@ -389,6 +392,12 @@ public class IoTSearchApi {
             break;
           case ">=":
             q += cc[0] + ".value:>=" + Double.parseDouble(cc[3]);
+            break;
+          case "!=":
+            q += "!("+cc[0] + ".value:" + Double.parseDouble(cc[3])+")";
+            break;
+          case "!:":
+            q += "!("+cc[0] + ".value_str:\"" + QueryParserBase.escape(cc[3]) + "\")";
             break;
           default:
             throw new IllegalArgumentException("invalid operator " + op + " in condition " + c);
