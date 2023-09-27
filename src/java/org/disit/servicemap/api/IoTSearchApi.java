@@ -16,6 +16,7 @@
 package org.disit.servicemap.api;
 
 import com.google.gson.Gson;
+import com.unboundid.ldap.sdk.LDAPException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -221,13 +222,6 @@ public class IoTSearchApi {
 
       searchSourceBuilder.fetchSource(true);
       sr.source(searchSourceBuilder);
-
-      if (conf.get("elasticSearchScrollSearch", "false").equals("true")) {
-        sr.scroll(TimeValue.timeValueMinutes(1));
-      }
-
-      if(conf.get("elasticSearchScrollSearchIoT","false").equals("true"))
-        sr.scroll(TimeValue.timeValueMinutes(5));
 
       sr.indices(index);
 
@@ -828,7 +822,23 @@ public class IoTSearchApi {
       if (user != null) {
         String encUsername = Encrypter.encrypt(user.username);
         q += " OR username:" + encUsername + " OR user_delegations:" + encUsername;
-        //TODO add organization and group delegation
+        if(Configuration.getInstance().get("enableLdapSearch", "false").equals("true")) {
+          LdapSearch ldap = LdapSearch.getInstance();
+          try {
+            String organization = ldap.getOrganization(user.username);
+            if(organization!=null) {
+              List<String> groups = ldap.getGroups(q, organization);
+              q += " OR organization_delegations:" + organization;
+              for(String grp : groups) {
+                q += " OR groups:" + grp;
+              }
+            } else {
+              ServiceMap.println("WARNING user "+user.username+" org not found on ldap");
+            }
+          } catch(LDAPException e) {
+            e.printStackTrace();
+          }
+        }
       }
       q += ")";
     }
