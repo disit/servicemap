@@ -823,17 +823,17 @@ public class IoTSearchApi {
         String encUsername = Encrypter.encrypt(user.username);
         q += " OR username:" + encUsername + " OR user_delegations:" + encUsername;
         if(Configuration.getInstance().get("enableLdapSearch", "false").equals("true")) {
-          LdapSearch ldap = LdapSearch.getInstance();
           try {
+            LdapSearch ldap = LdapSearch.getInstance();
             String organization = ldap.getOrganization(user.username);
             if(organization!=null) {
-              List<String> groups = ldap.getGroups(q, organization);
+              List<String> groups = ldap.getGroups(user.username, organization);
               q += " OR organization_delegations:" + organization;
               for(String grp : groups) {
                 q += " OR groups:" + grp;
               }
             } else {
-              ServiceMap.println("WARNING user "+user.username+" org not found on ldap");
+              System.out.println("WARNING user "+user.username+" org not found on ldap");
             }
           } catch(LDAPException e) {
             e.printStackTrace();
