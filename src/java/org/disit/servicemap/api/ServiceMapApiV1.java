@@ -3522,7 +3522,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                         valueOut = "\""+JSONObject.escape(value.toString())+"\"";
                       }
                     } else {
-                      value = d.get("value_bool");
+                      value = d.get("value_arr");
                       if(value!=null) {
                         if(elasticSearchValueObjAsString)
                           valueOut = value = gson.toJson(value);
