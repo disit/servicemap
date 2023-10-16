@@ -3524,17 +3524,27 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     } else {
                       value = d.get("value_bool");
                       if(value!=null) {
-                        valueOut = "\""+value+"\"";
-                      } else {
-                        value = d.get("value_json_str");
+                        if(elasticSearchValueObjAsString)
+                          valueOut = value = gson.toJson(value);
+                        else {
+                          value = gson.toJson(value);
+                          valueOut = "\""+JSONObject.escape(value.toString())+"\"";
+                        }
+                      } else {                      
+                        value = d.get("value_bool");
                         if(value!=null) {
-                          if(elasticSearchValueObjAsString)
-                            valueOut = value;
-                          else
-                            valueOut = "\""+JSONObject.escape(value.toString())+"\"";
+                          valueOut = "\""+value+"\"";
                         } else {
-                          valueOut = "\"\"";
-                          value = "";
+                          value = d.get("value_json_str");
+                          if(value!=null) {
+                            if(elasticSearchValueObjAsString)
+                              valueOut = value;
+                            else
+                              valueOut = "\""+JSONObject.escape(value.toString())+"\"";
+                          } else {
+                            valueOut = "\"\"";
+                            value = "";
+                          }
                         }
                       }
                     }
