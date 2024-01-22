@@ -90,6 +90,7 @@ public class ConnectionPool {
      * Creates an instance of GenericObjectPool that holds our pool of
      * connections object.
      */
+    Configuration conf = Configuration.getInstance();
     connectionPool = new GenericObjectPool();
     // set the max number of connections
     connectionPool.setMaxActive(connections);
@@ -115,9 +116,10 @@ public class ConnectionPool {
      * Creates a PoolableConnectionFactory that will wraps the connection object
      * created by the ConnectionFactory to add object pooling functionality.
      */
+    String validationQuery = conf.get("validationQueryMySql", null);
     PoolableConnectionFactory pcf
             = new PoolableConnectionFactory(cf, connectionPool,
-                    null, null, false, true);
+                    null, validationQuery, false, true);
     return new PoolingDataSource(connectionPool);
   }
 

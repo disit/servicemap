@@ -19,6 +19,8 @@ package org.disit.servicemap;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Enumeration;
 import java.util.TreeMap;
 import java.util.Map;
@@ -80,6 +82,14 @@ public class Configuration {
     String env = System.getenv("SMAP_"+key);
     if(env!=null)
       return env;
+    String envFile = System.getenv("SMAP_"+key+"_FILE");
+    if(envFile!=null) {
+        try {
+            return new String(Files.readAllBytes(Paths.get(envFile)));
+        } catch (IOException e) {
+            System.out.println("Cannot read "+envFile+" for "+key+" ["+e.getMessage()+"]");
+        }      
+    }
     String value=map.get(key);
     if(value==null)
       return def;
