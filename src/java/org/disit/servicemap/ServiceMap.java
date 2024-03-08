@@ -712,7 +712,7 @@ public class ServiceMap {
 
     if(coords.length==1 && (coords[0].startsWith("wkt:") || coords[0].startsWith("geo:"))) {
       String geom = coords[0].substring(4);
-      if(geom.isBlank()) {
+      if(geom.trim().isEmpty()) {
           throw new IllegalArgumentException("empty geometry provided");
       }
       if(coords[0].startsWith("geo:")) {
