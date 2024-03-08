@@ -102,6 +102,7 @@ public class ConnectionPool {
     else
       connectionPool.setWhenExhaustedAction(GenericObjectPool.WHEN_EXHAUSTED_GROW);
     connectionPool.setMaxWait(maxWait);
+    connectionPool.setTestOnBorrow(true);
     /**
      * Creates a connection factory object which will be use by the pool to
      * create the connection object. We passes the JDBC url info, username and

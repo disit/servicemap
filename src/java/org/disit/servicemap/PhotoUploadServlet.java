@@ -84,10 +84,13 @@ public class PhotoUploadServlet extends HttpServlet {
     String serviceName = null;
     try {
       RepositoryConnection con = ServiceMap.getSparqlConnection();
-      serviceName = ServiceMap.getServiceName(con, serviceUri);
-      if(serviceName == null)
-        serviceName = ServiceMap.getServiceIdentifier(con, serviceUri);
-      con.close();
+      try {
+        serviceName = ServiceMap.getServiceName(con, serviceUri);
+        if(serviceName == null)
+            serviceName = ServiceMap.getServiceIdentifier(con, serviceUri);
+      } finally {
+        con.close();
+      }
       if(serviceName==null) {
         response.sendError(400,"invalid serviceUri (no name/id found)");
         ServiceMap.println("photo upload: request invalid serviceUri "+serviceUri);

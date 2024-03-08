@@ -712,6 +712,9 @@ public class ServiceMap {
 
     if(coords.length==1 && (coords[0].startsWith("wkt:") || coords[0].startsWith("geo:"))) {
       String geom = coords[0].substring(4);
+      if(geom.isBlank()) {
+          throw new IllegalArgumentException("empty geometry provided");
+      }
       if(coords[0].startsWith("geo:")) {
         //cerca su tabella la geometria dove fare ricerca
         Connection conMySQL = ConnectionPool.getConnection();
@@ -729,7 +732,8 @@ public class ServiceMap {
           conMySQL.close();
         }
       }
-      return  " " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_geomfromtext(\""+ServiceMap.stringEncode(geom)+"\"), 0.0005))\n"
+      String wktDist = conf.get("useDistWkt", "false").equals("true") ? dist : "0.0005";
+      return  " " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_geomfromtext(\""+ServiceMap.stringEncode(geom)+"\"), "+ wktDist + "))\n"
               + " BIND( 1.0 AS ?dist)\n";
     }
 
@@ -1079,8 +1083,12 @@ public class ServiceMap {
   
   static public String getServiceName(String serviceUri) throws Exception {
     RepositoryConnection con = ServiceMap.getSparqlConnection();
-    String serviceName = getServiceName(con, serviceUri);
-    con.close();
+    String serviceName;
+    try {
+        serviceName = getServiceName(con, serviceUri);
+    } finally {
+        con.close();
+    }
     return serviceName;
   }
   
@@ -1109,61 +1117,63 @@ public class ServiceMap {
   static public Map<String,String> getServiceInfo(String idService, String lang, String apikey) throws Exception {
     Map<String,String> info = new HashMap<>();
     RepositoryConnection con = ServiceMap.getSparqlConnection();
-    String queryService = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
-            + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
-            + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
-            + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-            + "PREFIX schema:<http://schema.org/>\n"
-            + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>\n"
-            + "PREFIX dcterms:<http://purl.org/dc/terms/>\n"
-            + "PREFIX opengis:<http://www.opengis.net/ont/geosparql#>\n"
-            + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>\n"
-            + "SELECT ?name ?lat ?long ?type ?category ?typeLabel ?ag ?agname\n"
-            + ServiceMap.graphAccessQueryFragment2(apikey)
-            + "WHERE{\n"
-            + " {\n"
-            + "  <" + idService + "> km4c:hasAccess ?entry.\n"
-            + "  ?entry geo:lat ?lat.\n"
-            + "  ?entry geo:long ?long.\n"
-            + " }UNION{\n"
-            + "  <" + idService + "> km4c:isInRoad ?road.\n"
-            + "  <" + idService + "> geo:lat ?lat.\n"
-            + "  <" + idService + "> geo:long ?long.\n"
-            + " }UNION{\n"
-            + "  <" + idService + "> geo:lat ?lat.\n"
-            + "  <" + idService + "> geo:long ?long.\n"
-            + " }\n"
-            + " {<" + idService + "> schema:name ?name.}UNION{<" + idService + "> foaf:name ?name.}UNION{<" + idService + "> dcterms:identifier ?name.}\n"
-            + " <" + idService + "> a ?type . FILTER(?type!=km4c:RegularService && ?type!=km4c:Service && ?type!=km4c:DigitalLocation)\n"
-            + " ?type rdfs:label ?typeLabel. FILTER(LANG(?typeLabel) = \""+lang+"\")\n"
-            + ServiceMap.graphAccessQueryFragment("<" + idService + ">", apikey)
-            + " OPTIONAL{?type rdfs:subClassOf ?category FILTER(STRSTARTS(STR(?category),\"http://www.disit.org/km4city/schema#\"))}.\n"
-            + " OPTIONAL {\n"
-            + "  {?st gtfs:stop <"+idService+">.}UNION{?st gtfs:stop [owl:sameAs <"+idService+">]}\n" 
-            + "  ?st gtfs:trip ?t.\n"
-            +"   ?t gtfs:route/gtfs:agency ?ag.\n"
-            +"   ?ag foaf:name ?agname.\n"
-            + " }\n"
-            + "} LIMIT 1";
-    TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, queryService);
-    TupleQueryResult result = tq.evaluate();
-    if(result.hasNext()) {
-      BindingSet binding = result.next();
-      info.put("serviceName", binding.getValue("name").stringValue());
-      info.put("lat", binding.getValue("lat").stringValue());
-      info.put("long", binding.getValue("long").stringValue());
-      info.put("typeLabel", binding.getValue("typeLabel").stringValue());
-      if(binding.getValue("category")!=null)
-        info.put("serviceType", makeServiceType(binding.getValue("category").stringValue(), binding.getValue("type").stringValue()));
-      else
-        info.put("serviceType", binding.getValue("type").stringValue().replace("http://www.disit.org/km4city/schema#", ""));
-      if(binding.getValue("ag")!=null) {
-        info.put("agencyUri", binding.getValue("ag").stringValue());
-        info.put("agency", binding.getValue("agname").stringValue());
-      }
+    try {
+        String queryService = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
+                + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
+                + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
+                + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
+                + "PREFIX schema:<http://schema.org/>\n"
+                + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>\n"
+                + "PREFIX dcterms:<http://purl.org/dc/terms/>\n"
+                + "PREFIX opengis:<http://www.opengis.net/ont/geosparql#>\n"
+                + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>\n"
+                + "SELECT ?name ?lat ?long ?type ?category ?typeLabel ?ag ?agname\n"
+                + ServiceMap.graphAccessQueryFragment2(apikey)
+                + "WHERE{\n"
+                + " {\n"
+                + "  <" + idService + "> km4c:hasAccess ?entry.\n"
+                + "  ?entry geo:lat ?lat.\n"
+                + "  ?entry geo:long ?long.\n"
+                + " }UNION{\n"
+                + "  <" + idService + "> km4c:isInRoad ?road.\n"
+                + "  <" + idService + "> geo:lat ?lat.\n"
+                + "  <" + idService + "> geo:long ?long.\n"
+                + " }UNION{\n"
+                + "  <" + idService + "> geo:lat ?lat.\n"
+                + "  <" + idService + "> geo:long ?long.\n"
+                + " }\n"
+                + " {<" + idService + "> schema:name ?name.}UNION{<" + idService + "> foaf:name ?name.}UNION{<" + idService + "> dcterms:identifier ?name.}\n"
+                + " <" + idService + "> a ?type . FILTER(?type!=km4c:RegularService && ?type!=km4c:Service && ?type!=km4c:DigitalLocation)\n"
+                + " ?type rdfs:label ?typeLabel. FILTER(LANG(?typeLabel) = \""+lang+"\")\n"
+                + ServiceMap.graphAccessQueryFragment("<" + idService + ">", apikey)
+                + " OPTIONAL{?type rdfs:subClassOf ?category FILTER(STRSTARTS(STR(?category),\"http://www.disit.org/km4city/schema#\"))}.\n"
+                + " OPTIONAL {\n"
+                + "  {?st gtfs:stop <"+idService+">.}UNION{?st gtfs:stop [owl:sameAs <"+idService+">]}\n" 
+                + "  ?st gtfs:trip ?t.\n"
+                +"   ?t gtfs:route/gtfs:agency ?ag.\n"
+                +"   ?ag foaf:name ?agname.\n"
+                + " }\n"
+                + "} LIMIT 1";
+        TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, queryService);
+        TupleQueryResult result = tq.evaluate();
+        if(result.hasNext()) {
+          BindingSet binding = result.next();
+          info.put("serviceName", binding.getValue("name").stringValue());
+          info.put("lat", binding.getValue("lat").stringValue());
+          info.put("long", binding.getValue("long").stringValue());
+          info.put("typeLabel", binding.getValue("typeLabel").stringValue());
+          if(binding.getValue("category")!=null)
+            info.put("serviceType", makeServiceType(binding.getValue("category").stringValue(), binding.getValue("type").stringValue()));
+          else
+            info.put("serviceType", binding.getValue("type").stringValue().replace("http://www.disit.org/km4city/schema#", ""));
+          if(binding.getValue("ag")!=null) {
+            info.put("agencyUri", binding.getValue("ag").stringValue());
+            info.put("agency", binding.getValue("agname").stringValue());
+          }
+        }
+    } finally {
+        con.close();
     }
-    con.close();
-    
     return info;
   }
   
@@ -1178,16 +1188,19 @@ public class ServiceMap {
   static public Map<String,String> getUriInfo(String uri) throws Exception {
     Map<String,String> info = new HashMap<>();
     RepositoryConnection con = ServiceMap.getSparqlConnection();
-    String query="SELECT * WHERE { <"+uri+"> ?p ?o }";
-    TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
-    TupleQueryResult result = tq.evaluate();
-    while(result.hasNext()) {
-      BindingSet binding = result.next();
-      String p = binding.getValue("p").stringValue();
-      String o = binding.getValue("o").stringValue();
-      info.put(p,o);
+    try {
+        String query="SELECT * WHERE { <"+uri+"> ?p ?o }";
+        TupleQuery tq = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+        TupleQueryResult result = tq.evaluate();
+        while(result.hasNext()) {
+          BindingSet binding = result.next();
+          String p = binding.getValue("p").stringValue();
+          String o = binding.getValue("o").stringValue();
+          info.put(p,o);
+        }
+    } finally {
+        con.close();
     }
-    con.close();
     return info;
   }
   
