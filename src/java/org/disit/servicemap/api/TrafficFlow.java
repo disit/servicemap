@@ -58,7 +58,7 @@ public class TrafficFlow {
         Configuration conf = Configuration.getInstance();
         RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf);
         String indexName = conf.get("elasticSearchRoadElementIndex", "roadelement4");
-        String sizeString = conf.get("elasticSearchRoadElementIndex", "2000");
+        String sizeString = conf.get("elasticSearchRoadElementCount", "2000");
 
         int size = Integer.parseInt(sizeString);
 
@@ -248,7 +248,7 @@ public class TrafficFlow {
         return parsedResponse.toString();
     }
 
-    public boolean wktValidator(String wktToValidate) {
+    public static boolean wktValidator(String wktToValidate) {
 
         try {
             WKTReader reader = new WKTReader();
@@ -257,28 +257,26 @@ public class TrafficFlow {
 
             return true;
         } catch (Exception e) {
-            System.err.println("WKT not valid: " + e.getMessage());
+            System.err.println("WKT is not valid: " + e.getMessage());
             return false;
         }
     }
 
-    public boolean isoDateValidator(String date) {
+    public static boolean isoDateValidator(String date) {
         DateTimeFormatter isoDateTimeFormatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
         try {
 
             isoDateTimeFormatter.parse(date);
-            System.out.println("La stringa è nel formato ISO");
             return true;
         } catch (DateTimeParseException e) {
             // Se si verifica un'eccezione, la stringa non è nel formato ISO
-            System.out.println("La stringa NON è nel formato ISO");
             return false;
         }
     }
 
-    public String isoDateDefault(String date) {
-        if (!date.contains("+") && !date.contains("Z")) {
+    public static String isoDateDefault(String date) {
+        if (date != null && !date.contains("+") && !date.contains("Z")) {
             TimeZone timeZone = TimeZone.getTimeZone("Europe/Rome");
             
             String[] d = date.split("-");
