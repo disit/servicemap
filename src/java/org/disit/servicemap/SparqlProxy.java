@@ -34,13 +34,27 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClients;
 import java.net.URLEncoder;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.servlet.ServletOutputStream;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.phoenix.shaded.org.mortbay.util.ajax.JSON;
+import org.json.simple.JSONObject;
+import org.openrdf.model.BNode;
+import org.openrdf.model.Literal;
+import org.openrdf.model.Value;
+import org.openrdf.model.URI;
+import org.openrdf.query.Binding;
+import org.openrdf.query.BindingSet;
+import org.openrdf.query.QueryLanguage;
+import org.openrdf.query.TupleQuery;
+import org.openrdf.query.TupleQueryResult;
+import org.openrdf.repository.RepositoryConnection;
 
 /**
  *
@@ -51,31 +65,54 @@ public class SparqlProxy extends HttpServlet {
 
   @Override
   public void doGet(HttpServletRequest theReq, HttpServletResponse theResp) throws ServletException, IOException {
+    Configuration conf = Configuration.getInstance();
+    String sparqlProxyMode = conf.get("sparqlProxyMode", "http");
+    if (sparqlProxyMode.equals("jdbc") || "jdbc".equals(theReq.getParameter("mode"))) {
+        String query = theReq.getParameter("query");
+        String format = theReq.getParameter("format");
+        try {
+            sparqlProxy(query, format, theReq, theResp);
+        } catch (Exception e) {
+          ServiceMap.notifyException(e);
+        }
+    } else if(sparqlProxyMode.equals("http")) {
+        if (log.isDebugEnabled()) {
+          String aSparqlEndpointQuery = theReq.getParameter("query");
+          log.debug(aSparqlEndpointQuery);
+        }
 
-    if (log.isDebugEnabled()) {
-      String aSparqlEndpointQuery = theReq.getParameter("query");
-      log.debug(aSparqlEndpointQuery);
-    }
-
-    try {
-      redirectGet(theReq, theResp);
-    } catch (Exception e) {
-      ServiceMap.notifyException(e);
+        try {
+          redirectGet(theReq, theResp);
+        } catch (Exception e) {
+          ServiceMap.notifyException(e);
+        }
     }
   }
 
   @Override
   public void doPost(HttpServletRequest theReq, HttpServletResponse theResp) throws ServletException, IOException {
+    Configuration conf = Configuration.getInstance();
+    String sparqlProxyMode = conf.get("sparqlProxyMode", "http");
+    if(sparqlProxyMode.equals("http"))
+    {
+        if (log.isDebugEnabled()) {
+          String aSparqlEndpointQuery = theReq.getParameter("query");
+          log.debug(aSparqlEndpointQuery);
+        }
 
-    if (log.isDebugEnabled()) {
-      String aSparqlEndpointQuery = theReq.getParameter("query");
-      log.debug(aSparqlEndpointQuery);
-    }
-
-    try {
-      redirectPost(theReq, theResp);
-    } catch (Exception e) {
-      ServiceMap.notifyException(e);
+        try {
+          redirectPost(theReq, theResp);
+        } catch (Exception e) {
+          ServiceMap.notifyException(e);
+        }
+    } else if (sparqlProxyMode.equals("jdbc")) {
+        String query = theReq.getParameter("query");
+        String format = theReq.getParameter("format");
+        try {
+            sparqlProxy(query, format, theReq, theResp);
+        } catch (Exception e) {
+          ServiceMap.notifyException(e);
+        }
     }
   }
   
@@ -307,4 +344,74 @@ public class SparqlProxy extends HttpServlet {
     ServiceMap.logAccess(theReq, null, null, null, null, "api-sparql", null, null, null, null, null, null, null);
   }
 
+  private void sparqlProxy(String query, String format, HttpServletRequest theReq, HttpServletResponse theResp) throws Exception {
+    String ip = ServiceMap.getClientIpAddress(theReq);
+    if(!ServiceMap.checkIP(ip, "sparql")) {
+      theResp.sendError(403, "API calls daily limit reached");
+      return;
+    }
+    long startTime = System.nanoTime();
+    
+    RepositoryConnection connection = ServiceMap.getSparqlConnection();
+    ServletOutputStream os = theResp.getOutputStream();
+    try {
+        TupleQuery q = connection.prepareTupleQuery(QueryLanguage.SPARQL, query);
+        TupleQueryResult result = q.evaluate();
+        
+        List<String> names = result.getBindingNames();
+        String vars = "[";
+        boolean firstName = true;
+        for(String v: names) {
+            if(!firstName)
+                vars+=",";
+            vars += "\""+v+"\"";
+            firstName = false;
+        }
+        vars += "]";
+        
+        os.print("{ \"head\": { \"vars\": " + vars +" }, \"results\":{ \"bindings\": [ ");
+        boolean firstTuple=true;
+        while(result.hasNext()) {
+            BindingSet bs = result.next();
+            os.print((firstTuple ? "" : ",") + "{");
+            boolean firstValue = true;
+            for(Binding b : bs) {
+                String name = b.getName();
+                Value v = b.getValue();
+                String other = "";
+                if(v instanceof URI) {
+                    other = ",\"type\":\"uri\"";
+                } else if(v instanceof Literal) {
+                    other = ",\"type\":\"literal\"";
+                    Literal l = (Literal)v;
+                    URI datatype = l.getDatatype();
+                    String lang = l.getLanguage();
+                    if(lang!=null)
+                        other += ",\"xml:lang\":\"" + lang + "\"";
+                    if(datatype!=null)
+                        other += ",\"datatype\":\"" + datatype + "\"";
+                } else if(v instanceof BNode) {
+                    other = ",\"type\":\"bnode\"";                    
+                }
+                os.print( (firstValue? "":",") + "\""+name+"\":{ \"value\":\"" + JSONObject.escape(v.stringValue()) + "\"" + other + " }");
+                //System.out.println("name: "+name+" "+v.stringValue()+" "+v.toString());
+                firstValue = false;
+            }
+            os.print("}");
+            firstTuple = false;
+        }
+        os.print("]}}");
+    } catch(Exception e) {
+        //theResp.sendError(500, e.getMessage());
+        theResp.setStatus(500);
+        os.println(e.getMessage());
+        throw e;
+    } finally {
+        connection.close();
+    }
+    
+    String ua = theReq.getHeader("User-Agent");
+    ServiceMap.logQuery(query, "SPARQL", ip, ua, System.nanoTime()-startTime);
+    ServiceMap.logAccess(theReq, null, null, null, null, "api-sparql", null, null, null, null, null, null, null);      
+  }
 }
