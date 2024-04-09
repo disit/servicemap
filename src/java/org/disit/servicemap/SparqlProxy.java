@@ -66,6 +66,13 @@ public class SparqlProxy extends HttpServlet {
   @Override
   public void doGet(HttpServletRequest theReq, HttpServletResponse theResp) throws ServletException, IOException {
     Configuration conf = Configuration.getInstance();
+    
+    String sparqlProxyEnabled = conf.get("sparqlProxyEnabled", "true");
+    if(!sparqlProxyEnabled.equals("true")) {
+        theResp.sendError(400, "SPARQL proxy not enabled");
+        return;
+    }
+    
     String sparqlProxyMode = conf.get("sparqlProxyMode", "http");
     if (sparqlProxyMode.equals("jdbc") || "jdbc".equals(theReq.getParameter("mode"))) {
         String query = theReq.getParameter("query");
@@ -92,6 +99,13 @@ public class SparqlProxy extends HttpServlet {
   @Override
   public void doPost(HttpServletRequest theReq, HttpServletResponse theResp) throws ServletException, IOException {
     Configuration conf = Configuration.getInstance();
+    
+    String sparqlProxyEnabled = conf.get("sparqlProxyEnabled", "true");
+    if(!sparqlProxyEnabled.equals("true")) {
+        theResp.sendError(400, "SPARQL proxy not enabled");
+        return;
+    }
+    
     String sparqlProxyMode = conf.get("sparqlProxyMode", "http");
     if(sparqlProxyMode.equals("http"))
     {

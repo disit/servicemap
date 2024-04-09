@@ -87,7 +87,7 @@ public class IoTSearchApi {
     Configuration conf = Configuration.getInstance();
 
     RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf);
-    String[] index = conf.get("elasticSearchDevicesIndex", "devices-state").split(";");
+    String[] index = conf.get("elasticSearchDevicesIndex", "devices-state-all").split(";");
 
     Set<String> fieldList = new HashSet<>();
     if (fields != null) {
@@ -112,8 +112,9 @@ public class IoTSearchApi {
         q = categoriesQueryBuilder(q, categories);
       }
       ArrayList<String[]> delayConds = new ArrayList<>();
+      ArrayList<String[]> rangeConds = new ArrayList<>();
       if (condition != null) {
-        q = conditionQueryBuilder(q, condition, delayConds);
+        q = conditionQueryBuilder(q, condition, delayConds, rangeConds);
       }
       q = userQueryBuilder(q, user);
 
@@ -156,6 +157,17 @@ public class IoTSearchApi {
         dataQuery = QueryBuilders.queryStringQuery(q).defaultField("serviceUri").lenient(Boolean.TRUE);
       }
       BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(dataQuery).filter(geoQuery);
+      
+      for(String[] rangeCnd: rangeConds) {
+        if(rangeCnd[1].equals("gt"))
+            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0]+".value_str.keyword").gt(rangeCnd[2]));
+        else if(rangeCnd[1].equals("lt"))
+            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0]+".value_str.keyword").lt(rangeCnd[2]));
+        else if(rangeCnd[1].equals("lte"))
+            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0]+".value_str.keyword").lte(rangeCnd[2]));
+        else if(rangeCnd[1].equals("gte"))
+            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0]+".value_str.keyword").gte(rangeCnd[2]));
+      }
       
       for(String[] delayCnd: delayConds) {
         Map<String, Object> params = new HashMap<>();
@@ -328,12 +340,13 @@ public class IoTSearchApi {
     }
   }
 
-  private static String conditionQueryBuilder(String q, String condition, ArrayList<String[]> delayConds) throws IllegalArgumentException {
+  private static String conditionQueryBuilder(String q, String condition, ArrayList<String[]> delayConds, ArrayList<String[]> rangeConds) throws IllegalArgumentException {
     String[] conds = condition.split(";");
     for (String c : conds) {
-      String[] cc = c.split("((?=(:|=|!|>|<))|(?<=(:|=|!|>|<)))");
-      //out.println(Arrays.asList(cc));
-      if (cc.length != 3 && cc.length != 4) {
+      //String[] cc = c.split("((?=(:|=|!|>|<))|(?<=(:|=|!|>|<)))",5);
+      String[] cc = split(c,":=<>!");
+      //System.out.println(Arrays.asList(cc));
+      if (cc.length != 3) {
         throw new IllegalArgumentException("invalid condition " + c);
       }
       cc[0] = cc[0].trim();
@@ -356,51 +369,110 @@ public class IoTSearchApi {
         delayConds.add(delayCond);
         continue;
       }
-      if (q == null) {
-        q = "";
-      } else {
-        q += " AND ";
+      if(cc[0].isEmpty()) {
+        throw new IllegalArgumentException("invalid condition " + c + " missing valuename");
       }
+      
+      String cond = null;
       if (cc.length == 3) {
         switch (cc[1]) {
           case ":":
-            q += cc[0] + ".value_str:\"" + QueryParserBase.escape(cc[2]) + "\"";
+            cond = cc[0] + ".value_str.keyword:\"" + QueryParserBase.escape(concat(cc,2)) + "\"";
             break;
           case "=":
-            q += cc[0] + ".value:" + Double.parseDouble(cc[2]);
+            cond = cc[0] + ".value:" + Double.parseDouble(cc[2]);
             break;
           case "<":
-            q += cc[0] + ".value:<" + Double.parseDouble(cc[2]);
+            cond = cc[0] + ".value:<" + Double.parseDouble(cc[2]);
             break;
           case ">":
-            q += cc[0] + ".value:>" + Double.parseDouble(cc[2]);
+            cond = cc[0] + ".value:>" + Double.parseDouble(cc[2]);
+            break;
+          case "<=":
+            cond = cc[0] + ".value:<=" + Double.parseDouble(cc[2]);
+            break;
+          case ">=":
+            cond = cc[0] + ".value:>=" + Double.parseDouble(cc[2]);
+            break;
+          case "!=":
+            cond = "!("+cc[0] + ".value:" + Double.parseDouble(cc[2])+")";
+            break;
+          case "!:":
+            cond = "!("+cc[0] + ".value_str.keyword:\"" + QueryParserBase.escape(cc[2]) + "\")";
+            break;
+          case ":<":
+            if(rangeConds!=null) {
+                rangeConds.add(new String[]{cc[0],"lt",cc[2]});
+            }
+            break;
+          case ":>":
+            if(rangeConds!=null) {
+                rangeConds.add(new String[]{cc[0],"gt",cc[2]});
+            }
+            break;
+          case ":<=":
+            if(rangeConds!=null) {
+                rangeConds.add(new String[]{cc[0],"lte",cc[2]});
+            }
+            break;
+          case ":>=":
+            if(rangeConds!=null) {
+                rangeConds.add(new String[]{cc[0],"gte",cc[2]});
+            }
             break;
           default:
             throw new IllegalArgumentException("invalid operator " + cc[1] + " in condition " + c);
         }
-      } else if (cc.length == 4) {
-        String op = cc[1] + cc[2];
-        switch (op) {
-          case "<=":
-            q += cc[0] + ".value:<=" + Double.parseDouble(cc[3]);
-            break;
-          case ">=":
-            q += cc[0] + ".value:>=" + Double.parseDouble(cc[3]);
-            break;
-          case "!=":
-            q += "!("+cc[0] + ".value:" + Double.parseDouble(cc[3])+")";
-            break;
-          case "!:":
-            q += "!("+cc[0] + ".value_str:\"" + QueryParserBase.escape(cc[3]) + "\")";
-            break;
-          default:
-            throw new IllegalArgumentException("invalid operator " + op + " in condition " + c);
+      }
+      if(cond!=null) {
+        if (q == null) {
+          q = cond;
+        } else {
+          q += " AND " + cond;
         }
       }
     }
     return q;
   }
 
+  private static String concat(String[] s, int from) {
+      String r = s[from];
+      for(int i=from+1; i<s.length;i++)
+          r += s[i];
+      return r;
+  }
+  
+  private static String[] split(String s, String seps) {
+      String token1 = "";
+      String sep = "";
+      String token2 = "";
+      
+      int state = 0;
+      for(int i=0; i<s.length(); i++) {
+          char c = s.charAt(i);
+          boolean isSep = seps.contains(""+c);
+          if(state == 0 && isSep) {
+              state = 1;
+          } else if(state == 1 && !isSep) {
+              state = 2;
+          }
+              
+          if(state == 0) {
+              token1 += c;
+          } else if(state == 1) {
+              sep += c;
+          } else {
+              token2 += c;
+          }
+      }
+      if(state == 0)
+          return new String[] {token1};
+      else if(state == 1)
+          return new String[] {token1, sep};
+      else
+        return new String[] {token1, sep, token2};
+  }
+  
   private String categoriesQueryBuilder(String q, String categories) {
     String[] cats = categories.split(";");
     if (q == null) {
@@ -475,7 +547,7 @@ public class IoTSearchApi {
         q = categoriesQueryBuilder(q, categories);
       }
       if (condition != null) {
-        q = conditionQueryBuilder(q, condition, null);
+        q = conditionQueryBuilder(q, condition, null, null);
       }
       q = userQueryBuilder(q,user);
 
