@@ -102,7 +102,6 @@ public class ConnectionPool {
     else
       connectionPool.setWhenExhaustedAction(GenericObjectPool.WHEN_EXHAUSTED_GROW);
     connectionPool.setMaxWait(maxWait);
-    connectionPool.setTestOnBorrow(true);
     /**
      * Creates a connection factory object which will be use by the pool to
      * create the connection object. We passes the JDBC url info, username and
@@ -117,7 +116,12 @@ public class ConnectionPool {
      * Creates a PoolableConnectionFactory that will wraps the connection object
      * created by the ConnectionFactory to add object pooling functionality.
      */
-    String validationQuery = conf.get("validationQueryMySql", null);
+    String validationQuery = conf.get("validationQueryMySql", "SELECT 1");
+    if(validationQuery.equals("null") || validationQuery.trim().isEmpty())
+      validationQuery = null;
+    else
+      connectionPool.setTestOnBorrow(true);
+
     PoolableConnectionFactory pcf
             = new PoolableConnectionFactory(cf, connectionPool,
                     null, validationQuery, false, true);
