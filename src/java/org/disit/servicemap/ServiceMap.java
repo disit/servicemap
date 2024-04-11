@@ -1459,15 +1459,17 @@ public class ServiceMap {
       String[] arrayCategorie = categorie.split(";");
       categorie = "";
       Pattern x = Pattern.compile("[a-zA-Z0-9_]+");
+      int n = 0;
       for(int i=0; i<arrayCategorie.length; i++) {
         String v = arrayCategorie[i].trim();
         if(v.equals(""))
           arrayCategorie[i]=null;
         else if(x.matcher(v).matches()) {
-          if(i!=0)
+          if(n!=0)
             categorie += ";"+v;
           else
             categorie += v;
+          n++;
         }
       }
     }

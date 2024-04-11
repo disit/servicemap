@@ -108,7 +108,7 @@ public class IoTSearchApi {
       if (model != null) {
         q = modelQueryBuilder(q, model);
       }
-      if (categories != null) {
+      if (categories != null && !categories.isEmpty()) {
         q = categoriesQueryBuilder(q, categories);
       }
       ArrayList<String[]> delayConds = new ArrayList<>();
