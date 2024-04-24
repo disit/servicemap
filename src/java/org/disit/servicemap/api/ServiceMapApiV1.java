@@ -1367,25 +1367,17 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     + " ?ser rdf:type km4c:Service" + (sparqlType.equals("virtuoso") ? " OPTION (inference \"urn:ontology\")" : "") + ".\n"
                     + ( excludeSameAs ?" FILTER NOT EXISTS {?ser owl:sameAs ?xxx}\n" : "")
                     + ServiceMap.textSearchQueryFragment("?ser", "?p", textToSearch)
+                    + "  ?ser geo:lat ?lat.\n"
+                    + "  ?ser geo:long ?long.\n"
                     + (inside ? 
-                      "?ser opengis:hasGeometry [geo:geometry ?geo].\n"
-                      + "  ?ser geo:lat ?lat.\n"
-                      + "  ?ser geo:long ?long.\n"
-                      + "filter(bif:st_contains(?geo,bif:st_point("+coords[1]+","+coords[0]+"),0.0000001))"
-                    : /*" {\n"
-                      + "  ?ser km4c:hasAccess ?entry.\n"
-                      + "  ?entry geo:lat ?elat.\n"
-                      + "  ?entry geo:long ?elong.\n"
-                      + ServiceMap.geoSearchQueryFragment("?entry", coords, raggioServizi)
-                      + " } UNION {\n"
-                      + */ "  ?ser geo:lat ?lat.\n"
-                      + "  ?ser geo:long ?long.\n"
-                      + ServiceMap.geoSearchQueryFragment("?ser", coords, raggioServizi, geoMode)
-                      + ServiceMap.valueTypeSearchQueryFragment("?ser", value_type)
-                      + ServiceMap.graphSearchQueryFragment("?ser", graphUri)
-                      + ServiceMap.modelSearchQueryFragment("?ser", model)
-                      + ServiceMap.graphAccessQueryFragment("?ser", apiKey)
-                      /*+ " }\n"*/)
+                      ServiceMap.geoInsideSearchQueryFragment(type, coords)
+                    :   
+                      ServiceMap.geoSearchQueryFragment("?ser", coords, raggioServizi, geoMode)
+                    )
+                    + ServiceMap.valueTypeSearchQueryFragment("?ser", value_type)
+                    + ServiceMap.graphSearchQueryFragment("?ser", graphUri)
+                    + ServiceMap.modelSearchQueryFragment("?ser", model)
+                    + ServiceMap.graphAccessQueryFragment("?ser", apiKey)
                     + fc
                     + " OPTIONAL {?ser <http://schema.org/name> ?sName1}\n"
                     + " OPTIONAL {?ser foaf:name ?sName2}\n"
@@ -1395,7 +1387,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                             + " ?sType rdfs:subClassOf* ?sCategory. FILTER(?sCategory != <http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing>)\n"
                             + " ?sCategory rdfs:subClassOf km4c:Service.\n"
                             + " ?sType rdfs:label ?sTypeLang. FILTER(LANG(?sTypeLang)=\"" + lang + "\")\n" : "")
-                    + (getGeometry || inside ? " OPTIONAL {?ser opengis:hasGeometry [opengis:asWKT ?wktGeometry]. BIND(!STRSTARTS(?wktGeometry,\"POINT\") as ?hasGeometry)}\n" : "")
+                    + (getGeometry || inside ? " OPTIONAL {?ser opengis:hasGeometry [opengis:asWKT ?wktGeometry]. BIND(!STRSTARTS(STR(?wktGeometry),\"POINT\") as ?hasGeometry)}\n" : "")
                     + "   OPTIONAL {?ser km4c:multimediaResource ?multimedia}.\n"
                     //+ "   OPTIONAL {?st gtfs:stop ?ser.\n"
                     //+ "     ?st gtfs:trip/gtfs:route/gtfs:agency ?ag.\n"

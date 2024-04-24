@@ -698,6 +698,17 @@ public class ServiceMap {
             : " " + subj + " omgeo:nearby(" + lat + " " + lng + " \"" + dist + "km\") .\n"); //ATTENZIONE per OWLIM non viene aggiunto il BIND
   }
   
+  static public String geoInsideSearchQueryFragment(String subj, String[] coords) {
+    Configuration conf = Configuration.getInstance();
+    String geoWktProperty = "opengis:asWKT";
+    if(conf.get("enableOldWKT", "false").equals("true"))
+        geoWktProperty = "geo:geometry";
+    return subj + " opengis:hasGeometry ["+ geoWktProperty +" ?geo];\n"
+           + "  geo:lat ?lat;\n"
+           + "  geo:long ?long.\n"
+           + "filter(bif:st_contains(?geo,bif:st_point("+coords[1]+","+coords[0]+"),0.0000001))";
+  }
+
   static public String geoSearchQueryFragment(String subj, String[] coords, String dist) throws IOException, SQLException {
     return geoSearchQueryFragment(subj, coords, dist, null);
   }
