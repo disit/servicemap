@@ -400,6 +400,7 @@ public class ServiceMap {
   
   static public String latLngToAddressQuery(String lat, String lng, String sparqlType) {
     Configuration conf = Configuration.getInstance();
+    String addressQueryMaxDistKm = conf.get("addressQueryMaxDistKm", "0.3");
     if(conf.get("locationUseNodes","true").equals("false"))
       return prefixes
             + "SELECT DISTINCT ?via ?numero ?comune	(?nc as ?uriCivico) ?uriComune ?provincia ?uriProvincia (?road as ?uriStrada) WHERE {\n"
@@ -416,7 +417,7 @@ public class ServiceMap {
             + " ?uriProvincia foaf:name ?provincia.}\n"
             + (sparqlType.equals("virtuoso") ? 
                //" ?ser geo:geometry ?geo.  filter(bif:st_distance(?geo, bif:st_point ("+longitudine+","+latitudine+"))<= "+raggioBus+")" :
-                 " ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), 0.3))\n" 
+                 " ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+addressQueryMaxDistKm+"))\n" 
                + " BIND( bif:st_distance(?geo, bif:st_point(" + lng + ", " + lat + ")) AS ?dist)\n":
                  " ?entry omgeo:nearby(" + lat + " " + lng + " \"0.3km\").\n"
                + " BIND( omgeo:distance(?elat, ?elong, " + lat + ", " + lng + ") AS ?dist)\n")
@@ -428,7 +429,7 @@ public class ServiceMap {
       "{ SELECT ?n ?dist {\n" +
       " ?n a km4c:Node.\n" +
       " ?n geo:geometry ?g.\n" +
-      " filter(bif:st_intersects(?g,bif:st_point("+lng+","+lat+"),0.3))\n" +
+      " filter(bif:st_intersects(?g,bif:st_point("+lng+","+lat+"),"+addressQueryMaxDistKm+"))\n" +
       " bind (bif:st_distance(?g,bif:st_point("+lng+","+lat+")) as ?dist)\n" +
       "} order by ?dist limit 10}" +
  /*     "{\n" +
@@ -463,8 +464,8 @@ public class ServiceMap {
       " ?uriComune foaf:name ?comune.\n" +
       " optional { ?uriComune km4c:isPartOfProvince ?uriProvincia.\n" +
       " ?uriProvincia foaf:name ?provincia.}\n" +
-      " ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), 0.3)) \n" +
-      " BIND( bif:st_distance(?geo, bif:st_point("+lng+","+lat+")) AS ?dist)\n" +
+      " ?entry geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_point ("+lng+","+lat+"), "+addressQueryMaxDistKm+")) \n" +
+      " BIND( IF(bif:GeometryType(?geo)='POINT', bif:st_distance(?geo, bif:st_point("+lng+","+lat+")), 1000) AS ?dist)\n" +
       "} ORDER BY ?dist\n" +
       "LIMIT 1\n" +
       "}\n" +
