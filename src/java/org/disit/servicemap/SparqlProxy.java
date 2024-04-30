@@ -78,6 +78,7 @@ public class SparqlProxy extends HttpServlet {
         String query = theReq.getParameter("query");
         String format = theReq.getParameter("format");
         try {
+            theResp.setHeader("Access-Control-Allow-Origin", "*");
             sparqlProxy(query, format, theReq, theResp);
         } catch (Exception e) {
           ServiceMap.notifyException(e);
