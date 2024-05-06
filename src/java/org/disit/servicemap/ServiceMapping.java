@@ -87,7 +87,7 @@ public class ServiceMapping {
       //adds all attributes info
       String attrQuery = this.attributesQuery;
       if (attrQuery == null) {
-        attrQuery = "select ?value_name ?data_type (replace(str(?vt),\"http://www.disit.org/km4city/resource/value_type/\",\"\") as ?value_type) (replace(str(?type),\"http://www.disit.org/km4city/schema#\",\"\") as ?attr_type) ?value_unit ?healthiness_criteria ?value_refresh_rate ?value_bounds ?different_values{\n" +
+        attrQuery = "select ?value_name ?data_type (replace(str(?vt),\"http://www.disit.org/km4city/resource/value_type/\",\"\") as ?value_type) (replace(str(?type),\"http://www.disit.org/km4city/schema#\",\"\") as ?attr_type) ?value_unit ?healthiness_criteria ?value_refresh_rate ?value_bounds ?different_values ?realtime {\n" +
             " <%SERVICE_URI> km4c:hasAttribute ?a.\n" +
             " ?a a ?type.\n" +
             " ?a km4c:value_name ?value_name.\n" +
@@ -99,6 +99,7 @@ public class ServiceMapping {
             " optional {?a km4c:value_refresh_rate ?value_refresh_rate}\n" +
             " optional {?a km4c:value_bounds ?value_bounds}\n" +
             " optional {?a km4c:different_values ?different_values}\n" +
+            " optional {?a km4c:realtime ?realtime}\n" +
             " } order by ?o";
       }
       

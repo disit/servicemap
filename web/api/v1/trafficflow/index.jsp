@@ -35,15 +35,13 @@
     
     // check if date have time zone
     System.out.println(dateObservedStart);
-        System.out.println(dateObservedEnd);
+    System.out.println(dateObservedEnd);
 
-    dateObservedStart = tf.isoDateDefault(dateObservedStart); 
     dateObservedEnd = tf.isoDateDefault(dateObservedEnd);
     System.out.println(dateObservedStart);
         System.out.println(dateObservedEnd);
 
     //String isoDateFormatRegex = "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?([+-]\\d{2}:\\d{2})?$";
-    
     
     if (geometry != null && !tf.wktValidator(geometry)) {
         // geometry is not a correct wkt
@@ -56,6 +54,7 @@
         return;
     }
 
+    dateObservedStart = tf.isoDateDefault(dateObservedStart); 
     if (dateObservedStart != null && !tf.isoDateValidator(dateObservedStart)) {
         // Date is not in ISO format
         String errorMessage = "Invalid dateObservedStart format. Please provide the date in ISO 8601 format.";
