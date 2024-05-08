@@ -1370,7 +1370,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     + "  ?ser geo:lat ?lat.\n"
                     + "  ?ser geo:long ?long.\n"
                     + (inside ? 
-                      ServiceMap.geoInsideSearchQueryFragment(type, coords)
+                      ServiceMap.geoInsideSearchQueryFragment("?ser", coords)
                     :   
                       ServiceMap.geoSearchQueryFragment("?ser", coords, raggioServizi, geoMode)
                     )

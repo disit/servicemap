@@ -239,7 +239,7 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       raggi = request.getParameter("raggio");
     }
     try {
-      if(raggi!=null)
+      if(raggi!=null && !raggi.equals("inside"))
         Double.parseDouble(raggi);
     } catch(Exception e) {
       raggi = null;
