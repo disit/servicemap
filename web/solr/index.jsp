@@ -30,7 +30,7 @@ if(!ipAddress.startsWith(conf.get("internalNetworkIpPrefix", "192.168.0.")) && !
   return;
 }
 
-String urlString = conf.get("solrKm4cIndexUrl", "http://192.168.0.207:8983/solr/km4c-index");
+String urlString = conf.get("solrKm4cIndexUrl", "http://localhost:8983/solr/km4c-index");
 System.out.println("SOLR index @ "+urlString);
 
 SolrClient solr = new HttpSolrClient(urlString);
@@ -43,7 +43,7 @@ if(request.getParameter("reset")!=null) {
   RepositoryConnection con = ServiceMap.getSparqlConnection();
   int offset = 0, n = 0;
   long start = System.currentTimeMillis();
-  int size = 100000;
+  int size = Integer.parseInt(conf.get("solrKm4cPageSize", "10000"));
   System.out.println("START index address");
   do {
     String queryText = "select distinct ?sn ?snn ?cc ?r ?rn ?m ?mn ?lat ?lng ?x {\n" +
@@ -97,7 +97,7 @@ if(request.getParameter("reset")!=null) {
   RepositoryConnection con = ServiceMap.getSparqlConnection();
   int offset = 0, n = 0;
   long start = System.currentTimeMillis();
-  int size = 10000;
+  int size = Integer.parseInt(conf.get("solrKm4cPageSize", "10000"));;
   do {
     String queryText = "select distinct ?s ?sType ?sCategory ?name ?city (IF(BOUND(?elat2),?elat2,?elat1) as ?lat) (IF(BOUND(?elong2),?elong2,?elong1) as ?long) {\n"
       + "?s a km4c:Service OPTION(inference \"urn:ontology\").\n"
@@ -168,7 +168,7 @@ if(request.getParameter("reset")!=null) {
   RepositoryConnection con = ServiceMap.getSparqlConnection();
   int offset = 0, n = 0;
   long start = System.currentTimeMillis();
-  int size = 1000;
+  int size = Integer.parseInt(conf.get("solrKm4cPageSize", "1000"));;
   do {
     String queryText = "select ?m ?mn (avg(?lat) as ?mlat) (avg(?lng) as ?mlng) {\n" +
       " ?r a km4c:Road;\n" +
@@ -218,7 +218,7 @@ if(request.getParameter("reset")!=null) {
   FileWriter fileWriter = new FileWriter(file.getAbsolutePath());
   BufferedWriter bufferWriter = new BufferedWriter(fileWriter);
           */
-  int size = 1000;
+  int size = Integer.parseInt(conf.get("solrKm4cPageSize", "1000"));;
   System.out.println("START");
   do {
     String queryText = "select distinct ?s ?sType ?sCategory ?typeLabel ?name ?lat ?long ?city ?cityUri ?agency  ?x {\n" +

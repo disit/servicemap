@@ -71,6 +71,7 @@
   String maxResults = request.getParameter("maxResults");
   String text = request.getParameter("text");
   String notHealty = request.getParameter("notHealthy");
+  String forceAccessCheck = request.getParameter("forceAccessCheck");
 
   if (selection == null && model==null && valueFilters==null && categories==null) {
     ServiceMap.logError(request, response, 400, "please specify 'selection' or 'model' or 'valueFilters' or 'categories'  parameter");
@@ -121,6 +122,10 @@
   }
   if(notHealty!=null && (check = CheckParameters.checkEnum(notHealty, new String[] {"true","false"})) != null) {
     ServiceMap.logError(request, response, 400, "invalid 'notHealthy' parameter: "+check);
+    return;
+  }
+  if(forceAccessCheck!=null && (check = CheckParameters.checkEnum(forceAccessCheck, new String[] {"true","false"})) != null) {
+    ServiceMap.logError(request, response, 400, "invalid 'forceAccessCheck' parameter: "+check);
     return;
   }
   
@@ -197,7 +202,7 @@
     // get services by lat/long
     if (coords == null || coords.length == 2 || coords.length == 4 ) {
       try {
-        int results = iotSearchApi.iotSearch(out, coords, suris, categories, model, maxDists, valueFilters, u, fromResult, maxResults, values, sortOnValue, text, notHealty);
+        int results = iotSearchApi.iotSearch(out, coords, suris, categories, model, maxDists, valueFilters, u, fromResult, maxResults, values, sortOnValue, text, notHealty, forceAccessCheck, u);
         ServiceMap.updateResultsPerIP(ip, requestType, results);
         ServiceMap.logAccess(request, null, selection, categories, null, "api-iot-search", maxResults, maxDists, null, null, "json", null, reqFrom);
       } catch (IllegalArgumentException e) {

@@ -2940,7 +2940,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             float[] avgServiceStars = ServiceMap.getAvgServiceStars(serviceUri);
             
             out.println("    \"linkDBpedia\": " + valueOfDBpedia + ",");
-            out.println("    \"wktGeometry\": \"" + escapeJSON(ServiceMap.fixWKT(valueOfWktGeometry)) + "\",\n"
+            out.println("    \"wktGeometry\": \"" + escapeJSON(valueOfWktGeometry ) + "\",\n"
                 + "    \"photos\": " + ServiceMap.getServicePhotos(serviceUri) + ",\n"
                 + "    \"photoThumbs\": " + ServiceMap.getServicePhotos(serviceUri,"thumbs") + ",\n"
                 + "    \"photoOrigs\": " + ServiceMap.getServicePhotos(serviceUri,"originals") + ",\n"

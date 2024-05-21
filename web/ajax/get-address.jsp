@@ -62,7 +62,10 @@
           address = "";
           uri=(String)obj.get("municipalityUri");
         }
-        out.println("<small>Address:</small> <span id='actualAddress'><a href=\""+logEndPoint+uri+"\" target=\"_blank\">" + address + obj.get("municipality")+"</a></span>");
+        if(uri == null)
+            out.println("<small>Address:</small> NOT FOUND ");
+        else
+            out.println("<small>Address:</small> <span id='actualAddress'><a href=\""+logEndPoint+uri+"\" target=\"_blank\">" + address + obj.get("municipality")+"</a></span>");
 
         if(conf.get("enablePathSearch","true").equals("true") /*&& !address.equals("")*/)
           out.println("<br><button style='margin:10px 10px 10px 0px' id='startpathsearch' onclick='setStartSearchPath("+latitudine+","+longitudine+")'>Path from here</button><button style='margin:10px 10px 10px 0px' id='endpathsearch' onclick='setEndSearchPath("+latitudine+","+longitudine+")'>Path to here</button>");
@@ -84,6 +87,11 @@
           }
           out.println("</div>");
         }
+      } else {
+        out.println("<small>Address:</small> NOT FOUND ");
+        if(conf.get("enablePathSearch","true").equals("true") /*&& !address.equals("")*/)
+          out.println("<br><button style='margin:10px 10px 10px 0px' id='startpathsearch' onclick='setStartSearchPath("+latitudine+","+longitudine+")'>Path from here</button><button style='margin:10px 10px 10px 0px' id='endpathsearch' onclick='setEndSearchPath("+latitudine+","+longitudine+")'>Path to here</button>");
+        out.println("<button style='background-color: #c3caf9;' onclick='mapLatLngClick(L.latLng("+latitudine+", "+longitudine+"),false,true)'>Search geometry</button><br>");      
       }
     } catch (IllegalArgumentException e) {
       response.sendError(400);

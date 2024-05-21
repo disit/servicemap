@@ -83,7 +83,7 @@ public class IoTSearchApi {
     }
   }
 
-  public int iotSearch(JspWriter out, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String notHealthy) throws Exception {
+  public int iotSearch(JspWriter out, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String notHealthy, String forceCheck, User u) throws Exception {
     Configuration conf = Configuration.getInstance();
 
     RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf);
@@ -116,7 +116,9 @@ public class IoTSearchApi {
       if (condition != null) {
         q = conditionQueryBuilder(q, condition, delayConds, rangeConds);
       }
-      q = userQueryBuilder(q, user);
+      
+      if(! "true".equals(forceCheck) )
+        q = userQueryBuilder(q, user);
 
       if (text != null) {
         q = textQueryBuilder(q, text);
@@ -257,15 +259,26 @@ public class IoTSearchApi {
       if (conf.get("debug", "false").equals("true")) {
         out.println(",\"query\":\"" + JSONObject.escape(q) + "\"");
       }
-      out.println(",\"fullCount\":" + nfound);
       out.println(",\"features\":[");
       Gson gson = new Gson();
 
+      int pp = 0;
       for (int i = 0; i < hits.length; i++) {
         Map<String, Object> src = hits[i].getSourceAsMap();
         Map<String, DocumentField> fld = hits[i].getFields();
+        if("true".equals(forceCheck)) {
+            String serviceUri = ((String) src.get("serviceUri"));
+            String apikey = null;
+            if(u!=null)
+                apikey="user:"+u.username+" role:"+u.role+" at:"+u.accessToken;
+            
+            if(!IoTChecker.checkIoTService(serviceUri, apikey)) {
+                nfound--;
+                continue;
+            }
+        }
         String[] latlon = ((String) src.get("latlon")).split(",");
-        out.println((i > 0 ? "," : "") + "{\"type\":\"Feature\"");
+        out.println((pp++ > 0 ? "," : "") + "{\"type\":\"Feature\"");
         out.println(", \"geometry\":{ \"type\":\"Point\", \"coordinates\":[" + latlon[1] + "," + latlon[0] + "] }");
         out.println(", \"properties\":{");
         int p = 0;
@@ -333,7 +346,8 @@ public class IoTSearchApi {
         }
         out.println("}}}");
       }
-      out.println("]}");
+      out.println("]");
+      out.println(",\"fullCount\":" + nfound+ " }");
       return (int) hits.length;
     } finally {
       client.close();

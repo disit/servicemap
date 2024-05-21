@@ -490,6 +490,37 @@ function showRoute(agency, numLinea, busStop, divRoute) {
 }
 
 //FUNZIONE VISUALIZAZIONE PATH
+function toggleWkt(wktGeometry, id, serType) {
+    if ($('#' + id).attr('visible') == 'false' || id == null) {
+        $('#' + id).attr('visible', 'true');
+        if ($('#lang').attr('value') == 'ENG') {
+            $('#' + id + ' span').text("Remove from map");
+        } else {
+            $('#' + id + ' span').text("Rimuovi dalla mappa");
+        }
+        var wkt = new Wkt.Wkt();
+        wkt.read(wktGeometry);
+        
+        if (JSON.stringify(serType).indexOf('Controlled_parking_zone') != -1)
+            var config = {color: '#FF00FF', weight: 2, className: id, opacity: 0.6, fillOpacity: 0.2};
+        else {
+            var config = {color: 'green', weight: 3, className: id, opacity: 0.9, fillOpacity: 0.7};
+        }
+        var wktObj = wkt.toObject(config);        
+        wktObj.addTo(servicesLayer);
+        servicesLayer.addTo(map);
+        map.fitBounds(wktObj.getBounds());
+    } else {
+        $('#' + id).attr('visible', 'false');
+        if ($('#lang').attr('value') == 'ENG') {
+            $('#' + id + ' span').text("Show on map");
+        } else {
+            $('#' + id + ' span').text("Visualizza sulla mappa");
+        }
+        $("." + id + ".leaflet-clickable").remove();
+    }
+}
+
 function Estract_features(Str_location, id, serType) {
 //Determinazione tipologia area
     var n = Str_location.search(/POLYGON/i);
@@ -878,6 +909,13 @@ function createContenutoPopup(feature, div, id) {
                 contenutoPopup = contenutoPopup + "<div class='pulsante' id=\"" + divInfoPlus + "\" visible='false' onclick='Estract_features(\"" + feature.properties.cordList + "\",\"" + divInfoPlus + "\",\"" + feature.properties.serviceType + "\")'><b><span name=\"lbl\" caption=\"show_on_map\">Show on map</span></b></div><br />";
             } else {
                 contenutoPopup = contenutoPopup + "<div class='pulsante' id=\"" + divInfoPlus + "\" visible='true' onclick='Estract_features(\"" + feature.properties.cordList + "\",\"" + divInfoPlus + "\",\"" + feature.properties.serviceType + "\")'><b><span name=\"lbl\" caption=\"remove_from_map\">Remove from map</span></b></div><br />";
+            }
+        }
+        if (feature.properties.wktGeometry != "" && feature.properties.wktGeometry) {
+            if ($("." + divInfoPlus + ".leaflet-clickable").html() == null) {
+                contenutoPopup = contenutoPopup + "<div class='pulsante' id=\"" + divInfoPlus + "\" visible='false' onclick='toggleWkt(\"" + feature.properties.wktGeometry + "\",\"" + divInfoPlus + "\",\"" + feature.properties.serviceType + "\")'><b><span name=\"lbl\" caption=\"show_on_map\">Show on map</span></b></div><br />";
+            } else {
+                contenutoPopup = contenutoPopup + "<div class='pulsante' id=\"" + divInfoPlus + "\" visible='true' onclick='toggleWkt(\"" + feature.properties.wktGeometry + "\",\"" + divInfoPlus + "\",\"" + feature.properties.serviceType + "\")'><b><span name=\"lbl\" caption=\"remove_from_map\">Remove from map</span></b></div><br />";
             }
         }
         contenutoPopup = contenutoPopup + "<div id=\"" + divInfo + "\" ></div>";

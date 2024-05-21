@@ -2029,7 +2029,7 @@ public class ServiceMapApi {
     return null;    
     }
     
-    public JSONObject queryLocation(RepositoryConnection con, String lat, String lng, String findGeometry, Double wktDist) throws Exception {
+    public JSONObject queryLocation(RepositoryConnection con, String lat, String lng, String findGeometry, double wktDist) throws Exception {
       String sparqlType=Configuration.getInstance().get("sparqlType", "virtuoso");
       JSONObject obj = null;
       if(CheckParameters.checkLatLng(lat+";"+lng)!=null) {
@@ -2093,16 +2093,21 @@ public class ServiceMapApi {
           obj.put("provinceUri", valueOfUriProvincia);
         }        
       }
-      if(obj!=null && findGeometry!=null && (findGeometry.equals("true") || findGeometry.equals("geometry"))) {
-        //double wktDist = Double.parseDouble(Configuration.getInstance().get("wktDistance", "0.0004"));
-        query="select * {\n" +
+      if(findGeometry!=null && (findGeometry.equals("true") || findGeometry.equals("geometry"))) {
+          //double wktDist = Double.parseDouble(Configuration.getInstance().get("wktDistance", "0.0004"));
+        Configuration conf = Configuration.getInstance();
+        String geoWktProperty = "opengis:asWKT";
+        if(conf.get("enableOldWKT", "false").equals("true"))
+            geoWktProperty = "geo:geometry";
+        query="PREFIX opengis: <http://www.opengis.net/ont/geosparql#> \n" +
+            "select * {\n" +
             "{\n" +
             "select distinct ?s ?name ?class ?geo where {\n" +
-            "?s <http://www.opengis.net/ont/geosparql#hasGeometry> [geo:geometry ?geo].\n" +
-            "filter(bif:st_contains(?geo,bif:st_point("+lng+","+lat+"),0.01))\n" +
+            "?s opengis:hasGeometry [ " + geoWktProperty + " ?geo].\n" +
+            "filter(bif:st_contains(?geo,bif:st_point("+lng+","+lat+"),0.001))\n" +
             "?s a ?class.\n" +
             "{?s <http://schema.org/name> ?name} UNION {?s foaf:name ?name}.\n" +
-            "filter (?class!=km4c:RegularService && ?class!=km4c:DigitalLocation && ?class!=km4c:Route && ?class!=km4c:Tramline)\n" +
+            "filter (?class!=km4c:RegularService && ?class!=km4c:DigitalLocation && ?class!=km4c:Route && ?class!=km4c:Tramline && ?class!=sosa:Sensor)\n" +
             "}\n" +
             "} UNION {\n" +
             "select (min(?t) as ?s) ?name (gtfs:Route as ?class) ?agency ?dir ?geo ?rtype {\n" +
@@ -2112,7 +2117,7 @@ public class ServiceMapApi {
             "?r gtfs:agency/foaf:name ?agency.\n" +
             "?t gtfs:route ?r.\n" +
             "?r gtfs:routeType ?rtype.\n" +
-            "?t <http://www.opengis.net/ont/geosparql#hasGeometry> ?sh.\n" +
+            "?t opengis:hasGeometry ?sh.\n" +
             "OPTIONAL{?t gtfs:headsign ?dir.}\n" +
             "?sh geo:geometry ?geo.\n" +
             "?t gtfs:service/dcterms:date ?d.\n" +
@@ -2177,6 +2182,8 @@ public class ServiceMapApi {
             ServiceMap.notifyException(e,"name: "+name+" uri:"+s);
           }
         }
+        if(obj == null)
+          obj = new JSONObject();
         obj.put("intersect", areas);
       }
       return obj;
