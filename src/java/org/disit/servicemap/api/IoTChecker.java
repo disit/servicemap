@@ -209,8 +209,9 @@ public class IoTChecker {
                 u = " user:"+user;
               ServiceMap.performance("IoTChecker "+builder.build()+" 200 "+resultJson+u+" "+(System.currentTimeMillis()-start)+"ms");
               String sResult = resultJson.get("result").getAsString();
+              String sKind = resultJson.get("kind").isJsonNull() ? "" : resultJson.get("kind").getAsString();
               String sMessage = resultJson.get("message").isJsonNull() ? "" : resultJson.get("message").getAsString();
-              if(sResult.equals("true") ) {
+              if(sResult.equals("true") && !sKind.equals("WRITE_ONLY")) {
                 if(sMessage.contains("PUBLIC")) {
                   isPublic = true;
                 }
