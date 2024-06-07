@@ -313,6 +313,7 @@ public class IoTSearchApi {
         } else {
           flds = new HashSet(fieldList);
         }
+        boolean elasticSearchValueObjAsString = conf.get("elasticSearchValueObjAsString", "false").equals("true");
         for (String f : flds) {
           if (skipFields.contains(f) || stdFields.contains(f)) {
             continue;
@@ -322,26 +323,31 @@ public class IoTSearchApi {
             continue;
           }
 
-          if (value instanceof Map) {
-            Map vv = (Map) value;
-            if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
-              //nothing to do
-            } else if (vv.containsKey("value_str")) {
-              value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
-            } else if (vv.containsKey("value_arr_obj")) {
-              value = gson.toJson(vv.get("value_arr_obj"));
-              if (conf.get("elasticSearchValueObjAsString", "false").equals("false")) {
-                value = "\"" + JSONObject.escape(value.toString()) + "\"";
+            if (value instanceof Map) {
+              Map vv = (Map) value;
+              if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
+                //nothing to do
+              } else if (vv.containsKey("value_arr_obj")) {
+                value = gson.toJson(vv.get("value_arr_obj"));
+                if (elasticSearchValueObjAsString) {
+                  value = "\"" + JSONObject.escape(value.toString()) + "\"";
+                }
+              } else if (vv.containsKey("value_obj")) {
+                value = gson.toJson(vv.get("value_obj"));
+                if (elasticSearchValueObjAsString) {
+                  value = "\"" + JSONObject.escape(value.toString()) + "\"";
+                }
+              } else if (vv.containsKey("value_json_str")) {
+                value = vv.get("value_json_str");
+                if (elasticSearchValueObjAsString) {
+                  value = "\"" + JSONObject.escape(value.toString()) + "\"";
+                }
+              } else if (vv.containsKey("value_str")) {
+                value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
               }
-            } else if (vv.containsKey("value_obj")) {
-              value = gson.toJson(vv.get("value_obj"));
-              if (conf.get("elasticSearchValueObjAsString", "false").equals("false")) {
-                value = "\"" + JSONObject.escape(value.toString()) + "\"";
-              }
+            } else {
+              value = "\"" + JSONObject.escape(value.toString()) + "\"";
             }
-          } else {
-            value = "\"" + JSONObject.escape(value.toString()) + "\"";
-          }
           out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
         }
         out.println("}}}");
@@ -719,6 +725,8 @@ public class IoTSearchApi {
                 //nothing to do
               } else if (vv.containsKey("value_str")) {
                 value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
+              } else if (vv.containsKey("value_json_str")) {
+                value = vv.get("value_json_str");                  
               }
             } else {
               value = "\"" + JSONObject.escape(value.toString()) + "\"";
@@ -749,18 +757,23 @@ public class IoTSearchApi {
               Map vv = (Map) value;
               if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
                 //nothing to do
-              } else if (vv.containsKey("value_str")) {
-                value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
               } else if (vv.containsKey("value_arr_obj")) {
                 value = gson.toJson(vv.get("value_arr_obj"));
-                if (conf.get("elasticSearchValueObjAsString", "false").equals("false")) {
+                if (conf.get("elasticSearchValueObjAsString", "false").equals("true")) {
                   value = "\"" + JSONObject.escape(value.toString()) + "\"";
                 }
               } else if (vv.containsKey("value_obj")) {
                 value = gson.toJson(vv.get("value_obj"));
-                if (conf.get("elasticSearchValueObjAsString", "false").equals("false")) {
+                if (conf.get("elasticSearchValueObjAsString", "false").equals("true")) {
                   value = "\"" + JSONObject.escape(value.toString()) + "\"";
                 }
+              } else if (vv.containsKey("value_json_str")) {
+                value = vv.get("value_json_str");
+                if (conf.get("elasticSearchValueObjAsString", "false").equals("true")) {
+                  value = "\"" + JSONObject.escape(value.toString()) + "\"";
+                }
+              } else if (vv.containsKey("value_str")) {
+                value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
               }
             } else {
               value = "\"" + JSONObject.escape(value.toString()) + "\"";
