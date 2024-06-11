@@ -74,8 +74,8 @@
   String toTime = request.getParameter("toTime");
   String aggregate = request.getParameter("aggregate");
 
-  if (selection == null && model==null && valueFilters==null && categories==null) {
-    ServiceMap.logError(request, response, 400, "please specify 'selection' or 'model' or 'valueFilter' or 'categories'  parameter");
+  if (selection == null && model==null && valueFilters==null && categories==null && serviceUri==null) {
+    ServiceMap.logError(request, response, 400, "please specify 'selection' or 'model' or 'valueFilter' or 'categories' or 'serviceUri' parameter");
     return;
   }
   if (fromTime==null) {

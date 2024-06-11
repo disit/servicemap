@@ -73,8 +73,8 @@
   String notHealty = request.getParameter("notHealthy");
   String forceAccessCheck = request.getParameter("forceAccessCheck");
 
-  if (selection == null && model==null && valueFilters==null && categories==null) {
-    ServiceMap.logError(request, response, 400, "please specify 'selection' or 'model' or 'valueFilters' or 'categories'  parameter");
+  if (selection == null && model==null && valueFilters==null && categories==null && serviceUri==null) {
+    ServiceMap.logError(request, response, 400, "please specify 'selection' or 'model' or 'valueFilters' or 'categories' or 'serviceUri' parameter");
     return;
   }
   String check;
