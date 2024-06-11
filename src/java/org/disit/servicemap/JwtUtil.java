@@ -10,17 +10,22 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
+import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SigningKeyResolver;
+import io.jsonwebtoken.SigningKeyResolverAdapter;
 import io.jsonwebtoken.security.SignatureException;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.security.Key;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
@@ -30,20 +35,20 @@ import javax.servlet.http.HttpServletRequest;
  * @author bellini
  */
 public class JwtUtil {
-  static private PublicKey pk = null;
+  static private SigningKeyResolver skr = null;
   
   static public boolean isValid(String accessToken) {
-    if(pk==null) {
+    if(skr==null) {
       try {
-        loadPublicKey();
+        loadPublicKeys();
       } catch(Exception e) {
         e.printStackTrace();
       }
     }
-    if(pk==null)
+    if(skr==null)
       return false;
     try {
-      Jwts.parser().setSigningKey(pk).parseClaimsJws(accessToken);
+      Jwts.parser().setSigningKeyResolver(skr).parseClaimsJws(accessToken);
       return true;
     } catch(Exception e) {
       e.printStackTrace();
@@ -64,11 +69,11 @@ public class JwtUtil {
   }
   
   static public User getUserFromJwt(String accessToken) throws Exception {
-    if(pk==null)
-      loadPublicKey();
-
+    if(skr == null)
+      loadPublicKeys();
+    
     String roles[] = new String[] {"RootAdmin", "ToolAdmin", "AreaManager", "Manager", "Observer"};
-    Jws<Claims> t = Jwts.parser().setSigningKey(pk).setAllowedClockSkewSeconds(10).parseClaimsJws(accessToken);
+    Jws<Claims> t = Jwts.parser().setSigningKeyResolver(skr).setAllowedClockSkewSeconds(10).parseClaimsJws(accessToken);
     String u = (String) t.getBody().get("username");
     if(u==null)
       u = (String) t.getBody().get("preferred_username");
@@ -120,7 +125,7 @@ public class JwtUtil {
     return null;
   }
   
-  static private void loadPublicKey() throws Exception {
+  static private void loadPublicKeys() throws Exception {
     Configuration conf = Configuration.getInstance();
     
     JsonParser p = new JsonParser();
@@ -128,26 +133,43 @@ public class JwtUtil {
     JsonArray keys = p.parse(rd).getAsJsonObject().getAsJsonArray("keys");
 
     JsonObject keyInfo = null;
-    if(keys.size()>0) {
-      keyInfo = keys.get(0).getAsJsonObject();
-    } else  {
+    if(keys.size()==0) {
       throw new Exception("no keys found for jwt validation");
     }
 
-    KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-    String modulusBase64 = keyInfo.get("n").getAsString();
-    String exponentBase64 = keyInfo.get("e").getAsString();
+    Map<String,PublicKey> map = new HashMap<>();
+    for(int i=0; i<keys.size(); i++) {
+        keyInfo = keys.get(i).getAsJsonObject();
+        
+        String kid = keyInfo.get("kid").getAsString();
+        String kty = keyInfo.get("kty").getAsString();
+        if("RSA".equals(kty)) {
+            String modulusBase64 = keyInfo.get("n").getAsString();
+            String exponentBase64 = keyInfo.get("e").getAsString();
 
-    // see org.keycloak.jose.jwk.JWKBuilder#rs256
-    Base64.Decoder urlDecoder = Base64.getUrlDecoder();
-    BigInteger modulus = new BigInteger(1, urlDecoder.decode(modulusBase64));
-    BigInteger publicExponent = new BigInteger(1, urlDecoder.decode(exponentBase64));
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            // see org.keycloak.jose.jwk.JWKBuilder#rs256
+            Base64.Decoder urlDecoder = Base64.getUrlDecoder();
+            BigInteger modulus = new BigInteger(1, urlDecoder.decode(modulusBase64));
+            BigInteger publicExponent = new BigInteger(1, urlDecoder.decode(exponentBase64));
 
-    pk = keyFactory.generatePublic(new RSAPublicKeySpec(modulus, publicExponent));
+            PublicKey key = keyFactory.generatePublic(new RSAPublicKeySpec(modulus, publicExponent));
+            map.put(kid, key);
+        } else {
+            ServiceMap.println("key "+kid+" kty: "+kty+" not RSA, skipped");
+        }
+    }
+    
+    skr = new SigningKeyResolverAdapter() {
+        @Override
+        public Key resolveSigningKey(JwsHeader jh, Claims claims) {
+            return map.get(jh.getKeyId());
+        }
+    };
 
   }
   
   static public void reset() {
-    pk = null;
+    skr = null;
   }
 }
