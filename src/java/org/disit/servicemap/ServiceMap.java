@@ -744,7 +744,7 @@ public class ServiceMap {
           conMySQL.close();
         }
       }
-      String wktDist = conf.get("useDistWkt", "false").equals("true") ? dist : "0.0005";
+      String wktDist = conf.get("useDistWkt", "false").equals("true") ? dist : conf.get("wktDefaultDist","0.0005");
       return  " " + subj + " geo:geometry ?geo.  filter(bif:st_intersects (?geo, bif:st_geomfromtext(\""+ServiceMap.stringEncode(geom)+"\"), "+ wktDist + "))\n"
               + " BIND( 1.0 AS ?dist)\n";
     }
