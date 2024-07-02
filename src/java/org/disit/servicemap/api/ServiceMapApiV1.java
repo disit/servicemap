@@ -1419,6 +1419,16 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         int w = 0;
         int nSrvDup = 0;
         int nSrvPrv = 0;
+        boolean forceWktValidation = conf.get("forceWktValidation", "false").equalsIgnoreCase("true");
+        Geometry wktGeometry = null;
+        if(forceWktValidation && coords[0].startsWith("wkt:")) {
+          WKTReader wktReader=new WKTReader();
+          try {
+            wktGeometry = wktReader.read(coords[0].substring(4));
+          } catch(Exception e) {
+              ServiceMap.notifyException(e);
+          }
+        }
         while (result.hasNext() && numeroServizi < resServizi ) {
           BindingSet bindingSet = result.next();
           
@@ -1505,6 +1515,21 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             }catch(Exception e) {
               ServiceMap.notifyException(e);
             }
+          }
+          
+          if(forceWktValidation && wktGeometry != null) {
+            WKTReader wktReader=new WKTReader();
+            Geometry position = wktReader.read("POINT("+valueOfELong+" "+valueOfELat+")").buffer(0.0001);
+            try {
+              if(!wktGeometry.intersects(position)) {
+                ServiceMap.println("SKIP! "+valueOfSName);
+                continue;
+              } else {
+                ServiceMap.println("OK "+valueOfSName);
+              }
+            }catch(Exception e) {
+              ServiceMap.notifyException(e);
+            }              
           }
 
           if (w != 0) {
