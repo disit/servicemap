@@ -1420,7 +1420,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         int nSrvDup = 0;
         int nSrvPrv = 0;
         boolean forceWktValidation = conf.get("forceWktValidation", "false").equalsIgnoreCase("true");
+        double wktValidationDist = Double.parseDouble(conf.get("wktValidationDist", "0.0001"));
         Geometry wktGeometry = null;
+        
         if(forceWktValidation && coords[0].startsWith("wkt:")) {
           WKTReader wktReader=new WKTReader();
           try {
@@ -1503,7 +1505,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           if(inside && bindingSet.getValue("sgeo")!=null) {
             //per bug di virtuoso controlla se geometria effettivamente contiene il punto richiesto
             WKTReader wktReader=new WKTReader();
-            Geometry position=wktReader.read("POINT("+coords[1]+" "+coords[0]+")").buffer(0.0001);
+            Geometry position=wktReader.read("POINT("+coords[1]+" "+coords[0]+")").buffer(wktValidationDist);
             try {
               Geometry g=wktReader.read(bindingSet.getValue("sgeo").stringValue());
               if(!g.intersects(position)) {
@@ -1519,7 +1521,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           
           if(forceWktValidation && wktGeometry != null) {
             WKTReader wktReader=new WKTReader();
-            Geometry position = wktReader.read("POINT("+valueOfELong+" "+valueOfELat+")").buffer(0.0001);
+            Geometry position = wktReader.read("POINT("+valueOfELong+" "+valueOfELat+")").buffer(wktValidationDist);
             try {
               if(!wktGeometry.intersects(position)) {
                 ServiceMap.println("SKIP! "+valueOfSName);
