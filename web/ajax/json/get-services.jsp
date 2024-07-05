@@ -108,9 +108,10 @@
 
     String apiKey = (String)request.getSession().getAttribute("apikey");
     String model = request.getParameter("model");
+    String hlt = request.getParameter("highLevelType");
     
     try {
-      serviceMapApi.queryLatLngServices(out, con, coord, categorie, textFilter,raggioServizi,raggioServizi,raggioServizi,numeroRisultatiServizi,numeroRisultatiServizi,numeroRisultatiServizi,null, cat_servizi, false, inside, true, fullCount, value_type, graphUri, null, apiKey, model);
+      serviceMapApi.queryLatLngServices(out, con, coord, categorie, textFilter,raggioServizi,raggioServizi,raggioServizi,numeroRisultatiServizi,numeroRisultatiServizi,numeroRisultatiServizi,null, cat_servizi, false, inside, true, fullCount, value_type, graphUri, null, apiKey, model, hlt);
     } catch(IllegalArgumentException e) {
       response.sendError(400);
     } catch (Exception e) {

@@ -945,7 +945,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     return 0;
   }
 
-  public int queryLatLngServices(JspWriter out, RepositoryConnection con, final String[] coords, String categorie, final String textToSearch, final String raggioBus, String raggioSensori, final String raggioServizi, String risultatiBus, String risultatiSensori, String risultatiServizi, final String language, String cat_servizi, final boolean getGeometry, final boolean inside, boolean photos, final String makeFullCount, final String value_type, final String graphUri, String valueName, final String apiKey, String model) throws Exception {
+  public int queryLatLngServices(JspWriter out, RepositoryConnection con, final String[] coords, String categorie, final String textToSearch, final String raggioBus, String raggioSensori, final String raggioServizi, String risultatiBus, String risultatiSensori, String risultatiServizi, final String language, String cat_servizi, final boolean getGeometry, final boolean inside, boolean photos, final String makeFullCount, final String value_type, final String graphUri, String valueName, final String apiKey, String model, String highLevelType) throws Exception {
     ServiceMap.println("API-LatLngServices START");
     long tss = System.currentTimeMillis();
     
@@ -1361,7 +1361,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>\n"
                     + ("count".equals(type) ? "SELECT (COUNT(*) AS ?count) WHERE {\n" : "")
                     + "SELECT DISTINCT * {"
-                    + "SELECT DISTINCT ?ser (STR(?lat) AS ?elat) (STR(?long) AS ?elong) ?sType ?sCategory ?sTypeLang (IF(?sName1,?sName1,?sName2) as ?sName) ?multimedia ?hasGeometry (STR(?geo) AS ?sgeo) ?ag ?agname (xsd:int(?dist*10000)/10000.0 AS ?dst) \n"
+                    + "SELECT DISTINCT ?ser (STR(?lat) AS ?elat) (STR(?long) AS ?elong) ?sType ?sCategory ?sHLT ?sTypeLang (IF(?sName1,?sName1,?sName2) as ?sName) ?multimedia ?hasGeometry (STR(?geo) AS ?sgeo) ?ag ?agname (xsd:int(?dist*10000)/10000.0 AS ?dst) \n"
                     + ServiceMap.graphAccessQueryFragment2(apiKey)
                     + "WHERE {\n"
                     + " ?ser rdf:type km4c:Service" + (sparqlType.equals("virtuoso") ? " OPTION (inference \"urn:ontology\")" : "") + ".\n"
@@ -1384,8 +1384,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     + (!km4cVersion.equals("old")
                             ? " ?ser a ?sType. FILTER(?sType!=km4c:RegularService && ?sType!=km4c:Service && ?sType!=km4c:DigitalLocation && ?sType!=km4c:TransverseService && ?sType!=km4c:BusStop && ?sType!=km4c:SensorSite)\n"
                             + filtroDL
-                            + " ?sType rdfs:subClassOf* ?sCategory. FILTER(?sCategory != <http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing>)\n"
+                            + " ?sType rdfs:subClassOf* ?sCategory. FILTER(?sCategory != <http://www.w3.org/2003/01/geo/wgs84_pos#SpatialThing> && ?sCategory!=km4c:HighLevelType)\n"
                             + " ?sCategory rdfs:subClassOf km4c:Service.\n"
+                            + " OPTIONAL { ?ser a ?sHLT. ?sHLT rdfs:subClassOf km4c:HighLevelType }"
                             + " ?sType rdfs:label ?sTypeLang. FILTER(LANG(?sTypeLang)=\"" + lang + "\")\n" : "")
                     + (getGeometry || inside ? " OPTIONAL {?ser opengis:hasGeometry [opengis:asWKT ?wktGeometry]. BIND(!STRSTARTS(STR(?wktGeometry),\"POINT\") as ?hasGeometry)}\n" : "")
                     + "   OPTIONAL {?ser km4c:multimediaResource ?multimedia}.\n"
@@ -1478,7 +1479,13 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           }
 
           String serviceType = category + "_" + subCategory;
-
+          
+          String sHLT = "";
+          if (bindingSet.getValue("sHLT") != null) {
+            sHLT = bindingSet.getValue("sHLT").stringValue();
+            sHLT = sHLT.replace("http://www.disit.org/km4city/schema#", "");
+          }
+          
           String valueOfSName = "";
           if (bindingSet.getValue("sName") != null) {
             valueOfSName = bindingSet.getValue("sName").stringValue();
@@ -1546,6 +1553,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                   + "\"tipo\": \"" + escapeJSON(valueOfTipo) + "\",\n"
                   + "\"typeLabel\": \"" + escapeJSON(valueOfSTypeLang) + "\",\n"
                   + "\"serviceType\": \"" + escapeJSON(serviceType) + "\",\n"
+                  + "\"highLevelType\": \"" + escapeJSON(sHLT) + "\",\n"
                   + (getGeometry ? "\"hasGeometry\": " + escapeJSON(valueOfHasGeometry) + ",\n" : "")
                   + "\"distance\": \"" + escapeJSON(valueOfDist) + "\",\n"
                   + "\"serviceUri\": \"" + valueOfSer + "\",\n"
