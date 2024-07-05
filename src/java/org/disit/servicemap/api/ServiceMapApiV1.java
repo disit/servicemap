@@ -1379,6 +1379,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     + ServiceMap.modelSearchQueryFragment("?ser", model)
                     + ServiceMap.graphAccessQueryFragment("?ser", apiKey)
                     + fc
+                    + (highLevelType!=null ? "  ?ser a km4c:" + highLevelType + "." : "")
                     + " OPTIONAL {?ser <http://schema.org/name> ?sName1}\n"
                     + " OPTIONAL {?ser foaf:name ?sName2}\n"
                     + (!km4cVersion.equals("old")
