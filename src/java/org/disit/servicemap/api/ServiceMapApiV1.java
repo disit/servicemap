@@ -1361,7 +1361,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                     + "PREFIX gtfs:<http://vocab.gtfs.org/terms#>\n"
                     + ("count".equals(type) ? "SELECT (COUNT(*) AS ?count) WHERE {\n" : "")
                     + "SELECT DISTINCT * {"
-                    + "SELECT DISTINCT ?ser (STR(?lat) AS ?elat) (STR(?long) AS ?elong) ?sType ?sCategory ?sHLT ?sTypeLang (IF(?sName1,?sName1,?sName2) as ?sName) ?multimedia ?hasGeometry (STR(?geo) AS ?sgeo) ?ag ?agname (xsd:int(?dist*10000)/10000.0 AS ?dst) \n"
+                    + "SELECT DISTINCT ?ser (STR(?lat) AS ?elat) (STR(?long) AS ?elong) ?sType ?sCategory ?sHLT ?sTypeLang (IF(?sName1,?sName1,?sName2) as ?sName) ?multimedia ?hasGeometry (?geo AS ?sgeo) ?ag ?agname (xsd:int(?dist*10000)/10000.0 AS ?dst) \n"
                     + ServiceMap.graphAccessQueryFragment2(apiKey)
                     + "WHERE {\n"
                     + " ?ser rdf:type km4c:Service" + (sparqlType.equals("virtuoso") ? " OPTION (inference \"urn:ontology\")" : "") + ".\n"
@@ -3148,6 +3148,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           ServiceMap.println("custom:"+customAttrs);
         }
 
+        if(serviceUri.contains("%3A")) {
+            serviceUri = serviceUri.replace("%3A",":");
+        }
         if(md!=null && md.realTimeSqlQuery!=null && md.realTimeSolrQuery==null) {
           realTimeSqlQuery(md, rtAttributes, customAttrs, serviceUri, valueName, fromTime, toTime, limit, conf, serviceTypes, out, rtData);
         } else if(md!=null && md.realTimeSparqlQuery!=null && md.realTimeSolrQuery==null) {
@@ -6461,5 +6464,114 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     } 
     out.println("]");
   }
- 
+  
+  public int queryCrossing(JspWriter out, RepositoryConnection con, String lat, String lng, double wktDist) throws Exception {
+    JSONObject obj = queryCrossing(con, lat, lng, wktDist);
+    if(obj!=null)
+      out.print(obj.toString());
+    else
+      out.println("{}");
+    return 1;
+  }
+  
+    public JSONObject queryCrossing(RepositoryConnection con, String lat, String lng, double maxDist) throws Exception {
+      String sparqlType=Configuration.getInstance().get("sparqlType", "virtuoso");
+      JSONObject obj = null;
+      if(CheckParameters.checkLatLng(lat+";"+lng)!=null) {
+        throw new IllegalArgumentException("invalid lat lng coordinates");
+      }
+              
+      String query = "select ?n (xsd:string(?lat) as ?lat_str) (xsd:string(?lng) as ?lng_str) ?d ?re ?dir ?hwt ?ns ?ne (xsd:string(?ns_lat) as ?ns_lat_str) (xsd:string(?ns_lng) as ?ns_lng_str) (xsd:string(?ne_lat) as ?ne_lat_str) (xsd:string(?ne_lng) as ?ne_lng_str) ?rd ?nm {\n" +
+            "  {\n" +
+            "    select ?n count(*) as ?nn {\n" +
+            "      ?n a km4c:Node.\n" +
+            "      ?n geo:geometry ?g.\n" +
+            "      filter(bif:st_intersects(?g, bif:st_point("+lng+","+lat+"), "+maxDist+"))\n" +
+            "      ?re km4c:startsAtNode | km4c:endsAtNode ?n.\n" +
+            "      optional {?re km4c:highwayType ?hw.}\n" +
+            "      filter(?hw!=\"footway\")\n" +
+            "    } group by ?n having(count(*)>2)\n" +
+            "  }\n" +
+            "  ?n geo:geometry ?g; geo:lat ?lat; geo:long ?lng\n" +
+            "  bind(bif:st_distance(?g,bif:st_point(" + lng + "," + lat +")) as ?d)\n" +
+            "  ?re km4c:startsAtNode | km4c:endsAtNode ?n.\n" +
+            "  ?re km4c:startsAtNode ?ns.\n" +
+            "  ?re km4c:endsAtNode ?ne.\n" +
+            "  ?re km4c:trafficDir ?dir.\n" +
+            "  optional {?re km4c:highwayType ?hwt.}\n" +
+            "  ?ns geo:lat ?ns_lat; geo:long ?ns_lng.\n" +
+            "  ?ne geo:lat ?ne_lat; geo:long ?ne_lng.\n" +
+            "  ?rd km4c:containsElement ?re.\n" +
+            "  optional {?rd km4c:extendName ?nm.}\n" +
+            "}\n" +
+            "order by ?d";
+      TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
+      long ts = System.nanoTime();
+      TupleQueryResult results = tupleQuery.evaluate();
+      ServiceMap.logQuery(query,"API-get-crossing",sparqlType,lat+";"+lng,System.nanoTime()-ts);
+
+      obj = new JSONObject();
+      JSONArray r = new JSONArray();
+      String lastNodeUri = null;
+      JSONObject lastNodeObj = null;
+      while (results.hasNext()) {
+        BindingSet binding = results.next();
+        String nodeUri = binding.getValue("n").stringValue();
+        String dist = binding.getValue("d").stringValue();
+        String lt = binding.getValue("lat_str").stringValue();
+        String lg = binding.getValue("lng_str").stringValue();
+        String roadUri = binding.getValue("rd").stringValue();
+        String dir = binding.getValue("dir").stringValue();
+        String nodeStartUri = binding.getValue("ns").stringValue();
+        String ns_lat = binding.getValue("ns_lat_str").stringValue();
+        String ns_lng = binding.getValue("ns_lng_str").stringValue();
+        String ne_lat = binding.getValue("ne_lat_str").stringValue();
+        String ne_lng = binding.getValue("ne_lng_str").stringValue();
+        String nodeEndUri = binding.getValue("ne").stringValue();
+        String roadName = null; 
+        if(binding.getValue("nm") != null)
+            roadName = binding.getValue("nm").stringValue();
+        String hwType = null; 
+        if(binding.getValue("hwt") != null)
+            hwType = binding.getValue("hwt").stringValue();
+        JSONObject nodeObj = null;
+        JSONObject roadElms = null;
+        if(!nodeUri.equals(lastNodeUri)) {
+            nodeObj = new JSONObject();
+            roadElms = new JSONObject();
+            nodeObj.put("nodeUri", nodeUri);
+            nodeObj.put("roadElements", roadElms);
+            nodeObj.put("dist", Double.valueOf(dist));
+            nodeObj.put("lat", Double.valueOf(lt));
+            nodeObj.put("lng", Double.valueOf(lg));
+            r.add(nodeObj);
+            lastNodeObj = nodeObj;
+            lastNodeUri = nodeUri;
+        } else {
+            roadElms = (JSONObject) lastNodeObj.get("roadElements");
+        }
+        String roadElementUri = binding.getValue("re").stringValue();
+        JSONObject roadElmObj = new JSONObject();
+        roadElmObj.put("roadName", roadName);
+        roadElmObj.put("roadUri", roadUri);
+        roadElmObj.put("type", hwType);
+        roadElmObj.put("direction", dir);
+        if(!nodeUri.equals(nodeEndUri)) {
+            JSONObject node = new JSONObject();
+            node.put("uri", nodeEndUri);
+            node.put("lat", Double.valueOf(ne_lat));
+            node.put("lng", Double.valueOf(ne_lng));
+            roadElmObj.put("nodeEnd", node);
+        } else {
+            JSONObject node = new JSONObject();
+            node.put("uri", nodeStartUri);
+            node.put("lat", Double.valueOf(ns_lat));
+            node.put("lng", Double.valueOf(ns_lng));
+            roadElmObj.put("nodeStart", node);
+        }
+        roadElms.put(roadElementUri, roadElmObj);
+      }
+      obj.put("result", r);
+      return obj;
+    }  
 }  

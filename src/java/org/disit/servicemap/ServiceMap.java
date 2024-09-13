@@ -701,13 +701,14 @@ public class ServiceMap {
   
   static public String geoInsideSearchQueryFragment(String subj, String[] coords) {
     Configuration conf = Configuration.getInstance();
-    String geoWktProperty = "opengis:asWKT";
-    if(conf.get("enableOldWKT", "false").equals("true"))
-        geoWktProperty = "geo:geometry";
-    return subj + " opengis:hasGeometry ["+ geoWktProperty +" ?geo];\n"
-           + "  geo:lat ?lat;\n"
-           + "  geo:long ?long.\n"
-           + "filter(bif:st_contains(?geo,bif:st_point("+coords[1]+","+coords[0]+"),0.0000001))";
+    boolean enableOldWKT = conf.get("enableOldWKT", "false").equals("true");
+    String r = subj + " opengis:hasGeometry _:X."
+            + " { _:X opengis:asWKT ?geo. "
+            + " filter(bif:st_contains(?geo,bif:st_point("+coords[1]+","+coords[0]+"),0.0000001))}";
+    if(!enableOldWKT)
+        return r;
+    return r + " UNION { _:X geo:geometry ?geo. "
+           + "filter(bif:st_contains(?geo,bif:st_point("+coords[1]+","+coords[0]+"),0.0000001)) }\n";
   }
 
   static public String geoSearchQueryFragment(String subj, String[] coords, String dist) throws IOException, SQLException {
@@ -1045,6 +1046,7 @@ public class ServiceMap {
     String port = conf.get(smtpPrefix+"portSmtp","25");
     properties.put("mail.smtp.host", host);
     properties.put("mail.smtp.port", port);
+    properties.put("mail.smtp.timeout", 1000);
     String auth = conf.get(smtpPrefix+"authSmtp","false");
     String authType = "";
     if(auth.equals("true")) {

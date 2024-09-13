@@ -97,6 +97,7 @@ public class TrafficFlow {
                 query += "{"
                         + "\"range\": {"
                         + "\"dateObserved\": {"
+                        + "\"time_zone\": \"+02:00\","
                         + "\"gte\": \"" + dateObservedStart + "\","
                         + "\"lte\": \"" + dateObservedEnd + "\""
                         + "}"
@@ -106,6 +107,7 @@ public class TrafficFlow {
                 query += "{"
                         + "\"range\": {"
                         + "\"dateObserved\": {"
+                        + "\"time_zone\": \"+02:00\","
                         + "\"gte\": \"" + dateObservedStart + "\","
                         + "\"lte\": \"" + dateObservedEnd + "\""
                         + "}"
@@ -198,6 +200,7 @@ public class TrafficFlow {
 
         // Esegui la richiesta Elasticsearch
         response = client.getLowLevelClient().performRequest(request);
+        System.out.println("TF query: "+query);
 
         // Chiudi il client
         client.close();
@@ -264,19 +267,29 @@ public class TrafficFlow {
 
     public static boolean isoDateValidator(String date) {
         DateTimeFormatter isoDateTimeFormatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+        Configuration conf = Configuration.getInstance();
 
         try {
-
             isoDateTimeFormatter.parse(date);
             return true;
         } catch (DateTimeParseException e) {
             // Se si verifica un'eccezione, la stringa non è nel formato ISO
+            if(conf.get("trafficflowUseISOLocalDateTime", "false").equals("true")) {
+                isoDateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+                try {
+                    isoDateTimeFormatter.parse(date);
+                    return true;
+                } catch(DateTimeParseException ee) {
+                    return false;
+                }
+            }
             return false;
         }
     }
 
     public static String isoDateDefault(String date) {
-        if (date != null && !date.contains("+") && !date.contains("Z")) {
+        Configuration conf = Configuration.getInstance();
+        if (date != null  && conf.get("trafficflowUseISOLocalDateTime", "false").equals("false") && !date.contains("+") && !date.contains("Z")) {
             TimeZone timeZone = TimeZone.getTimeZone("Europe/Rome");
             
             String[] d = date.split("-");

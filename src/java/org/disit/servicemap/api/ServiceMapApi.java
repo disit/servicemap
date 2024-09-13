@@ -2096,15 +2096,16 @@ public class ServiceMapApi {
       if(findGeometry!=null && (findGeometry.equals("true") || findGeometry.equals("geometry"))) {
           //double wktDist = Double.parseDouble(Configuration.getInstance().get("wktDistance", "0.0004"));
         Configuration conf = Configuration.getInstance();
-        String geoWktProperty = "opengis:asWKT";
-        if(conf.get("enableOldWKT", "false").equals("true"))
-            geoWktProperty = "geo:geometry";
+        boolean enableOldWKT = conf.get("enableOldWKT", "false").equals("true");
         query="PREFIX opengis: <http://www.opengis.net/ont/geosparql#> \n" +
             "select * {\n" +
             "{\n" +
             "select distinct ?s ?name ?class ?geo where {\n" +
-            "?s opengis:hasGeometry [ " + geoWktProperty + " ?geo].\n" +
-            "filter(bif:st_contains(?geo,bif:st_point("+lng+","+lat+"),0.001))\n" +
+            "{ ?s opengis:hasGeometry [ opengis:asWKT ?geo].\n" +
+            "filter(bif:st_contains(?geo,bif:st_point("+lng+","+lat+"),0.001)) }\n" +
+            ( enableOldWKT ? "UNION\n" +
+              "{ ?s opengis:hasGeometry [ geo:geometry ?geo].\n" +
+              "filter(bif:st_contains(?geo,bif:st_point("+lng+","+lat+"),0.001)) }\n" : "") +
             "?s a ?class.\n" +
             "{?s <http://schema.org/name> ?name} UNION {?s foaf:name ?name}.\n" +
             "filter (?class!=km4c:RegularService && ?class!=km4c:DigitalLocation && ?class!=km4c:Route && ?class!=km4c:Tramline && ?class!=sosa:Sensor)\n" +
@@ -2128,7 +2129,7 @@ public class ServiceMapApi {
             "}\n" +
             "}order by ?agency ?name";
         tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
-        //ServiceMap.println(query);
+        ServiceMap.println(query);
         results = tupleQuery.evaluate();
         ServiceMap.logQuery(query,"get-area",sparqlType,lat+";"+lng,0);
 
