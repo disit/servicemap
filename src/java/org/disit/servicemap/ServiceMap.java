@@ -2315,7 +2315,13 @@ public class ServiceMap {
   
   public static String serviceUriEncode(String suri) {
     if(!suri.contains("%"))
-      return suri.replace(";", "%3B");
+      suri = suri.replace(";", "%3B");
+    //fix for service uri generated from iot device api containing for id containing :
+    if(suri.contains("/iot/")) {
+      int p = suri.lastIndexOf("/");
+      if(p>=0)
+        return suri.substring(0,p) + suri.substring(p).replace(":","%3A");
+    }
     return suri;
   }
   

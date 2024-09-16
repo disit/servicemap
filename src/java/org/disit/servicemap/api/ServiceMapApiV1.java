@@ -6480,8 +6480,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       if(CheckParameters.checkLatLng(lat+";"+lng)!=null) {
         throw new IllegalArgumentException("invalid lat lng coordinates");
       }
-              
-      String query = "select ?n (xsd:string(?lat) as ?lat_str) (xsd:string(?lng) as ?lng_str) ?d ?re ?dir ?hwt ?ns ?ne (xsd:string(?ns_lat) as ?ns_lat_str) (xsd:string(?ns_lng) as ?ns_lng_str) (xsd:string(?ne_lat) as ?ne_lat_str) (xsd:string(?ne_lng) as ?ne_lng_str) ?rd ?nm {\n" +
+      String[] highwayTypes = Configuration.getInstance().get("highwayTypes", "residential;primary;secondary;tertiary").split(";");
+      String hwTs = "\"" + String.join("\",\"", highwayTypes)+"\"";
+      
+      /* String query = "select ?n (xsd:string(?lat) as ?lat_str) (xsd:string(?lng) as ?lng_str) ?d ?re ?dir ?hwt ?ns ?ne (xsd:string(?ns_lat) as ?ns_lat_str) (xsd:string(?ns_lng) as ?ns_lng_str) (xsd:string(?ne_lat) as ?ne_lat_str) (xsd:string(?ne_lng) as ?ne_lng_str) ?rd ?nm {\n" +
             "  {\n" +
             "    select ?n count(*) as ?nn {\n" +
             "      ?n a km4c:Node.\n" +
@@ -6498,13 +6500,53 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             "  ?re km4c:startsAtNode ?ns.\n" +
             "  ?re km4c:endsAtNode ?ne.\n" +
             "  ?re km4c:trafficDir ?dir.\n" +
-            "  optional {?re km4c:highwayType ?hwt.}\n" +
+            "  optional {?re km4c:highwayType ?hwt. FILTER(?hwt!=\"footway\") }\n" +
             "  ?ns geo:lat ?ns_lat; geo:long ?ns_lng.\n" +
             "  ?ne geo:lat ?ne_lat; geo:long ?ne_lng.\n" +
             "  ?rd km4c:containsElement ?re.\n" +
             "  optional {?rd km4c:extendName ?nm.}\n" +
             "}\n" +
-            "order by ?d";
+            "order by ?d";*/
+      String query = "SELECT ?n (xsd:string(?lat) as ?lat_str) (xsd:string(?lng) as ?lng_str) ?d ?re ?dir ?hwt ?ns ?ne (xsd:string(?ns_lat) as ?ns_lat_str) (xsd:string(?ns_lng) as ?ns_lng_str) (xsd:string(?ne_lat) as ?ne_lat_str) (xsd:string(?ne_lng) as ?ne_lng_str) ?rd ?nm {\n" +
+            "  {\n"+
+            "    SELECT ?n {\n" +
+            "      {\n" +
+            "        SELECT ?n ?nx {\n" +
+            "          {\n" +
+            "            select ?n {\n" +
+            "              ?n a km4c:Node.\n" +
+            "              ?n geo:geometry ?g.\n" +
+            "              FILTER(bif:st_intersects(?g, bif:st_point("+lng+","+lat+"), "+maxDist+"))\n" +
+            "              ?re km4c:startsAtNode | km4c:endsAtNode ?n.\n" +
+            "              OPTIONAL {?re km4c:highwayType ?hw.}\n" +
+            "              FILTER(!BOUND(?hw) || ?hw IN (" + hwTs + "))\n" +
+            "            } GROUP BY ?n HAVING(count(*)>2) \n" +
+            "          }\n" +
+            "          ?re km4c:startsAtNode | km4c:endsAtNode ?n.\n" +
+            "          ?re km4c:startsAtNode ?ns; \n" +
+            "              km4c:endsAtNode ?ne.\n" +
+            "          OPTIONAL {?re km4c:highwayType ?hw. }\n" +
+            "          FILTER(!BOUND(?hw) || ?hw IN (" + hwTs + "))\n" +
+            "          BIND(IF(?ns=?n, ?ne, ?ns) AS ?nx)\n" +
+            "        } GROUP BY ?n ?nx\n" +
+            "      }\n" +
+            "    } GROUP BY ?n HAVING(count(*)>2)\n" +
+            "  }\n" +
+            "  ?n geo:geometry ?g; geo:lat ?lat; geo:long ?lng\n" +
+            "  BIND(bif:st_distance(?g,bif:st_point(" + lng + "," + lat +")) AS ?d)\n" +
+            "  ?re km4c:startsAtNode | km4c:endsAtNode ?n.\n" +
+            "  ?re km4c:startsAtNode ?ns.\n" +
+            "  ?re km4c:endsAtNode ?ne.\n" +
+            "  ?re km4c:trafficDir ?dir.\n" +
+            "  OPTIONAL {?re km4c:highwayType ?hwt. }\n" +
+            "  FILTER(!BOUND(?hwt) || ?hwt IN (" + hwTs + "))\n" +
+            "  ?ns geo:lat ?ns_lat; geo:long ?ns_lng.\n" +
+            "  ?ne geo:lat ?ne_lat; geo:long ?ne_lng.\n" +
+            "  ?rd km4c:containsElement ?re.\n" +
+            "  OPTIONAL {?rd km4c:extendName ?nm.}\n" +
+            "}\n" +
+            "ORDER BY ?d";
+      System.out.println(query);
       TupleQuery tupleQuery = con.prepareTupleQuery(QueryLanguage.SPARQL, query);
       long ts = System.nanoTime();
       TupleQueryResult results = tupleQuery.evaluate();
@@ -6514,6 +6556,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       JSONArray r = new JSONArray();
       String lastNodeUri = null;
       JSONObject lastNodeObj = null;
+      //String wkt = null;
       while (results.hasNext()) {
         BindingSet binding = results.next();
         String nodeUri = binding.getValue("n").stringValue();
@@ -6539,39 +6582,63 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         if(!nodeUri.equals(lastNodeUri)) {
             nodeObj = new JSONObject();
             roadElms = new JSONObject();
-            nodeObj.put("nodeUri", nodeUri);
-            nodeObj.put("roadElements", roadElms);
+            nodeObj.put("type", "Feature");
             nodeObj.put("dist", Double.valueOf(dist));
-            nodeObj.put("lat", Double.valueOf(lt));
-            nodeObj.put("lng", Double.valueOf(lg));
+            
+            JSONObject geometryObj = new JSONObject();
+            geometryObj.put("type", "Point");
+            JSONArray coords = new JSONArray();
+            coords.add( Double.valueOf(lg));
+            coords.add( Double.valueOf(lt));
+            geometryObj.put("coordinates", coords );
+            nodeObj.put("geometry", geometryObj);
+            
+            JSONObject propObj = new JSONObject();
+            propObj.put("nodeUri", nodeUri);
+            propObj.put("roadElements", roadElms);
+            
+            nodeObj.put("properties", propObj);
+            
+            /*if(wkt == null)
+                wkt = "GEOMETRYCOLLECTION(";
+            else
+                wkt += ",";
+            wkt += "POINT("+lg+" "+lt+")";*/
             r.add(nodeObj);
             lastNodeObj = nodeObj;
             lastNodeUri = nodeUri;
         } else {
-            roadElms = (JSONObject) lastNodeObj.get("roadElements");
+            roadElms = (JSONObject)((JSONObject) lastNodeObj.get("properties")).get("roadElements");
         }
         String roadElementUri = binding.getValue("re").stringValue();
         JSONObject roadElmObj = new JSONObject();
         roadElmObj.put("roadName", roadName);
         roadElmObj.put("roadUri", roadUri);
-        roadElmObj.put("type", hwType);
+        roadElmObj.put("highwayType", hwType);
         roadElmObj.put("direction", dir);
         if(!nodeUri.equals(nodeEndUri)) {
             JSONObject node = new JSONObject();
             node.put("uri", nodeEndUri);
-            node.put("lat", Double.valueOf(ne_lat));
-            node.put("lng", Double.valueOf(ne_lng));
+            JSONArray coords = new JSONArray();
+            coords.add(Double.valueOf(ne_lng));
+            coords.add(Double.valueOf(ne_lat));
+            node.put("coordinates", coords);
             roadElmObj.put("nodeEnd", node);
         } else {
             JSONObject node = new JSONObject();
             node.put("uri", nodeStartUri);
-            node.put("lat", Double.valueOf(ns_lat));
-            node.put("lng", Double.valueOf(ns_lng));
+            JSONArray coords = new JSONArray();
+            coords.add(Double.valueOf(ns_lng));
+            coords.add(Double.valueOf(ns_lat));
+            node.put("coordinates", coords);
             roadElmObj.put("nodeStart", node);
         }
         roadElms.put(roadElementUri, roadElmObj);
+        //wkt += ",LINESTRING("+lg+" "+lt+","+(!nodeUri.equals(nodeEndUri) ? ne_lng+" "+ne_lat : ns_lng+" "+ns_lat )+")";
       }
-      obj.put("result", r);
+      obj.put("features", r);
+      obj.put("type", "FeatureCollection");
+      //obj.put("wkt", wkt+")");
       return obj;
     }  
 }  
