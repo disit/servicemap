@@ -38,6 +38,7 @@ import org.disit.servicemap.JwtUtil.User;
 import org.disit.servicemap.ServiceMap;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.document.DocumentField;
@@ -161,14 +162,26 @@ public class IoTSearchApi {
       BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(dataQuery).filter(geoQuery);
       
       for(String[] rangeCnd: rangeConds) {
+        String fieldSfxTxt = null;
+        String fieldSfxKwd = null;
+        if(stdFields.contains(rangeCnd[0])) {
+            fieldSfxTxt = ".text";
+            fieldSfxKwd = "";
+        } else {
+            fieldSfxKwd = ".value_str.keyword";
+            fieldSfxTxt = ".value_str";
+        }
+        
         if(rangeCnd[1].equals("gt"))
-            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0]+".value_str.keyword").gt(rangeCnd[2]));
+            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0] + fieldSfxKwd).gt(rangeCnd[2]));
         else if(rangeCnd[1].equals("lt"))
-            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0]+".value_str.keyword").lt(rangeCnd[2]));
+            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0] + fieldSfxKwd).lt(rangeCnd[2]));
         else if(rangeCnd[1].equals("lte"))
-            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0]+".value_str.keyword").lte(rangeCnd[2]));
+            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0] + fieldSfxKwd).lte(rangeCnd[2]));
         else if(rangeCnd[1].equals("gte"))
-            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0]+".value_str.keyword").gte(rangeCnd[2]));
+            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0] + fieldSfxKwd).gte(rangeCnd[2]));
+        else if(rangeCnd[1].equals("contains"))
+            boolQuery.must().add(QueryBuilders.wildcardQuery(rangeCnd[0] + fieldSfxTxt, "*"+rangeCnd[2].toLowerCase()+"*"));
       }
       
       for(String[] delayCnd: delayConds) {
@@ -227,7 +240,7 @@ public class IoTSearchApi {
                         "ChronoUnit.SECONDS.between(Startdate, Currentdate);", params);
           searchSourceBuilder.sort(SortBuilders.scriptSort(delay_s_script, ScriptSortBuilder.ScriptSortType.NUMBER).order(order));
         } else if (stdFields.contains(sortF[0].trim())) {
-          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".keyword").order(order).unmappedType(unmappedType));
+          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0]).order(order).unmappedType(unmappedType));
         } else {
           searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value").order(order).unmappedType(unmappedType));
           searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str.keyword").order(order).unmappedType(unmappedType));
@@ -241,6 +254,10 @@ public class IoTSearchApi {
 
       long ts = System.currentTimeMillis();
       SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
+      ShardSearchFailure[] failures = r.getShardFailures();
+      for(ShardSearchFailure sf: failures) {
+          ServiceMap.println("failure:" + sf);
+      }
       SearchHit[] hits = r.getHits().getHits();
       long nfound = r.getHits().totalHits;
       String jsonQuery = "NA";
@@ -364,7 +381,7 @@ public class IoTSearchApi {
     String[] conds = condition.split(";");
     for (String c : conds) {
       //String[] cc = c.split("((?=(:|=|!|>|<))|(?<=(:|=|!|>|<)))",5);
-      String[] cc = split(c,":=<>!");
+      String[] cc = split(c,":=<>!$");
       //System.out.println(Arrays.asList(cc));
       if (cc.length != 3) {
         throw new IllegalArgumentException("invalid condition " + c);
@@ -419,6 +436,11 @@ public class IoTSearchApi {
             break;
           case "!:":
             cond = "!("+cc[0] + ".value_str.keyword:\"" + QueryParserBase.escape(cc[2]) + "\")";
+            break;
+          case "::":
+            if(rangeConds!=null) {
+                rangeConds.add(new String[]{cc[0],"contains",cc[2]});
+            }
             break;
           case ":<":
             if(rangeConds!=null) {
@@ -656,7 +678,7 @@ public class IoTSearchApi {
           if(sortF[0].trim().equals("date_time")) {
             searchSourceBuilder.sort(new FieldSortBuilder("date_time").order(order));
           } else if (stdFields.contains(sortF[0].trim())) {
-            searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".keyword").order(order).unmappedType(unmappedType));
+            searchSourceBuilder.sort(new FieldSortBuilder(sortF[0]).order(order).unmappedType(unmappedType));
           } else {
             searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value").order(order).unmappedType(unmappedType));
             searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str.keyword").order(order).unmappedType(unmappedType));

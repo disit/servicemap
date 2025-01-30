@@ -56,6 +56,7 @@ import java.util.TimeZone;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.mail.Message;
@@ -2330,12 +2331,16 @@ public class ServiceMap {
     String[] hosts = conf.get("elasticSearchHosts", "localhost").split(",");
     int port = Integer.parseInt(conf.get("elasticSearchPort", "9200"));
 
-    HttpHost[] httpHosts = new HttpHost[hosts.length];
-    for(int i=0; i<hosts.length; i++)
-      httpHosts[i] = new HttpHost(hosts[i],port, conf.get("elasticSearchScheme", "http"));
+    HttpHost httpHost;
+    int h=0;
+    if(hosts.length>1) {
+        h = ThreadLocalRandom.current().nextInt(hosts.length);
+    }
+    ServiceMap.println("ESearch to "+hosts[h]);
+    httpHost = new HttpHost(hosts[h],port, conf.get("elasticSearchScheme", "http"));
     final int timeout = Integer.parseInt(conf.get("elasticSearchTimeout", "30000"));
     final int threadCount = Integer.parseInt(conf.get("elasticSearchThreadCount", "0"));
-    RestClientBuilder restClientBuilder = RestClient.builder(httpHosts);
+    RestClientBuilder restClientBuilder = RestClient.builder(httpHost);
     restClientBuilder.setRequestConfigCallback(
         new RestClientBuilder.RequestConfigCallback() {
             @Override
