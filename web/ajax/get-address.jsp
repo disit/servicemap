@@ -57,6 +57,9 @@
         if(address!=null) {
           address = address + ", " + (number!=null ? number + ", " : "");
           uri=(String)obj.get("addressUri");
+          if(uri==null) {
+            uri=(String)obj.get("roadUri");
+          }
         }
         else {
           address = "";
