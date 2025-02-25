@@ -25,10 +25,10 @@
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/leaflet-gps.css" type="text/css" />
         <script src='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.js'></script>
         <link href='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.css' rel='stylesheet' />
-        <script src="http://code.jquery.com/jquery-1.11.2.min.js"></script>
-        <script src="http://code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
-        <script src="http://code.jquery.com/ui/1.11.2/jquery-ui.js"></script>
-        <link rel="stylesheet" href="http://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css" />	
+        <script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
+        <script src="https://code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
+        <script src="https://code.jquery.com/ui/1.11.2/jquery-ui.js"></script>
+        <link rel="stylesheet" href="https://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css" />	
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/leaflet.awesome-markers.css">
         <script src="${pageContext.request.contextPath}/js/leaflet.awesome-markers.min.js"></script>
         <script src="${pageContext.request.contextPath}/js/jquery.dialogextend.js"></script>
@@ -54,9 +54,9 @@
     </head>
     <body class="Chrome">
         <div id="dialog"></div>        
-        <div id="mappa" style="height:80%;width:100%">
+        <div id="map" style="height:80%;width:100%">
             <div class="menu" id="help">
-                <a href="http://www.disit.org/servicemap" title="Aiuto Service Map" target="_blank"><img src="${pageContext.request.contextPath}/img/help.png" alt="help SiiMobility ServiceMap" width="28" /></a>
+                <a href="https://www.disit.org/servicemap" title="Aiuto Service Map" target="_blank"><img src="${pageContext.request.contextPath}/img/help.png" alt="help SiiMobility ServiceMap" width="28" /></a>
             </div>
         </div>
         <div id="query" >
@@ -106,17 +106,15 @@ select distinct ?wkt {
 
             });
 
-            var mbAttr = 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
-                    '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
-                    'Imagery © <a href="http://mapbox.com">Mapbox</a>',
-                    mbUrl = 'https://{s}.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token=<%=mapAccessToken%>';
-            var streets = L.tileLayer(mbUrl, {id: 'mapbox.streets', attribution: mbAttr}),
-                    satellite = L.tileLayer(mbUrl, {id: 'mapbox.streets-satellite', attribution: mbAttr}),
-                    grayscale = L.tileLayer(mbUrl, {id: 'pbellini.f33fdbb7', attribution: mbAttr});
-            var map = L.map('mappa', {
-                center: [43.3555664, 11.0290384],
-                zoom: 8,
-                layers: [satellite]
+            var mbAttr = '<%= Configuration.getInstance().get("mapAttribution","Map data &copy; <a href=\"http://openstreetmap.org\">OpenStreetMap</a> contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery &copy; <a href=\"http://mapbox.com\">Mapbox</a>")%>',
+                mbUrl = '<%= Configuration.getInstance().get("mapTilesUrl","https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=") + mapAccessToken%>';
+            var streets = L.tileLayer(mbUrl, {id: '<%= Configuration.getInstance().get("mapStreetsId", "mapbox/streets-v11") %>', attribution: mbAttr, tileSize: 512, zoomOffset: -1}),
+                satellite = L.tileLayer(mbUrl, {id: '<%= Configuration.getInstance().get("mapSatelliteId", "mapbox/satellite-streets-v11") %>', attribution: mbAttr, tileSize: 512, zoomOffset: -1}),
+                grayscale = L.tileLayer(mbUrl, {id: '<%= Configuration.getInstance().get("mapGrayscaleId", "mapbox/light-v10") %>', attribution: mbAttr, tileSize: 512, zoomOffset: -1});
+            var map = L.map('map', {
+                center: [<%= ServiceMap.getMapDefaultLatLng(request, "43.3555664, 11.0290384") %>],
+                zoom: <%= ServiceMap.getMapDefaultZoom(request, "8") %>,
+                layers: [streets]
             });
             var baseMaps = {
                 "Streets": streets,
