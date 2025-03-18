@@ -60,11 +60,24 @@ public class JwtUtil {
     final public String username;
     final public String role;
     final public String accessToken;
+    final public String error;
     
     User(String u, String r, String at) {
       username = u;
       role = r;
       accessToken = at;
+      error = null;
+    }
+    
+    User(String errorMsg, String at) {
+        error = errorMsg;
+        username = "ANONYMOUS";
+        role = "Public";
+        accessToken = at;
+    }
+    
+    public boolean isWrong() {
+        return error != null;
     }
   }
   
@@ -103,8 +116,10 @@ public class JwtUtil {
       String a = r.getHeader("Authorization");
       if(a != null) {
         String[] auth = a.split(" ");
-        if(auth.length==2 && auth[0].equals("Bearer")) {
+        if(auth.length>=2 && auth[0].equalsIgnoreCase("Bearer")) {
           token = auth[1];
+        } else {
+            throw new Exception("invalid Authorization header (missing Bearer?)");
         }
       }
     }
@@ -121,6 +136,18 @@ public class JwtUtil {
       if(!conf.get("disableJwtSignatureException", "false").equals("true")) {
         throw e;
       }
+    }
+    return null;
+  }
+
+  static public User getUserOrErrorFromRequest(HttpServletRequest r) throws Exception {
+    String token = null;
+    try {
+      token = getTokenFromRequest(r);
+      if(token!=null)
+        return getUserFromJwt(token);
+    } catch(Exception e) {
+      return new User(e.getMessage(), token);
     }
     return null;
   }

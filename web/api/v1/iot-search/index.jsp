@@ -49,7 +49,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>. */
   User u = null;
   try {
-    u = org.disit.servicemap.JwtUtil.getUserFromRequest(request);
+    u = org.disit.servicemap.JwtUtil.getUserOrErrorFromRequest(request);
   } catch (Exception e) {
     ServiceMap.notifyException(e, "url:" + request.getRequestURL().append("?" + request.getQueryString()) + "\naccessToken:" + org.disit.servicemap.JwtUtil.getTokenFromRequest(request) + "\n");
   }
@@ -202,7 +202,7 @@
     // get services by lat/long
     if (coords == null || coords.length == 2 || coords.length == 4 ) {
       try {
-        int results = iotSearchApi.iotSearch(out, coords, suris, categories, model, maxDists, valueFilters, u, fromResult, maxResults, values, sortOnValue, text, notHealty, forceAccessCheck, u);
+        int results = iotSearchApi.iotSearch(out, coords, suris, categories, model, maxDists, valueFilters, u, fromResult, maxResults, values, sortOnValue, text, notHealty, forceAccessCheck);
         ServiceMap.updateResultsPerIP(ip, requestType, results);
         ServiceMap.logAccess(request, null, selection, categories, null, "api-iot-search", maxResults, maxDists, null, null, "json", null, reqFrom);
       } catch (IllegalArgumentException e) {

@@ -84,7 +84,7 @@ public class IoTSearchApi {
     }
   }
 
-  public int iotSearch(JspWriter out, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String notHealthy, String forceCheck, User u) throws Exception {
+  public int iotSearch(JspWriter out, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String notHealthy, String forceCheck) throws Exception {
     Configuration conf = Configuration.getInstance();
 
     RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf);
@@ -272,6 +272,9 @@ public class IoTSearchApi {
       ServiceMap.performance("elasticsearch device " + q + "  : " + (System.currentTimeMillis() - ts) + "ms nfound:" + nfound + " query:" + jsonQuery);
 
       out.println("{");
+      if(user!=null && user.isWrong()) {
+          out.println("\"warning\":\"invalid JWT access token, " + JSONObject.escape(user.error) + ", returning only public data\",");
+      }
       out.println("\"type\":\"FeatureCollection\"");
       if (conf.get("debug", "false").equals("true")) {
         out.println(",\"query\":\"" + JSONObject.escape(q) + "\"");
@@ -286,8 +289,8 @@ public class IoTSearchApi {
         if("true".equals(forceCheck)) {
             String serviceUri = ((String) src.get("serviceUri"));
             String apikey = null;
-            if(u!=null)
-                apikey="user:"+u.username+" role:"+u.role+" at:"+u.accessToken;
+            if(user!=null)
+                apikey="user:"+user.username+" role:"+user.role+" at:"+user.accessToken;
             
             if(!IoTChecker.checkIoTService(serviceUri, apikey)) {
                 nfound--;
@@ -940,7 +943,7 @@ public class IoTSearchApi {
       if(anonymous == null)
         anonymous = Encrypter.encrypt("ANONYMOUS");
       q += " (user_delegations:" + anonymous;
-      if (user != null) {
+      if (user != null && !user.isWrong()) {
         String encUsername = Encrypter.encrypt(user.username);
         q += " OR username:" + encUsername + " OR user_delegations:" + encUsername;
         if(Configuration.getInstance().get("enableLdapSearch", "false").equals("true")) {

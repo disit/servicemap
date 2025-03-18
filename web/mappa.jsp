@@ -494,7 +494,7 @@
                               <%                                                                 
                                     conMySQL = ConnectionPool.getConnection();
                                     try {
-                                      String queryLabel = "SELECT label FROM Geometry ORDER by label";
+                                      String queryLabel = "SELECT label FROM Geometry ORDER by label LIMIT 1000";
 
                                       // create the java statement
                                       st = conMySQL.createStatement();
