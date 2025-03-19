@@ -3174,7 +3174,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     }
     if(rtCon!=null)
       rtCon.close();
-    if("json".equals(format))
+    if(!"geojson".equals(format))
       out.println("}");
     else
       out.println("}}]}");
