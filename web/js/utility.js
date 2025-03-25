@@ -1223,27 +1223,26 @@ function showmarker(feature, latlng, mType) {
         serviceIcon = "generic";
     var marker;
     
-    if(serviceType == "TransferServiceAndRenting_BusStop" ){
-        if(feature.properties.agency)
-            serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, "").replace(/\//g, ""); 
-        else
-            serviceIcon = serviceIcon +"_ataflinea"; 
-    }
-    else if(serviceType == "TransferServiceAndRenting_Tram_stops"  ){
-        if(feature.properties.agency)
-            serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, "").replace(/\//g, ""); 
-    }
-    else if(serviceType == "TransferServiceAndRenting_Train_station" ){
-        if(feature.properties.agency)
-            serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, "").replace(/\//g, ""); 
-    }
-    else if(serviceType == "TransferServiceAndRenting_Ferry_stop" ){
-        if(feature.properties.agency)
-            serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, "").replace(/\//g, ""); 
+    if(window.configurationData.enableAgencyIcon === "true") {
+        if(serviceType == "TransferServiceAndRenting_BusStop" ){
+            if(feature.properties.agency)
+                serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, "").replace(/\//g, ""); 
+        }
+        else if(serviceType == "TransferServiceAndRenting_Tram_stops"  ){
+            if(feature.properties.agency)
+                serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, "").replace(/\//g, ""); 
+        }
+        else if(serviceType == "TransferServiceAndRenting_Train_station" ){
+            if(feature.properties.agency)
+                serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, "").replace(/\//g, ""); 
+        }
+        else if(serviceType == "TransferServiceAndRenting_Ferry_stop" ){
+            if(feature.properties.agency)
+                serviceIcon = serviceIcon +"_"+ feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, "").replace(/\//g, ""); 
+        }
     }
     
-    
-    if (serviceType != "bus_real_time") {        
+    if (serviceType !== "bus_real_time") {        
         var icon = L.icon({
             iconUrl: ctx + '/img/mapicons/' + serviceIcon + '.png',
             iconRetinaUrl: ctx + '/img/mapicons/' + serviceIcon + '.png',

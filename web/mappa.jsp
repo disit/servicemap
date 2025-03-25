@@ -142,6 +142,7 @@
             window.configurationData = {};
             window.configurationData.enableSensorValidation="<%= Configuration.getInstance().get("enableSensorValidation","true") %>";
             window.configurationData.sensorValidationUrl="<%= Configuration.getInstance().get("sensorValidationUrl","https://www.snap4city.org/sensor-validate/") %>";            
+            window.configurationData.enableAgencyIcon="<%= Configuration.getInstance().get("enableAgencyIcon","false") %>";
         </script>
 
         <div id="dialog"></div>        
