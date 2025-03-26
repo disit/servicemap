@@ -199,7 +199,13 @@ public class ServiceMap {
     String referer = request.getHeader("Referer");
     String site = request.getServerName();
     String realUid = uid;
-    if((uid==null || uid.isEmpty()) && Configuration.getInstance().get("accessLogUseUsernameAsUID", "false").equals("true")) {
+    Configuration conf = Configuration.getInstance();
+    boolean accessLogForceUsernameAsUID = conf.get("accessLogForceUsernameAsUID", "false").equals("true");
+    if( accessLogForceUsernameAsUID || 
+            ((uid==null || uid.isEmpty()) && 
+                conf.get("accessLogUseUsernameAsUID", "false").equals("true"))) {
+        if(accessLogForceUsernameAsUID)
+            realUid = "-";
         try {
             User u = JwtUtil.getUserFromRequest(request);
             if(u != null) {
