@@ -82,6 +82,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
 import org.apache.http.util.EntityUtils;
+import org.disit.servicemap.JwtUtil.User;
 import org.disit.servicemap.api.CheckParameters;
 import org.disit.servicemap.api.SparqlQuery;
 import org.elasticsearch.client.RestClient;
@@ -197,7 +198,18 @@ public class ServiceMap {
     String ua = request.getHeader("User-Agent");
     String referer = request.getHeader("Referer");
     String site = request.getServerName();
-    logAccess(ip,email,ua,sel,categorie,serviceUri,mode,numeroRisultati,raggio,queryId,text,format,uid,reqFrom,referer,site);
+    String realUid = uid;
+    if((uid==null || uid.isEmpty()) && Configuration.getInstance().get("accessLogUseUsernameAsUID", "false").equals("true")) {
+        try {
+            User u = JwtUtil.getUserFromRequest(request);
+            if(u != null) {
+                realUid = Encrypter.encrypt(u.username);
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+    logAccess(ip,email,ua,sel,categorie,serviceUri,mode,numeroRisultati,raggio,queryId,text,format,realUid,reqFrom,referer,site);
   }
   
   static public void logAccess(final String ip, final String email, final String UA, final String sel, final String categorie, final String serviceUri, final String mode, final String numeroRisultati, final String raggio, final String queryId, final String text, final String format, final String uid, final String reqFrom, final String referer, final String site) throws IOException, SQLException {

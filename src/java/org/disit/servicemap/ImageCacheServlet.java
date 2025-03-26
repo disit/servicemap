@@ -21,7 +21,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
@@ -59,6 +63,22 @@ public class ImageCacheServlet extends HttpServlet {
       if(imgUrl==null) {
         response.sendError(400, "missing imageUrl parameter");
         return;
+      }
+      try {
+          URL u = new URL(imgUrl);
+          String prot = u.getProtocol();
+          if(!prot.equals("http") && !prot.equals("https")) {
+            response.sendError(400, "invalid imageUrl parameter (wrong protocol)");
+            return;
+          }
+          String hostname = u.getHost();
+          if(hostname.isEmpty() || hostname.equals("localhost") || isLocalIP(hostname) ) {
+            response.sendError(400, "invalid imageUrl parameter (wrong hostname)");
+            return;  
+          }
+      } catch(MalformedURLException e) {
+          response.sendError(400, "invalid imageUrl parameter: "+e.getMessage());
+          return;
       }
       String ssize=request.getParameter("size");
       if(ssize==null) {
@@ -137,5 +157,33 @@ public class ImageCacheServlet extends HttpServlet {
     crypt.update(s.getBytes("UTF-8"));
 
     return new BigInteger(1, crypt.digest()).toString(16);
- }  
+ }
+  
+ public static boolean isLocalIP(String ipAddress) {
+    try {
+        InetAddress inet = InetAddress.getByName(ipAddress);
+        byte[] bytes = inet.getAddress();
+
+        // Controllo se è loopback (127.0.0.0/8 per IPv4, ::1 per IPv6)
+        if (inet.isLoopbackAddress()) {
+            return true;
+        }
+            
+        // Controllo IP di Classe A (10.0.0.0 - 10.255.255.255)
+        if ((bytes[0] & 0xFF) == 10) {
+            return true;
+        }
+        // Controllo IP di Classe B (172.16.0.0 - 172.31.255.255)
+        if ((bytes[0] & 0xFF) == 172 && (bytes[1] & 0xF0) == 16) {
+            return true;
+        }
+        // Controllo IP di Classe C (192.168.0.0 - 192.168.255.255)
+        if ((bytes[0] & 0xFF) == 192 && (bytes[1] & 0xFF) == 168) {
+            return true;
+        }
+        return false;
+    } catch (UnknownHostException e) {
+        return false; // Se non è un IP valido, restituiamo false
+    }
+}
 }
