@@ -99,8 +99,10 @@ public class IoTSearchApi {
     }
     Set<String> skipFields = new HashSet<>(Arrays.asList("src", "uuid", "username",
             "user_delegations", "organization_delegations", "sensorID", "latlon",
-            "kind", "groups", "value_name", "value_type"));
-    List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", "deviceName", "deviceModel", "date_time", "expected_next_date_time", "deviceDelay_s");
+            "kind", "groups", "value_name", "value_type", "data_type", "value_unit"));
+    List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", 
+            "deviceName", "deviceModel", "date_time", "expected_next_date_time", "deviceDelay_s", "entry_date");
+    
     try {
       String q = null;
       if (serviceUris != null && serviceUris.length > 0) {
@@ -578,8 +580,8 @@ public class IoTSearchApi {
     }
     Set<String> skipFields = new HashSet<>(Arrays.asList("src", "uuid", "username",
             "user_delegations", "organization_delegations", "sensorID", "latlon",
-            "kind", "groups", "value_name", "value_type"));
-    List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", "deviceName", "deviceModel");
+            "kind", "groups", "value_name", "value_type", "value_unit", "data_type"));
+    List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", "deviceName", "deviceModel", "entry_date");
     try {
       String q = null;
       if (serviceUris != null && serviceUris.length > 0) {
