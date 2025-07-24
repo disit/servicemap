@@ -57,6 +57,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
 import java.util.TreeSet;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -1433,6 +1434,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               ServiceMap.notifyException(e);
           }
         }
+        long startTime = System.currentTimeMillis();
+        long maxQueryScanDurMs = Long.parseLong(conf.get("maxQueryScanDurationSec", "60")) * 1000;
         while (result.hasNext() && numeroServizi < resServizi ) {
           BindingSet bindingSet = result.next();
           
@@ -1446,6 +1449,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             }
           }
 
+          if(maxQueryScanDurMs>0 && System.currentTimeMillis() - startTime > maxQueryScanDurMs) {
+              out.println("],\"error\":\"query scan duration exceeded\"}");
+              throw new TimeoutException("query scan exceeded max duration " + maxQueryScanDurMs + "ms at id " + w);
+          }
           // check if is private or public and if user can see it
           if(!IoTChecker.checkIoTService(valueOfSer, apiKey)) {
               nSrvPrv++;
@@ -1685,10 +1692,17 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     out.println("{");
     out.println(" \"type\": \"FeatureCollection\",\n"
             + " \"features\": [");
+    
+    long startTime = System.currentTimeMillis();
+    long maxQueryScanDurMs = Long.parseLong(conf.get("maxQueryScanDurationSec", "60")) * 1000;
     while (result.hasNext()) {
       BindingSet bindingSet = result.next();
 
       String serviceUri = bindingSet.getValue("ser").stringValue();
+      if(maxQueryScanDurMs>0 && System.currentTimeMillis() - startTime > maxQueryScanDurMs) {
+        out.println("],\"error\":\"query scan duration exceeded\"}");
+        throw new TimeoutException("query scan exceeded max duration " + maxQueryScanDurMs + "ms at id " + i);
+      }
       if(!IoTChecker.checkIoTService(serviceUri, apikey)) {
         fullCount--;
         continue;
@@ -2089,9 +2103,15 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + "\"features\": [ ");
 
       int t = 0;
+      long startTime = System.currentTimeMillis();
+      long maxQueryScanDurMs = Long.parseLong(conf.get("maxQueryScanDurationSec", "60")) * 1000;
       while (resultServices.hasNext()) {
         BindingSet bindingSetServices = resultServices.next();
         String valueOfSer = bindingSetServices.getValue("ser").stringValue();
+        if(maxQueryScanDurMs>0 && System.currentTimeMillis() - startTime > maxQueryScanDurMs) {
+              out.println("],\"error\":\"query scan duration exceeded\"}");
+              throw new TimeoutException("query scan exceeded max duration " + maxQueryScanDurMs + "ms at id " + t);
+          }        
         if(!IoTChecker.checkIoTService(valueOfSer, apiKey)) {
           continue;
         }
