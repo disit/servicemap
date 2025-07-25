@@ -40,6 +40,8 @@
           ServiceMap.reset();
           JwtUtil.reset();
           IoTChecker.reset();
+        } else if(request.getParameter("reload")!=null) {
+          conf.load();
         }
         out.println(conf.asHtml());
         out.println("<ul>");

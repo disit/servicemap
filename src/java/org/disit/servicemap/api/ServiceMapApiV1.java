@@ -1436,6 +1436,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         }
         long startTime = System.currentTimeMillis();
         long maxQueryScanDurMs = Long.parseLong(conf.get("maxQueryScanDurationSec", "60")) * 1000;
+        long iotCheckTime = 0;
+        long iotCheckMaxTimeSec = Long.parseLong(conf.get("iotCheckMaxTimeSec", "3")) * 1000;
         while (result.hasNext() && numeroServizi < resServizi ) {
           BindingSet bindingSet = result.next();
           
@@ -1449,12 +1451,15 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
             }
           }
 
-          if(maxQueryScanDurMs>0 && System.currentTimeMillis() - startTime > maxQueryScanDurMs) {
+          if(maxQueryScanDurMs>0 && System.currentTimeMillis() - startTime > maxQueryScanDurMs && iotCheckTime > iotCheckMaxTimeSec) {
               out.println("],\"error\":\"query scan duration exceeded\"}");
-              throw new TimeoutException("query scan exceeded max duration " + maxQueryScanDurMs + "ms at id " + w);
+              throw new TimeoutException("query scan exceeded max duration " + maxQueryScanDurMs + "ms and iotCheckTime: "+ iotCheckTime+">"+iotCheckMaxTimeSec + " at id " + w);
           }
           // check if is private or public and if user can see it
-          if(!IoTChecker.checkIoTService(valueOfSer, apiKey)) {
+          iotCheckTime = System.currentTimeMillis();
+          boolean accessible = IoTChecker.checkIoTService(valueOfSer, apiKey);
+          iotCheckTime = System.currentTimeMillis() - iotCheckTime;
+          if(!accessible) {
               nSrvPrv++;
               continue;
           }
@@ -1695,15 +1700,21 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     
     long startTime = System.currentTimeMillis();
     long maxQueryScanDurMs = Long.parseLong(conf.get("maxQueryScanDurationSec", "60")) * 1000;
+    long iotCheckTime = 0;
+    long iotCheckMaxTimeSec = Long.parseLong(conf.get("iotCheckMaxTimeSec", "3")) * 1000;
     while (result.hasNext()) {
       BindingSet bindingSet = result.next();
 
       String serviceUri = bindingSet.getValue("ser").stringValue();
-      if(maxQueryScanDurMs>0 && System.currentTimeMillis() - startTime > maxQueryScanDurMs) {
-        out.println("],\"error\":\"query scan duration exceeded\"}");
-        throw new TimeoutException("query scan exceeded max duration " + maxQueryScanDurMs + "ms at id " + i);
+      if(maxQueryScanDurMs>0 && System.currentTimeMillis() - startTime > maxQueryScanDurMs && iotCheckTime > iotCheckMaxTimeSec) {
+          out.println("],\"error\":\"query scan duration exceeded\"}");
+          throw new TimeoutException("query scan exceeded max duration " + maxQueryScanDurMs + "ms and iotCheckTime: "+ iotCheckTime+">"+iotCheckMaxTimeSec + " at id " + i);
       }
-      if(!IoTChecker.checkIoTService(serviceUri, apikey)) {
+      // check if is private or public and if user can see it
+      iotCheckTime = System.currentTimeMillis();
+      boolean accessible = IoTChecker.checkIoTService(serviceUri, apikey);
+      iotCheckTime = System.currentTimeMillis() - iotCheckTime;
+      if(!accessible) {
         fullCount--;
         continue;
       }
@@ -2105,14 +2116,20 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       int t = 0;
       long startTime = System.currentTimeMillis();
       long maxQueryScanDurMs = Long.parseLong(conf.get("maxQueryScanDurationSec", "60")) * 1000;
+      long iotCheckTime = 0;
+      long iotCheckMaxTimeSec = Long.parseLong(conf.get("iotCheckMaxTimeSec", "3")) * 1000;      
       while (resultServices.hasNext()) {
         BindingSet bindingSetServices = resultServices.next();
         String valueOfSer = bindingSetServices.getValue("ser").stringValue();
-        if(maxQueryScanDurMs>0 && System.currentTimeMillis() - startTime > maxQueryScanDurMs) {
-              out.println("],\"error\":\"query scan duration exceeded\"}");
-              throw new TimeoutException("query scan exceeded max duration " + maxQueryScanDurMs + "ms at id " + t);
-          }        
-        if(!IoTChecker.checkIoTService(valueOfSer, apiKey)) {
+        if(maxQueryScanDurMs>0 && System.currentTimeMillis() - startTime > maxQueryScanDurMs && iotCheckTime > iotCheckMaxTimeSec) {
+            out.println("],\"error\":\"query scan duration exceeded\"}");
+            throw new TimeoutException("query scan exceeded max duration " + maxQueryScanDurMs + "ms and iotCheckTime: "+ iotCheckTime+">"+iotCheckMaxTimeSec + " at id " + t);
+        }
+        // check if is private or public and if user can see it
+        iotCheckTime = System.currentTimeMillis();
+        boolean accessible = IoTChecker.checkIoTService(valueOfSer, apiKey);
+        iotCheckTime = System.currentTimeMillis() - iotCheckTime;
+        if(!accessible) {
           continue;
         }
         String valueOfSName = "";
