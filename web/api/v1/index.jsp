@@ -237,7 +237,13 @@ if ("html".equals(request.getParameter("format")) || (request.getParameter("form
       categorie = categorie.replace("TransferServiceAndRenting","TransferServiceAndRenting;BusStop;SensorSite");
     }
     
-    categorie = ServiceMap.cleanCategories(categorie);
+    try {
+        categorie = ServiceMap.cleanCategories(categorie);
+    } catch(IllegalArgumentException e) {
+        ServiceMap.notifyException(e);
+        ServiceMap.logError(request, response, 400, e.getMessage());
+        return;
+    }
 
     String raggi = "";
     raggi = request.getParameter("maxDists");

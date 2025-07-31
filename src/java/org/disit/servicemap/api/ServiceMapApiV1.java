@@ -62,6 +62,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.commons.httpclient.HttpConnectionManager;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
@@ -74,7 +75,9 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.impl.conn.BasicHttpClientConnectionManager;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
 import org.apache.http.util.EntityUtils;
@@ -1436,8 +1439,16 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         }
         long startTime = System.currentTimeMillis();
         long maxQueryScanDurMs = Long.parseLong(conf.get("maxQueryScanDurationSec", "60")) * 1000;
+        long stopQueryScanDurMs = Long.parseLong(conf.get("stopQueryScanDurationSec", "600")) * 1000;
         long iotCheckTime = 0;
-        long iotCheckMaxTimeSec = Long.parseLong(conf.get("iotCheckMaxTimeSec", "3")) * 1000;
+        long iotCheckMaxTimeMs = Long.parseLong(conf.get("iotCheckMaxTimeSec", "3")) * 1000;
+        double iotCheckWeightCurrent = Double.parseDouble(conf.get("iotCheckWeightCurrent", "0.3")); //rilevanti ultimi 15 campioni
+        double iotCheckWeightPast = 1 - iotCheckWeightCurrent;
+        double avgIoTCheckTime = 0.0;
+        double iotCheckMaxAvgTimeMs = Long.parseLong(conf.get("iotCheckMaxAvgTimeSec", "0")) * 1000;
+        
+        BasicHttpClientConnectionManager connManager = new BasicHttpClientConnectionManager();
+        CloseableHttpClient httpclient = HttpClients.custom().setConnectionManager(connManager).build();
         while (result.hasNext() && numeroServizi < resServizi ) {
           BindingSet bindingSet = result.next();
           
@@ -1450,15 +1461,28 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               uniqueServiceUri.add(valueOfSer);
             }
           }
-
-          if(maxQueryScanDurMs>0 && System.currentTimeMillis() - startTime > maxQueryScanDurMs && iotCheckTime > iotCheckMaxTimeSec) {
+          
+          long scanDurMs = System.currentTimeMillis() - startTime;
+          if(maxQueryScanDurMs>0 && scanDurMs > maxQueryScanDurMs && 
+                  ((iotCheckMaxTimeMs > 0 && iotCheckTime > iotCheckMaxTimeMs) ||
+                   (iotCheckMaxAvgTimeMs > 0 && avgIoTCheckTime > iotCheckMaxAvgTimeMs)) ){
               out.println("],\"error\":\"query scan duration exceeded\"}");
-              throw new TimeoutException("query scan exceeded max duration " + maxQueryScanDurMs + "ms and iotCheckTime: "+ iotCheckTime+">"+iotCheckMaxTimeSec + " at id " + w);
+              throw new TimeoutException("query scan exceeded max duration " + 
+                      scanDurMs+">"+maxQueryScanDurMs + "ms and " +
+                      "iotCheckTime: "+ iotCheckTime+">"+iotCheckMaxTimeMs + "ms "+ 
+                      " || avgCheckTime:"+avgIoTCheckTime+">"+iotCheckMaxAvgTimeMs+"ms at id " + w);
+          }
+          if(stopQueryScanDurMs>0 && scanDurMs > stopQueryScanDurMs) {
+              out.println("],\"error\":\"query scan takes too long\"}");
+              throw new TimeoutException("query scan takes too long " + scanDurMs +">"+stopQueryScanDurMs + "ms avgCheckTime: "+avgIoTCheckTime+"ms at id " + w);
           }
           // check if is private or public and if user can see it
           iotCheckTime = System.currentTimeMillis();
-          boolean accessible = IoTChecker.checkIoTService(valueOfSer, apiKey);
+          boolean accessible = IoTChecker.checkIoTService(valueOfSer, apiKey, httpclient);
           iotCheckTime = System.currentTimeMillis() - iotCheckTime;
+          if(iotCheckTime > 0)
+            avgIoTCheckTime = iotCheckWeightCurrent * iotCheckTime + iotCheckWeightPast * avgIoTCheckTime;
+          ServiceMap.println("IoTChecker: iotCheckTime: "+iotCheckTime+"ms avgIoTCheckTime: "+avgIoTCheckTime+"ms");
           if(!accessible) {
               nSrvPrv++;
               continue;
@@ -1581,6 +1605,9 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
           w++;
           numeroServizi++;
         }
+        httpclient.close();
+        connManager.close();
+        
         out.println("]");
         if (fullCount >= 0) {
           out.println(",\"fullCount\": " + (risultatiServizi.equals("0") ? numeroServizi : fullCount - nSrvDup - nSrvPrv) );
@@ -1702,6 +1729,8 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     long maxQueryScanDurMs = Long.parseLong(conf.get("maxQueryScanDurationSec", "60")) * 1000;
     long iotCheckTime = 0;
     long iotCheckMaxTimeSec = Long.parseLong(conf.get("iotCheckMaxTimeSec", "3")) * 1000;
+    double avgIoTCheckTime = 0.0;
+    
     while (result.hasNext()) {
       BindingSet bindingSet = result.next();
 
@@ -1714,6 +1743,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       iotCheckTime = System.currentTimeMillis();
       boolean accessible = IoTChecker.checkIoTService(serviceUri, apikey);
       iotCheckTime = System.currentTimeMillis() - iotCheckTime;
+      avgIoTCheckTime = 0.8 * iotCheckTime + 0.2 * avgIoTCheckTime;
       if(!accessible) {
         fullCount--;
         continue;

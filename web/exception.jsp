@@ -53,7 +53,8 @@
 %>
 { "failure" : "EXCEPTION",
   "httpcode" : <%= statusCode %>,
-  "exception": "<%= throwable.getClass().getName() %>"
+  "exception": "<%= throwable.getClass().getName() %>",
+  "message": "<%= throwable.getMessage() %>"
 }          
 <% 
   ServiceMap.notifyException(throwable,"url: "+requestUri);

@@ -19,6 +19,7 @@ package org.disit.servicemap.api;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.Arrays;
@@ -66,6 +67,15 @@ public class IoTChecker {
     static private Object nPasswordSynch = new Object();
 
     static public boolean checkIoTService(String serviceUri, String apiKey) throws IllegalAccessException {
+      try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+        return checkIoTService(serviceUri, apiKey, httpclient);
+      } catch(IOException e) {
+        ServiceMap.notifyException(e);
+        return false;
+      }
+    }
+
+    static public boolean checkIoTService(String serviceUri, String apiKey, CloseableHttpClient httpclient) throws IllegalAccessException {
       Configuration conf = Configuration.getInstance();
       if(!serviceUri.startsWith(conf.get("iotCheckerIoTServiceUriPrefix", "http://www.disit.org/km4city/resource/iot/"))) {
         return true;
@@ -167,7 +177,7 @@ public class IoTChecker {
       ServiceMap.println("iotchecker: "+serviceUri+" "+elementId+" "+user+" "+accessToken);
 
       try {
-        try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
+        //try (CloseableHttpClient httpclient = HttpClients.createDefault()) {
           HttpGet httpget = null;
           int CONNECTION_TIMEOUT_MS = Integer.parseInt(conf.get("iotCheckerDatamanagerTimeout", "60")) * 1000; // Timeout in millis.
           RequestConfig requestConfig = RequestConfig.custom()
@@ -222,7 +232,7 @@ public class IoTChecker {
               ServiceMap.notifyException(null, "IoTChecker for "+elementId+" failed "+statusCode+" call to "+builder.build()+" accessToken:"+accessToken);
             }
           }
-        }
+        //}
       } catch(Exception e) {
         ServiceMap.notifyException(e);
         return false;

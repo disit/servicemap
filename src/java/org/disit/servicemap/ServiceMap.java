@@ -1503,6 +1503,8 @@ public class ServiceMap {
           else
             categorie += v;
           n++;
+        } else {
+          throw new IllegalArgumentException("category '"+v+"' is not valid");
         }
       }
     }
