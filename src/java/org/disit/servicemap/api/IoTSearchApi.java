@@ -163,28 +163,7 @@ public class IoTSearchApi {
       }
       BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(dataQuery).filter(geoQuery);
       
-      for(String[] rangeCnd: rangeConds) {
-        String fieldSfxTxt = null;
-        String fieldSfxKwd = null;
-        if(stdFields.contains(rangeCnd[0])) {
-            fieldSfxTxt = ".text";
-            fieldSfxKwd = "";
-        } else {
-            fieldSfxKwd = ".value_str.keyword";
-            fieldSfxTxt = ".value_str";
-        }
-        
-        if(rangeCnd[1].equals("gt"))
-            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0] + fieldSfxKwd).gt(rangeCnd[2]));
-        else if(rangeCnd[1].equals("lt"))
-            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0] + fieldSfxKwd).lt(rangeCnd[2]));
-        else if(rangeCnd[1].equals("lte"))
-            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0] + fieldSfxKwd).lte(rangeCnd[2]));
-        else if(rangeCnd[1].equals("gte"))
-            boolQuery.must().add(QueryBuilders.rangeQuery(rangeCnd[0] + fieldSfxKwd).gte(rangeCnd[2]));
-        else if(rangeCnd[1].equals("contains"))
-            boolQuery.must().add(QueryBuilders.wildcardQuery(rangeCnd[0] + fieldSfxTxt, "*"+rangeCnd[2].toLowerCase()+"*"));
-      }
+      buildRangeCondQuery(boolQuery, rangeConds, stdFields);
       
       for(String[] delayCnd: delayConds) {
         Map<String, Object> params = new HashMap<>();
@@ -416,31 +395,40 @@ public class IoTSearchApi {
       }
       
       String cond = null;
+      String field_str, field_num;
+      int p = cc[0].indexOf('.');
+      if (p>=0) {
+        field_str = field_num = cc[0].substring(0, p)+".value_obj"+cc[0].substring(p);
+      } else {
+        field_str = cc[0]+".value_str";
+        field_num = cc[0]+".value";
+      }
+        
       if (cc.length == 3) {
         switch (cc[1]) {
           case ":":
-            cond = cc[0] + ".value_str.keyword:\"" + QueryParserBase.escape(concat(cc,2)) + "\"";
+            cond = field_str + ".keyword:\"" + QueryParserBase.escape(concat(cc,2)) + "\"";
             break;
           case "=":
-            cond = cc[0] + ".value:" + Double.parseDouble(cc[2]);
+            cond = field_num + ":" + Double.valueOf(cc[2]);
             break;
           case "<":
-            cond = cc[0] + ".value:<" + Double.parseDouble(cc[2]);
+            cond = field_num + ":<" + Double.parseDouble(cc[2]);
             break;
           case ">":
-            cond = cc[0] + ".value:>" + Double.parseDouble(cc[2]);
+            cond = field_num + ":>" + Double.parseDouble(cc[2]);
             break;
           case "<=":
-            cond = cc[0] + ".value:<=" + Double.parseDouble(cc[2]);
+            cond = field_num + ":<=" + Double.parseDouble(cc[2]);
             break;
           case ">=":
-            cond = cc[0] + ".value:>=" + Double.parseDouble(cc[2]);
+            cond = field_num + ":>=" + Double.parseDouble(cc[2]);
             break;
           case "!=":
-            cond = "!("+cc[0] + ".value:" + Double.parseDouble(cc[2])+")";
+            cond = "!(" + field_num + ":" + Double.parseDouble(cc[2])+")";
             break;
           case "!:":
-            cond = "!("+cc[0] + ".value_str.keyword:\"" + QueryParserBase.escape(cc[2]) + "\")";
+            cond = "!(" + field_str + ".keyword:\"" + QueryParserBase.escape(cc[2]) + "\")";
             break;
           case "::":
             if(rangeConds!=null) {
@@ -482,6 +470,38 @@ public class IoTSearchApi {
     return q;
   }
 
+  private void buildRangeCondQuery(BoolQueryBuilder boolQuery, ArrayList<String[]> rangeConds, List<String> stdFields) {
+    for(String[] rangeCnd: rangeConds) {
+        String fieldTxt = null;
+        String fieldKwd = null;
+        if(stdFields.contains(rangeCnd[0])) {
+            fieldTxt = rangeCnd[0] + ".text";
+            fieldKwd = rangeCnd[0] + "";
+        } else {
+            int p = rangeCnd[0].indexOf('.');
+            if(p>=0) {
+              String field = rangeCnd[0].substring(0, p) + ".value_obj" + rangeCnd[0].substring(p);
+              fieldKwd = field + ".keyword";
+              fieldTxt = field;
+            } else {
+              fieldKwd = rangeCnd[0] + ".value_str.keyword";
+              fieldTxt = rangeCnd[0] + ".value_str";
+            }
+        }
+        
+        if(rangeCnd[1].equals("gt"))
+            boolQuery.must().add(QueryBuilders.rangeQuery(fieldKwd).gt(rangeCnd[2]));
+        else if(rangeCnd[1].equals("lt"))
+            boolQuery.must().add(QueryBuilders.rangeQuery(fieldKwd).lt(rangeCnd[2]));
+        else if(rangeCnd[1].equals("lte"))
+            boolQuery.must().add(QueryBuilders.rangeQuery(fieldKwd).lte(rangeCnd[2]));
+        else if(rangeCnd[1].equals("gte"))
+            boolQuery.must().add(QueryBuilders.rangeQuery(fieldKwd).gte(rangeCnd[2]));
+        else if(rangeCnd[1].equals("contains"))
+            boolQuery.must().add(QueryBuilders.wildcardQuery(fieldTxt, "*"+rangeCnd[2].toLowerCase()+"*"));
+      }
+  }
+  
   private static String concat(String[] s, int from) {
       String r = s[from];
       for(int i=from+1; i<s.length;i++)
@@ -593,8 +613,9 @@ public class IoTSearchApi {
       if (categories != null) {
         q = categoriesQueryBuilder(q, categories);
       }
+      ArrayList<String[]> rangeConds = new ArrayList<>();
       if (condition != null) {
-        q = conditionQueryBuilder(q, condition, null, null);
+        q = conditionQueryBuilder(q, condition, null, rangeConds);
       }
       q = userQueryBuilder(q,user);
 
@@ -636,6 +657,8 @@ public class IoTSearchApi {
       }
       BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(dataQuery).filter(geoQuery);
            
+      buildRangeCondQuery(boolQuery, rangeConds, stdFields);
+      
       searchSourceBuilder.query(boolQuery);
       boolean aggreg = ("true".equalsIgnoreCase(aggregate));
 
@@ -698,8 +721,17 @@ public class IoTSearchApi {
         );
         searchSourceBuilder.size(0);
       }
-
-      searchSourceBuilder.fetchSource(true);
+      
+      if(fields != null) {
+        HashSet<String> srcFields = (HashSet<String>)((HashSet<String>)fieldList).clone();
+        srcFields.add("latlon");
+        srcFields.addAll(stdFields);
+        String[] includes = srcFields.toArray(new String[0]);
+        String[] excludes = new String[] {};
+        searchSourceBuilder.fetchSource(includes, excludes);
+      } else {
+        searchSourceBuilder.fetchSource(true);
+      }
       sr.source(searchSourceBuilder);
 
       if (conf.get("elasticSearchScrollSearch", "false").equals("true")) {

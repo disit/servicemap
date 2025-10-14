@@ -2350,17 +2350,15 @@ public class ServiceMap {
     //get RT data from Elastic
     String[] hosts = conf.get("elasticSearchHosts", "localhost").split(",");
     int port = Integer.parseInt(conf.get("elasticSearchPort", "9200"));
+    String scheme = conf.get("elasticSearchScheme", "http");
 
-    HttpHost httpHost;
-    int h=0;
-    if(hosts.length>1) {
-        h = ThreadLocalRandom.current().nextInt(hosts.length);
-    }
-    ServiceMap.println("ESearch to "+hosts[h]);
-    httpHost = new HttpHost(hosts[h],port, conf.get("elasticSearchScheme", "http"));
+    HttpHost[] httpHosts = new HttpHost[hosts.length];
+    for(int i=0;i<hosts.length; i++)
+      httpHosts[i] = new HttpHost(hosts[i],port, scheme);
+    
     final int timeout = Integer.parseInt(conf.get("elasticSearchTimeout", "30000"));
     final int threadCount = Integer.parseInt(conf.get("elasticSearchThreadCount", "0"));
-    RestClientBuilder restClientBuilder = RestClient.builder(httpHost);
+    RestClientBuilder restClientBuilder = RestClient.builder(httpHosts);
     restClientBuilder.setRequestConfigCallback(
         new RestClientBuilder.RequestConfigCallback() {
             @Override
