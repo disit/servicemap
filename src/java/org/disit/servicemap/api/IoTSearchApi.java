@@ -983,10 +983,13 @@ public class IoTSearchApi {
         if(Configuration.getInstance().get("enableLdapSearch", "false").equals("true")) {
           try {
             LdapSearch ldap = LdapSearch.getInstance();
-            String organization = ldap.getOrganization(user.username);
-            if(organization!=null) {
-              List<String> groups = ldap.getGroups(user.username, organization);
-              q += " OR organization_delegations:" + organization;
+            List<String> organizations = ldap.getOrganization(user.username);
+            if(!organizations.isEmpty()) {
+              Set<String> groups = new HashSet<String>();
+              for(String organization : organizations) {
+                q += " OR organization_delegations:" + organization;
+                groups.addAll(ldap.getGroups(user.username, organization));
+              }
               for(String grp : groups) {
                 q += " OR groups:" + grp;
               }

@@ -929,23 +929,48 @@ public class ServiceValuesServlet extends HttpServlet {
     return new User(ipAddress, null, null);
   }
 
+  private static String escapeSqlLiteral(String value) {
+    if(value==null)
+      return null;
+    return value.replace("'", "''");
+  }
+
+  private static Integer parseLimitSafe(String limit) {
+    if(limit==null)
+      return null;
+    try {
+      int v = Integer.parseInt(limit);
+      return v > 0 ? v : null;
+    } catch(NumberFormatException e) {
+      return null;
+    }
+  }
+
   public static void getValues(Connection rtCon, Configuration conf, String fromTime, String toTime, String limit, String serviceUri, String valueName, JsonArray rtData, String mode) throws SQLException, NumberFormatException {
-    Statement s = rtCon.createStatement();
-    s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
-    String fromToTime = "";
+    StringBuilder query = new StringBuilder("SELECT \"value\", convert_tz(valueDate,'UTC','CET') AS \"valueDate\", convert_tz(valueAcqDate,'UTC','CET') AS \"valueAcqDate\" FROM ServiceDataValues WHERE serviceUri=? AND valueName=? ");
+    ArrayList<String> params = new ArrayList<>();
+    params.add(serviceUri);
+    params.add(valueName);
     if(fromTime!=null) {
-      fromToTime += "AND valueDate>=to_date('"+fromTime.replace("T"," ")+"',null,'CET') ";
+      query.append("AND valueDate>=to_date(?,null,'CET') ");
+      params.add(fromTime.replace("T"," "));
     }
     if(toTime!=null) {
-      fromToTime += "AND valueDate<=to_date('"+toTime.replace("T"," ")+"',null,'CET') ";
+      query.append("AND valueDate<=to_date(?,null,'CET') ");
+      params.add(toTime.replace("T"," "));
     }
-    String lmt = "";
-    if(limit!=null) {
-      lmt = " LIMIT "+limit;
+    query.append("ORDER BY valueDate DESC ");
+    Integer limitValue = parseLimitSafe(limit);
+    if(limitValue!=null) {
+      query.append("LIMIT ").append(limitValue);
     }
-    String query = "SELECT \"value\", convert_tz(valueDate,'UTC','CET') AS \"valueDate\", convert_tz(valueAcqDate,'UTC','CET') AS \"valueAcqDate\" FROM ServiceDataValues WHERE serviceUri='"+serviceUri+"' AND valueName='"+valueName+"' "+fromToTime+" ORDER BY valueDate DESC "+lmt;
-    ServiceMap.println(query);
-    ResultSet rs = s.executeQuery(query);
+    ServiceMap.println(query.toString());
+    PreparedStatement s = rtCon.prepareStatement(query.toString());
+    s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
+    for(int i=0; i<params.size(); i++) {
+      s.setString(i+1, params.get(i));
+    }
+    ResultSet rs = s.executeQuery();
     int nCols = rs.getMetaData().getColumnCount();
     while (rs.next()) {
       JsonObject rt = new JsonObject();
@@ -977,6 +1002,7 @@ public class ServiceValuesServlet extends HttpServlet {
       }
       rtData.add(rt);
     }
+    s.close();
   }
 
   private void realTimeSqlQuery(ServiceMapping.MappingData md, String serviceUri, String valueName, String fromTime, String limit, Configuration conf, List<String> serviceTypes, JsonArray rtData) throws NumberFormatException, IOException {
@@ -984,19 +1010,26 @@ public class ServiceValuesServlet extends HttpServlet {
     boolean isWeatherSensor = false;
     String query = md.realTimeSqlQuery;
     long ts = System.currentTimeMillis();
-    query = query.replace("%SERVICE_URI", serviceUri);
+    String safeServiceUri = escapeSqlLiteral(serviceUri);
+    query = query.replace("%SERVICE_URI", safeServiceUri);
     String serviceId = serviceUri.substring(serviceUri.lastIndexOf("/")+1);
-    query = query.replace("%SERVICE_ID", serviceId);
+    query = query.replace("%SERVICE_ID", escapeSqlLiteral(serviceId));
     String frmTime = "";
+    Integer limitValue = parseLimitSafe(limit);
+    if(limitValue==null) {
+      limitValue = 1;
+    }
     if(fromTime!=null) {
-      frmTime = " AND observationTime>=to_date('"+fromTime.replace("T"," ")+"',null,'CET') ";
-      limit = conf.get("fromTimeLimit","1500");
+      frmTime = " AND observationTime>=to_date('"+escapeSqlLiteral(fromTime.replace("T"," "))+"',null,'CET') ";
+      limitValue = parseLimitSafe(conf.get("fromTimeLimit","1500"));
+      if(limitValue==null)
+        limitValue = 1;
     } else if(serviceTypes.contains("Weather_sensor")) {
-      if(limit.equals("1"))
-        limit = "2";
+      if(limitValue==1)
+        limitValue = 2;
       isWeatherSensor = true;
     }
-    query = query.replace("%FROM_TIME", frmTime).replace("%LIMIT", ""+limit);
+    query = query.replace("%FROM_TIME", frmTime).replace("%LIMIT", ""+limitValue);
     ServiceMap.println("realtime query: "+query);
     try {
       Connection rtCon = ServiceMap.getRTConnection();
@@ -1081,12 +1114,13 @@ public class ServiceValuesServlet extends HttpServlet {
     boolean isWeatherSensor = false;
     String query = md.realTimeSqlQuery;
     long ts = System.currentTimeMillis();
-    query = query.replace("%SERVICE_URI", serviceUri);
+    String safeServiceUri = escapeSqlLiteral(serviceUri);
+    query = query.replace("%SERVICE_URI", safeServiceUri);
     String serviceId = serviceUri.substring(serviceUri.lastIndexOf("/")+1);
-    query = query.replace("%SERVICE_ID", serviceId);
+    query = query.replace("%SERVICE_ID", escapeSqlLiteral(serviceId));
     String frmTime = "";
     if(fromTime!=null) {
-      frmTime = " AND observationTime>=to_date('"+fromTime.replace("T"," ")+"',null,'CET') ";
+      frmTime = " AND observationTime>=to_date('"+escapeSqlLiteral(fromTime.replace("T"," "))+"',null,'CET') ";
       limit = Integer.parseInt(conf.get("fromTimeLimit","1500"));
     } else if(serviceTypes.contains("Weather_sensor")) {
       if(limit==1)
@@ -1167,20 +1201,35 @@ public class ServiceValuesServlet extends HttpServlet {
   }
 
   public JsonObject getTrends(Connection rtCon, Configuration conf, String serviceUri, String valueName, String trendType, String timeAggregation) throws SQLException, NumberFormatException {
-    Statement s = rtCon.createStatement();
-    s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
     //ServiceDataTrends(serviceUri,valueName,trendType,timeAggregation,hour,\"value\")
-    String query;
-    if(timeAggregation == null && trendType == null)
-      query = "SELECT trendType as \"trendType\",timeAggregation AS \"timeAggregation\",hour AS \"hour\",\"value\" FROM ServiceDataTrends WHERE serviceUri='"+serviceUri+"' AND valueName='"+valueName+"' ORDER BY trendType, timeAggregation";
-    else if(trendType == null)
-      query = "SELECT trendType as \"trendType\",timeAggregation AS \"timeAggregation\",hour AS \"hour\",\"value\" FROM ServiceDataTrends WHERE serviceUri='"+serviceUri+"' AND valueName='"+valueName+"' AND timeAggregation='"+timeAggregation+"' ORDER BY trendType";
-    else if(trendType != null)
-      query = "SELECT trendType as \"trendType\",timeAggregation AS \"timeAggregation\",hour AS \"hour\",\"value\" FROM ServiceDataTrends WHERE serviceUri='"+serviceUri+"' AND valueName='"+valueName+"' AND trendType='"+trendType+"' AND timeAggregation='"+timeAggregation+"' ORDER BY trendType";
-    else
-      query = "SELECT trendType as \"trendType\",timeAggregation AS \"timeAggregation\",hour AS \"hour\",\"value\" FROM ServiceDataTrends WHERE serviceUri='"+serviceUri+"' AND valueName='"+valueName+"' AND trendType='"+trendType+"' ORDER BY timeAggregation";
-    ServiceMap.println(query);
-    ResultSet rs = s.executeQuery(query);
+    StringBuilder query = new StringBuilder("SELECT trendType as \"trendType\",timeAggregation AS \"timeAggregation\",hour AS \"hour\",\"value\" FROM ServiceDataTrends WHERE serviceUri=? AND valueName=?");
+    ArrayList<String> params = new ArrayList<>();
+    params.add(serviceUri);
+    params.add(valueName);
+    if(trendType != null) {
+      query.append(" AND trendType=?");
+      params.add(trendType);
+    }
+    if(timeAggregation != null) {
+      query.append(" AND timeAggregation=?");
+      params.add(timeAggregation);
+    }
+    if(trendType == null) {
+      query.append(" ORDER BY trendType");
+      if(timeAggregation == null)
+        query.append(", timeAggregation");
+    } else if(timeAggregation == null) {
+      query.append(" ORDER BY timeAggregation");
+    } else {
+      query.append(" ORDER BY trendType");
+    }
+    ServiceMap.println(query.toString());
+    PreparedStatement s = rtCon.prepareStatement(query.toString());
+    s.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
+    for(int i=0; i<params.size(); i++) {
+      s.setString(i+1, params.get(i));
+    }
+    ResultSet rs = s.executeQuery();
     int nCols = rs.getMetaData().getColumnCount();
     JsonObject trends = new JsonObject();
     String tt = null;
@@ -1213,6 +1262,7 @@ public class ServiceValuesServlet extends HttpServlet {
       trend.add(ta, aggregation);
     if(tt!=null)
       trends.add(tt, trend);
+    s.close();
     return trends;
   }
 }

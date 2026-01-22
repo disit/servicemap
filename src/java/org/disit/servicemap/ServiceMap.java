@@ -1684,26 +1684,40 @@ public class ServiceMap {
       if(rs.next()) {
         int count = rs.getInt("doneCount");
         int results = rs.getInt("resultsCount");
-        Statement update=connection.createStatement();
         if((maxRequests>=0 && count>=maxRequests) || (maxResults>=0 && results>=maxResults)) {
-          update.executeUpdate("UPDATE ServiceLimit SET limitedCount=limitedCount+1 WHERE ipaddr='"+IPAddr+"' AND date=current_date() AND requestType='"+requestType+"'");
+          PreparedStatement update = connection.prepareStatement(
+                  "UPDATE ServiceLimit SET limitedCount=limitedCount+1 WHERE ipaddr=? AND date=current_date() AND requestType=?");
+          update.setString(1, IPAddr);
+          update.setString(2, requestType);
+          update.executeUpdate();
+          update.close();
           ret=false;
         } else {
-          update.executeUpdate("UPDATE ServiceLimit SET doneCount=doneCount+1 WHERE ipaddr='"+IPAddr+"' AND date=current_date() AND requestType='"+requestType+"'");
+          PreparedStatement update = connection.prepareStatement(
+                  "UPDATE ServiceLimit SET doneCount=doneCount+1 WHERE ipaddr=? AND date=current_date() AND requestType=?");
+          update.setString(1, IPAddr);
+          update.setString(2, requestType);
+          update.executeUpdate();
+          update.close();
           ret=true;          
         }
-        update.close();
       } else {
         try {
-          Statement insert=connection.createStatement();
-          insert.executeUpdate("INSERT INTO ServiceLimit(ipaddr,requestType,date,doneCount) VALUES('"+IPAddr+"','"+requestType+"',current_date(),1)");
+          PreparedStatement insert = connection.prepareStatement(
+                  "INSERT INTO ServiceLimit(ipaddr,requestType,date,doneCount) VALUES(?,?,current_date(),1)");
+          insert.setString(1, IPAddr);
+          insert.setString(2, requestType);
+          insert.executeUpdate();
           insert.close();
           ret=true;
         } catch(SQLException ex) {
           // se fallisce inserimento per chiave duplicata fa update
-          Statement update=connection.createStatement();          
-          update.executeUpdate("UPDATE ServiceLimit SET doneCount=doneCount+1 WHERE ipaddr='"+IPAddr+"' AND date=current_date() AND requestType='"+requestType+"'");
-          if(update.getUpdateCount()==0)
+          PreparedStatement update = connection.prepareStatement(
+                  "UPDATE ServiceLimit SET doneCount=doneCount+1 WHERE ipaddr=? AND date=current_date() AND requestType=?");
+          update.setString(1, IPAddr);
+          update.setString(2, requestType);
+          int updateCount = update.executeUpdate();
+          if(updateCount==0)
             ServiceMap.notifyException(ex,"update failed");
           update.close();
           ret=true;
@@ -1723,11 +1737,19 @@ public class ServiceMap {
   public static void updateResultsPerIP(String IPAddr, String requestType, int results) throws Exception {
     Connection connection = ConnectionPool.getConnection();
     try {
-      Statement update=connection.createStatement();
-      update.executeUpdate("UPDATE ServiceLimit SET resultsCount=resultsCount+"+results+" WHERE ipaddr='"+IPAddr+"' AND date=current_date() AND requestType='"+requestType+"'");
-      if(update.getUpdateCount()==0) { //se check fatto prima di mezzanotte e inserimento fatto dopo, la riga del giorno nuovo non c'e'
-        Statement insert=connection.createStatement();
-        insert.executeUpdate("INSERT INTO ServiceLimit(ipaddr,requestType,date,doneCount,resultsCount) VALUES('"+IPAddr+"','"+requestType+"',current_date(),1,"+results+")");
+      PreparedStatement update = connection.prepareStatement(
+              "UPDATE ServiceLimit SET resultsCount=resultsCount+? WHERE ipaddr=? AND date=current_date() AND requestType=?");
+      update.setInt(1, results);
+      update.setString(2, IPAddr);
+      update.setString(3, requestType);
+      int updateCount = update.executeUpdate();
+      if(updateCount==0) { //se check fatto prima di mezzanotte e inserimento fatto dopo, la riga del giorno nuovo non c'e'
+        PreparedStatement insert = connection.prepareStatement(
+                "INSERT INTO ServiceLimit(ipaddr,requestType,date,doneCount,resultsCount) VALUES(?,?,current_date(),1,?)");
+        insert.setString(1, IPAddr);
+        insert.setString(2, requestType);
+        insert.setInt(3, results);
+        insert.executeUpdate();
         insert.close();
       }
       update.close();
@@ -1905,9 +1927,15 @@ public class ServiceMap {
         Connection conn = null;
         try {
           conn = getRTConnection2();
-          Statement st = conn.createStatement();
           String now = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-          ResultSet rs = st.executeQuery("SELECT \"busStopId\",\"lastUpdate\",\"lineLabel\",\"theoreticalPassageTime\", \"realPassageTime\" FROM \"tiemmeBusStopForecasts\" WHERE \"areaId\"='"+areaId+"' AND \"busStopId\"='"+busStopId+"' AND \"realPassageTime\">='"+now+"'ORDER BY \"lastUpdate\" DESC LIMIT 100");
+          PreparedStatement st = conn.prepareStatement(
+                  "SELECT \"busStopId\",\"lastUpdate\",\"lineLabel\",\"theoreticalPassageTime\", \"realPassageTime\" " +
+                  "FROM \"tiemmeBusStopForecasts\" WHERE \"areaId\"=? AND \"busStopId\"=? " +
+                  "AND \"realPassageTime\">=? ORDER BY \"lastUpdate\" DESC LIMIT 100");
+          st.setString(1, areaId);
+          st.setString(2, busStopId);
+          st.setString(3, now);
+          ResultSet rs = st.executeQuery();
           Map<String,String> r = new HashMap<>();
           while(rs.next()) {
             String lineLabel = rs.getString("lineLabel").toUpperCase();

@@ -114,6 +114,79 @@
     private String escapeJSON(String s) {
       return JSONObject.escape(s); //s.replace("\"", "\\\"").replace("\t", "\\t");
     }
+
+    private String escapeHtml(String s) {
+      if (s == null) {
+        return "";
+      }
+      StringBuilder out = new StringBuilder(s.length());
+      for (int i = 0; i < s.length(); i++) {
+        char c = s.charAt(i);
+        switch (c) {
+          case '&':
+            out.append("&amp;");
+            break;
+          case '<':
+            out.append("&lt;");
+            break;
+          case '>':
+            out.append("&gt;");
+            break;
+          case '"':
+            out.append("&quot;");
+            break;
+          case '\'':
+            out.append("&#39;");
+            break;
+          default:
+            out.append(c);
+        }
+      }
+      return out.toString();
+    }
+
+    private String escapeJs(String s) {
+      if (s == null) {
+        return "";
+      }
+      StringBuilder out = new StringBuilder(s.length());
+      for (int i = 0; i < s.length(); i++) {
+        char c = s.charAt(i);
+        switch (c) {
+          case '\\':
+            out.append("\\\\");
+            break;
+          case '"':
+            out.append("\\\"");
+            break;
+          case '\'':
+            out.append("\\'");
+            break;
+          case '\n':
+            out.append("\\n");
+            break;
+          case '\r':
+            out.append("\\r");
+            break;
+          case '\t':
+            out.append("\\t");
+            break;
+          case '\b':
+            out.append("\\b");
+            break;
+          case '\f':
+            out.append("\\f");
+            break;
+          default:
+            if (c < 0x20) {
+              out.append(String.format("\\u%04x", (int) c));
+            } else {
+              out.append(c);
+            }
+        }
+      }
+      return out.toString();
+    }
     
     private String filterQuery(String s) {
       if(!km4cVersion.equals("old"))

@@ -19,13 +19,17 @@ import com.unboundid.ldap.sdk.LDAPConnection;
 import com.unboundid.ldap.sdk.LDAPConnectionPool;
 import com.unboundid.ldap.sdk.LDAPException;
 import com.unboundid.ldap.sdk.LDAPSearchException;
+import com.unboundid.ldap.sdk.DN;
+import com.unboundid.ldap.sdk.Filter;
 import com.unboundid.ldap.sdk.RDN;
 import com.unboundid.ldap.sdk.SearchRequest;
 import com.unboundid.ldap.sdk.SearchResult;
 import com.unboundid.ldap.sdk.SearchResultEntry;
 import com.unboundid.ldap.sdk.SearchScope;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import org.disit.servicemap.Configuration;
 
 /**
@@ -56,33 +60,44 @@ public class LdapSearch {
     pool = new LDAPConnectionPool(c, 1, Integer.parseInt(conf.get("ldapMaxPoolConnections", "10")));
   }
   
-  public String getOrganization(String user) throws LDAPException {
-    String userDN = "cn=" + user + "," + baseDN;
-    String query = "(&(objectClass=organizationalUnit)(l=" + userDN + "))";
+  public List<String> getOrganization(String user) throws LDAPException {
+    String userDN = new DN(new RDN("cn", user), new DN(baseDN)).toString();
+    Filter query = Filter.createANDFilter(
+        Filter.createEqualityFilter("objectClass", "organizationalUnit"),
+        Filter.createEqualityFilter("l", userDN));
     SearchRequest sr = new SearchRequest(baseDN, SearchScope.ONE, query, "ou");
-    String organization = null;
+    Set<String> organizations = new LinkedHashSet<String>();
     LDAPConnection c = pool.getConnection();
     try {
       SearchResult result = c.search(sr);
-      if(result.getEntryCount()==1) {
-        SearchResultEntry e = result.getSearchEntries().get(0);
-        RDN rdn = e.getRDN();
-        if(rdn.hasAttribute("ou")) {
-          organization = rdn.getAttributeValues()[0];
+      if(result.getEntryCount()>0) {
+        for(SearchResultEntry e : result.getSearchEntries()) {
+          RDN rdn = e.getRDN();
+          if(rdn.hasAttribute("ou")) {
+            for(String value : rdn.getAttributeValues()) {
+              if(value!=null && !value.isEmpty()) {
+                organizations.add(value);
+              }
+            }
+          }
         }
-      } else if(result.getEntryCount()>1) {
-        organization = defaultOrg;
+        if(organizations.isEmpty() && result.getEntryCount()>1) {
+          organizations.add(defaultOrg);
+        }
       }
     } finally {
       c.close();
     }
-    return organization;
+    return new ArrayList<String>(organizations);
   }
  
   public List<String> getGroups(String user, String organization) throws LDAPException {
-    String userDN = "cn=" + user + "," + baseDN;
-    String query = "(&(objectClass=groupOfNames)(member=" + userDN + "))";
-    SearchRequest sr = new SearchRequest("ou="+organization+","+baseDN, SearchScope.ONE, query);
+    String userDN = new DN(new RDN("cn", user), new DN(baseDN)).toString();
+    String safeOrgDN = new DN(new RDN("ou", organization), new DN(baseDN)).toString();
+    Filter query = Filter.createANDFilter(
+        Filter.createEqualityFilter("objectClass", "groupOfNames"),
+        Filter.createEqualityFilter("member", userDN));
+    SearchRequest sr = new SearchRequest(safeOrgDN, SearchScope.ONE, query);
     List<String> groups = new ArrayList<String>();
     LDAPConnection c = pool.getConnection();
     try {

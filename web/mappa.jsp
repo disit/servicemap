@@ -160,10 +160,10 @@
             Statement st = null;
             ResultSet rs = null;
             Connection conMySQL2 = null;
-            Statement st2 = null;
+            PreparedStatement st2 = null;
             ResultSet rs2 = null;
             Connection conMySQL3 = null;
-            Statement st3 = null;
+            PreparedStatement st3 = null;
             ResultSet rs3 = null;
             Repository repo = new SPARQLRepository(sparqlEndpoint);
             repo.initialize();
@@ -404,11 +404,10 @@
                                          out.println("<input type='checkbox' name='" + macroClass + "' value='" + macroClass + "' class='macrocategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + macroClass + ".png' height='23' width='20' align='top'> <span class='" + macroClass + " macrocategory-label'>" + macroClass + "</span> <span class='toggle-subcategory' title='Mostra sottocategorie'>+</span>");
                                          out.println("<div class='subcategory-content'>");
 
-                                         String query2 = "SELECT distinct SubClass,icon FROM ServiceCategory_menu_NEW WHERE MacroClass = '" + macroClass + "' AND TypeOfService not like 'T_Service' AND Visible = '1' ORDER BY SubClass ASC";
-                                         // create the java statement
-                                         st2 = conMySQL.createStatement();
-                                         // execute the query, and get a java resultset
-                                         rs2 = st2.executeQuery(query2);
+                                         String query2 = "SELECT distinct SubClass,icon FROM ServiceCategory_menu_NEW WHERE MacroClass = ? AND TypeOfService not like 'T_Service' AND Visible = '1' ORDER BY SubClass ASC";
+                                         st2 = conMySQL.prepareStatement(query2);
+                                         st2.setString(1, macroClass);
+                                         rs2 = st2.executeQuery();
                                          // iterate through the java resultset
 
                                          while (rs2.next()) {
@@ -564,11 +563,10 @@
                                           out.println("<input type='checkbox' name='" + classe + "' value='" + classe + "' class='macrocategory' /> <img src='" + request.getContextPath() + "/img/mapicons/" + classe + ".png' height='23' width='20' align='top'> <span class='" + classe + " macrocategory-label'>" + classe + "</span> <span class='toggle-subcategory' title='Mostra sottocategorie'>+</span>");
                                           out.println("<div class='subcategory-content'>");
                                           //conMySQL2 = DriverManager.getConnection(urlMySqlDB + dbMySql, userMySql, passMySql);
-                                          String query2 = "SELECT distinct labelITA, SubClass FROM ServiceCategory_menu_NEW WHERE MacroClass = '" + classe + "' AND Visible = '1' ORDER BY SubClass ASC";
-                                          // create the java statement
-                                          st2 = conMySQL.createStatement();
-                                          // execute the query, and get a java resultset
-                                          rs2 = st2.executeQuery(query2);
+                                          String query2 = "SELECT distinct labelITA, SubClass FROM ServiceCategory_menu_NEW WHERE MacroClass = ? AND Visible = '1' ORDER BY SubClass ASC";
+                                          st2 = conMySQL.prepareStatement(query2);
+                                          st2.setString(1, classe);
+                                          rs2 = st2.executeQuery();
                                           // iterate through the java resultset
                                           while (rs2.next()) {
                                               //String sub_nome = rs2.getString("Ita");
@@ -582,9 +580,10 @@
                                                   out.println("<span class='" + classe + " subcategory-label'>" + sub_en_name + "</span>");
                                                   out.println("<br />");
                                               } else {
-                                                  String query3 = "SELECT distinct MacroClass FROM ServiceCategory_menu_NEW WHERE SubClass = '" + sub_en_name + "' AND TypeOfService not like 'T_Service'";
-                                                  st3 = conMySQL.createStatement();
-                                                  rs3 = st3.executeQuery(query3);
+                                                  String query3 = "SELECT distinct MacroClass FROM ServiceCategory_menu_NEW WHERE SubClass = ? AND TypeOfService not like 'T_Service'";
+                                                  st3 = conMySQL.prepareStatement(query3);
+                                                  st3.setString(1, sub_en_name);
+                                                  rs3 = st3.executeQuery();
                                                   while (rs3.next()) {
                                                       String macro_cat = rs3.getString("MacroClass");
 

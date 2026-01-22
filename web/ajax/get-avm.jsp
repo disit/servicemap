@@ -219,7 +219,7 @@
       if (bindingSet2.getValue("bsFirst") != null) {
         bsFirst = bindingSet2.getValue("bsFirst").stringValue();
       }
-      String direction = bsFirst+" &#10132; "+bsLast;
+      String directionHtml = escapeHtml(bsFirst) + " &#10132; " + escapeHtml(bsLast);
       route = route.replace("http://www.disit.org/km4city/resource/", "");
       
       /*Class.forName("com.mysql.jdbc.Driver");
@@ -244,18 +244,18 @@
       valueOfArrivoPrevistoIstante = valueOfArrivoPrevistoIstante.substring(11, 19); //solo hh:mm:ss
       out.println("<tr>");
       // out.println("<td>" + idRide + "</td>");
-      out.println("<td>" + valueOfArrivoPrevistoIstante + "</td>");
-      out.println("<td>" + nomeLinea + "</td>");
+      out.println("<td>" + escapeHtml(valueOfArrivoPrevistoIstante) + "</td>");
+      out.println("<td>" + escapeHtml(nomeLinea) + "</td>");
       if (valueOfStato.equals("Ritardo")) {
-        out.println("<td style=\"color:red;\">" + valueOfStato + "</td>");
+        out.println("<td style=\"color:red;\">" + escapeHtml(valueOfStato) + "</td>");
       } else {
         if (valueOfStato.equals("Anticipo")) {
-          out.println("<td style=\"color:green;\">" + valueOfStato + "</td>");
+          out.println("<td style=\"color:green;\">" + escapeHtml(valueOfStato) + "</td>");
         } else {
-          out.println("<td>" + valueOfStato + "</td>");
+          out.println("<td>" + escapeHtml(valueOfStato) + "</td>");
         }
       }
-      out.println("<td class='percorso' onclick='showLinea(\""+ valueOfLinea +"\",\""+route+"\",\""+direction+"\",\""+nomeLinea+"\")'>" + direction + "</td>");
+      out.println("<td class='percorso' onclick='showLinea(\""+ escapeJs(valueOfLinea) +"\",\""+escapeJs(route)+"\",\""+escapeJs(directionHtml)+"\",\""+escapeJs(escapeHtml(nomeLinea))+"\")'>" + directionHtml + "</td>");
       out.println("</tr>");
       
     }

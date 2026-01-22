@@ -40,7 +40,7 @@
     Connection conMySQL = null;
     Statement st = null;
     ResultSet rs = null;
-    Statement st2 = null;
+    PreparedStatement st2 = null;
     ResultSet rs2 = null;
 
     Class.forName("com.mysql.jdbc.Driver");
@@ -54,19 +54,21 @@
       // iterate through the java resultset
       while (rs.next()) {
           String classe = rs.getString("SubClasse");
-          out.println("<input type='checkbox' name='" + classe + "' value='" + classe + "' class='macrocategory' /> <span class='" + classe + " macrocategory-label'>" + classe + "</span> <span class='toggle-subcategory' title='Mostra sottocategorie'>+</span>");
+          String classeHtml = escapeHtml(classe);
+          out.println("<input type='checkbox' name='" + classeHtml + "' value='" + classeHtml + "' class='macrocategory' /> <span class='" + classeHtml + " macrocategory-label'>" + classeHtml + "</span> <span class='toggle-subcategory' title='Mostra sottocategorie'>+</span>");
           out.println("<div class='subcategory-content'>");
-          String query2 = "SELECT distinct Ita, Eng FROM SiiMobility.ServiceCategory WHERE SubClasse = '" + classe + "' ORDER BY SubClasse";
-          // create the java statement
-          st2 = conMySQL.createStatement();
-          // execute the query, and get a java resultset
-          rs2 = st2.executeQuery(query2);
+          String query2 = "SELECT distinct Ita, Eng FROM SiiMobility.ServiceCategory WHERE SubClasse = ? ORDER BY SubClasse";
+          st2 = conMySQL.prepareStatement(query2);
+          st2.setString(1, classe);
+          rs2 = st2.executeQuery();
           // iterate through the java resultset
           while (rs2.next()) {
               String sub_nome = rs2.getString("Ita");
               String sub_en_name = rs2.getString("Eng");
-              out.println("<input type='checkbox' name='" + sub_nome + "' value='" + sub_en_name + "' class='sub_" + classe + " subcategory' />");
-              out.println("<span class='" + classe + " subcategory-label'>" + sub_en_name + "</span>");
+              String subNomeHtml = escapeHtml(sub_nome);
+              String subEnNameHtml = escapeHtml(sub_en_name);
+              out.println("<input type='checkbox' name='" + subNomeHtml + "' value='" + subEnNameHtml + "' class='sub_" + classeHtml + " subcategory' />");
+              out.println("<span class='" + classeHtml + " subcategory-label'>" + subEnNameHtml + "</span>");
               out.println("<br />");
           }
           out.println("</div>");

@@ -23,6 +23,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -62,6 +64,25 @@ public class PhotoUploadServlet extends HttpServlet {
   protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     String clength = request.getHeader("Content-Length");
     ServiceMap.println("length:"+clength);
+    Configuration conf = Configuration.getInstance();
+    if("true".equalsIgnoreCase(conf.get("enablePhotoUploadAuth", "true"))) {
+      try {
+        if(JwtUtil.getUserFromRequest(request) == null) {
+          response.sendError(401, "missing or invalid access token");
+          return;
+        }
+      } catch(Exception e) {
+        response.sendError(401, "access token is not valid");
+        return;
+      }
+    }
+    long maxFileSize = parseLongSafe(conf.get("photoUploadMaxFileSize", "5242880"), 5242880L);
+    long maxRequestSize = parseLongSafe(conf.get("photoUploadMaxRequestSize", "6291456"), 6291456L);
+    long contentLength = request.getContentLengthLong();
+    if(contentLength > 0 && contentLength > maxRequestSize) {
+      response.sendError(413, "request too large");
+      return;
+    }
     String uid = request.getParameter("uid"); // Retrieves <input type="text" name="description">
     if(uid==null || uid.trim().isEmpty() || uid.equals("null")) {
       response.sendError(400,"missing uid");
@@ -79,7 +100,6 @@ public class PhotoUploadServlet extends HttpServlet {
       ServiceMap.println("photo upload: request missing ServiceUri");
       return;
     }
-    Configuration conf = Configuration.getInstance();
     //retrieve service name
     String serviceName = null;
     try {
@@ -107,6 +127,10 @@ public class PhotoUploadServlet extends HttpServlet {
     if (filePart == null) {
       response.sendError(400, "missing part named 'file'");
       ServiceMap.println("photo upload: missing part");
+      return;
+    }
+    if(filePart.getSize() > maxFileSize) {
+      response.sendError(413, "file too large");
       return;
     }
     
@@ -193,16 +217,25 @@ public class PhotoUploadServlet extends HttpServlet {
   @Override
   protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
     //response.addHeader("Access-Control-Allow-Origin", "*");
-    String uri=request.getRequestURI();
-    String file=uri.substring(uri.lastIndexOf("photo/")+6);
-    if(file.isEmpty() || file.startsWith("..")) {
+    String pathInfo = request.getPathInfo();
+    if(pathInfo == null || "/".equals(pathInfo)) {
       response.sendError(400,"invalid file");
       return;
     }
-    ServiceMap.println("GET "+uri+" "+file);
+    String file = pathInfo.startsWith("/") ? pathInfo.substring(1) : pathInfo;
+    if(file.isEmpty() || file.contains("..") || file.contains("/") || file.contains("\\")) {
+      response.sendError(400,"invalid file");
+      return;
+    }
+    ServiceMap.println("GET "+request.getRequestURI()+" "+file);
     String uploadPath = Configuration.getInstance().get("photoUploadPath", "/tmp/servicemap");
-    File uploads = new File(uploadPath);
-    File f = new File(uploads, file);
+    Path uploads = Paths.get(uploadPath).toAbsolutePath().normalize();
+    Path resolved = uploads.resolve(file).normalize();
+    if(!resolved.startsWith(uploads)) {
+      response.sendError(400,"invalid file");
+      return;
+    }
+    File f = resolved.toFile();
     if(!f.exists()) {
       response.sendError(404,"file not found");
       return;
@@ -255,5 +288,16 @@ public class PhotoUploadServlet extends HttpServlet {
     //ImageIO.write(scaleImage(file, thumbSize), format, thumb);
     scaleImage(file, mediumResSize, mediumRes);
     scaleImage(file, thumbSize, thumb);
+  }
+
+  private static long parseLongSafe(String value, long fallback) {
+    if(value == null) {
+      return fallback;
+    }
+    try {
+      return Long.parseLong(value);
+    } catch(NumberFormatException e) {
+      return fallback;
+    }
   }
 }

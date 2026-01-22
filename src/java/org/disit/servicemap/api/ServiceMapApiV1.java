@@ -517,11 +517,14 @@ public class ServiceMapApiV1 extends ServiceMapApi {
       if(rtcon!=null) {
         //find passage
         gtfsrtPassages = new HashMap<>();
-        Statement stmt = rtcon.createStatement();
-        stmt.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
-        String gtfsrtTable = conf.get("gtfsRealTimeTable", "gtfsrTripupdate_hel");
+        String gtfsrtTable = requireSafeIdentifier(conf.get("gtfsRealTimeTable", "gtfsrTripupdate_hel"), "gtfsRealTimeTable");
         long ts = System.currentTimeMillis();
-        ResultSet rs = stmt.executeQuery("SELECT tripUri, convert_tz(arrivalTime,'UTC','"+timeZoneId+"') FROM " + gtfsrtTable + " WHERE stopUri='" + stopUri + "' AND arrivalTime>=NOW()");
+        PreparedStatement stmt = rtcon.prepareStatement(
+                "SELECT tripUri, convert_tz(arrivalTime,'UTC', ?) FROM " + gtfsrtTable + " WHERE stopUri=? AND arrivalTime>=NOW()");
+        stmt.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
+        stmt.setString(1, timeZoneId);
+        stmt.setString(2, stopUri);
+        ResultSet rs = stmt.executeQuery();
         while(rs.next()) {
           String gtfsTripUri = rs.getString(1);
           String gtfsRtArrivalTime = rs.getString(2);
@@ -540,10 +543,11 @@ public class ServiceMapApiV1 extends ServiceMapApi {
       if(rtcon!=null) {
         //find active alerts
         gtfsrtAlerts = new HashMap<>();
-        Statement stmt = rtcon.createStatement();
+        String table = requireSafeIdentifier(conf.get("gtfsAlertsTable", "Bus_hsl_yaml_RT_temp"), "gtfsAlertsTable");
+        PreparedStatement stmt = rtcon.prepareStatement(
+                "SELECT tripuri,effect,descren FROM " + table + " where alertstart<=NOW() AND ALERTEND>=NOW()");
         stmt.setQueryTimeout(Integer.parseInt(conf.get("rtQueryTimeoutSeconds", "60")));
-        String table = conf.get("gtfsAlertsTable", "Bus_hsl_yaml_RT_temp");
-        ResultSet rs = stmt.executeQuery("SELECT tripuri,effect,descren FROM " + table + " where alertstart<=NOW() AND ALERTEND>=NOW()");
+        ResultSet rs = stmt.executeQuery();
         int na=0;
         while(rs.next()) {
           String tripUri = rs.getString(1);
@@ -3758,7 +3762,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
   private Connection timeTrendQuery(ServiceMapping.MappingData md, String serviceUri, JspWriter out, Connection rtCon, Configuration conf) throws NumberFormatException, Exception, IOException, SQLException {
     long ts = System.currentTimeMillis();
     String query = md.trendSqlQuery;
-    query = query.replace("%SERVICE_URI", ServiceMap.urlEncode(serviceUri));
+    query = query.replace("%SERVICE_URI", escapeSqlLiteral(ServiceMap.urlEncode(serviceUri)));
     ServiceMap.println("trend query: "+query);
     out.println(", \"trends\": [");
     if(rtCon==null)
@@ -3790,7 +3794,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
   private Connection predictionQuery(ServiceMapping.MappingData md, String serviceUri, JspWriter out, Connection rtCon, Configuration conf) throws IOException, SQLException, Exception, NumberFormatException {
     long ts = System.currentTimeMillis();
     String query = md.predictionSqlQuery;
-    query = query.replace("%SERVICE_URI", ServiceMap.urlEncode(serviceUri));
+    query = query.replace("%SERVICE_URI", escapeSqlLiteral(ServiceMap.urlEncode(serviceUri)));
     ServiceMap.println("prediction query: "+query);
     out.println(", \"predictions\": [");
     rtCon = ServiceMap.getRTConnection();
@@ -3821,7 +3825,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
   private void realTimeSparqlQuery(ServiceMapping.MappingData md, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, String toTime, int limit, Configuration conf, RepositoryConnection con, String sparqlType, JspWriter out, JsonArray rtData) throws RepositoryException, QueryEvaluationException, MalformedQueryException, IOException, NumberFormatException {
     //get RT data from SPARQL
     String query = md.realTimeSparqlQuery;
-    query = query.replace("%SERVICE_URI", ServiceMap.urlEncode(serviceUri));
+    query = query.replace("%SERVICE_URI", escapeSqlLiteral(ServiceMap.urlEncode(serviceUri)));
     String frmTime = "", tTime = "";
     if(toTime!=null) {
       tTime = " FILTER(?measuredTime<=\""+toTime+ServiceMap.getCurrentTimezoneOffset()+"\"^^xsd:dateTime) ";
@@ -3915,16 +3919,16 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     boolean isWeatherSensor = false;
     String query = md.realTimeSqlQuery;
     long ts = System.currentTimeMillis();
-    query = query.replace("%SERVICE_URI", ServiceMap.urlEncode(serviceUri));
+    query = query.replace("%SERVICE_URI", escapeSqlLiteral(ServiceMap.urlEncode(serviceUri)));
     String serviceId = serviceUri.substring(serviceUri.lastIndexOf("/")+1);
-    query = query.replace("%SERVICE_ID", serviceId);
+    query = query.replace("%SERVICE_ID", escapeSqlLiteral(serviceId));
     String frmTime = "";
     String tTime = "";
     if(toTime!=null) {
-      tTime = " AND observationTime<=to_date('"+toTime.replace("T"," ")+"',null,'CET') ";
+      tTime = " AND observationTime<=to_date('"+escapeSqlLiteral(toTime.replace("T"," "))+"',null,'CET') ";
     }
     if(fromTime!=null) {
-      frmTime = " AND observationTime>=to_date('"+fromTime.replace("T"," ")+"',null,'CET') ";
+      frmTime = " AND observationTime>=to_date('"+escapeSqlLiteral(fromTime.replace("T"," "))+"',null,'CET') ";
       limit = Integer.parseInt(conf.get("fromTimeLimitSql",conf.get("fromTimeLimit","1500")));
     } else if(serviceTypes.contains("Weather_sensor")) {
       if(limit==1)
@@ -6707,5 +6711,18 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       obj.put("type", "FeatureCollection");
       //obj.put("wkt", wkt+")");
       return obj;
-    }  
+    }
+
+    private static String escapeSqlLiteral(String value) {
+      if(value==null)
+        return null;
+      return value.replace("'", "''");
+    }
+
+    private static String requireSafeIdentifier(String value, String label) throws SQLException {
+      if(value==null || !value.matches("[A-Za-z0-9_\\.]+")) {
+        throw new SQLException("Invalid " + label + ": " + value);
+      }
+      return value;
+    }
 }  

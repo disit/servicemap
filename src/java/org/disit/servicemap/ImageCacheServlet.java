@@ -23,6 +23,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.UnknownHostException;
@@ -59,26 +60,24 @@ public class ImageCacheServlet extends HttpServlet {
     String imgUrl=null;
     try {
       Configuration conf = Configuration.getInstance();
+      if("false".equalsIgnoreCase(conf.get("enableImageCache", "false"))) {
+        response.sendError(403, "image cache disabled");
+        return;
+      }
       imgUrl=request.getParameter("imageUrl");
       if(imgUrl==null) {
         response.sendError(400, "missing imageUrl parameter");
         return;
       }
+      URL url;
       try {
-          URL u = new URL(imgUrl);
-          String prot = u.getProtocol();
-          if(!prot.equals("http") && !prot.equals("https")) {
-            response.sendError(400, "invalid imageUrl parameter (wrong protocol)");
-            return;
-          }
-          String hostname = u.getHost();
-          if(hostname.isEmpty() || hostname.equals("localhost") || isLocalIP(hostname) ) {
-            response.sendError(400, "invalid imageUrl parameter (wrong hostname)");
-            return;  
-          }
+        url = validateImageUrl(imgUrl);
       } catch(MalformedURLException e) {
-          response.sendError(400, "invalid imageUrl parameter: "+e.getMessage());
-          return;
+        response.sendError(400, "invalid imageUrl parameter: "+e.getMessage());
+        return;
+      } catch(IllegalArgumentException e) {
+        response.sendError(400, e.getMessage());
+        return;
       }
       String ssize=request.getParameter("size");
       if(ssize==null) {
@@ -105,7 +104,7 @@ public class ImageCacheServlet extends HttpServlet {
       int p = imgUrl.indexOf(".",imgUrl.lastIndexOf("/"));
       String ext = p<0 ? ".jpg" : imgUrl.substring(p);
       if(".mp3".equals(ext) || ".pdf".equals(ext)) {
-        response.sendRedirect(imgUrl);
+        response.sendError(400, "invalid imageUrl parameter (unsupported media type)");
         return;
       }
       
@@ -114,7 +113,7 @@ public class ImageCacheServlet extends HttpServlet {
       File f=new File(cachePath,cacheImg);
       if(force || !f.exists()) {
         try {
-          Thumbnails.of(new URL(imgUrl)).size(size, size).toFile(f);
+          downloadAndResize(url, size, f);
           ServiceMap.println("SAVE "+imgUrl+" "+f.getAbsolutePath());
         } catch(Exception e) {
           //in caso di fallimento per medium prova a dare il thumbnail
@@ -145,8 +144,7 @@ public class ImageCacheServlet extends HttpServlet {
       ServiceMap.logAccess(request, null, null, null, null, "api-imgcache", null, null, null, null, null, null, null);
     } catch (Exception ex) {
       ServiceMap.notifyException(ex);
-      if(imgUrl !=null)
-        response.sendRedirect(imgUrl);
+      response.sendError(500, "image cache request failed "+ex.getMessage());
     }
   }
 
@@ -186,4 +184,72 @@ public class ImageCacheServlet extends HttpServlet {
         return false; // Se non è un IP valido, restituiamo false
     }
 }
+
+  private static URL validateImageUrl(String imgUrl) throws MalformedURLException {
+    URL url = new URL(imgUrl);
+    String prot = url.getProtocol();
+    if(!"http".equals(prot) && !"https".equals(prot)) {
+      throw new IllegalArgumentException("invalid imageUrl parameter (wrong protocol)");
+    }
+    String hostname = url.getHost();
+    if(hostname == null || hostname.isEmpty() || "localhost".equalsIgnoreCase(hostname)) {
+      throw new IllegalArgumentException("invalid imageUrl parameter (wrong hostname)");
+    }
+    InetAddress[] addresses;
+    try {
+      addresses = InetAddress.getAllByName(hostname);
+    } catch (UnknownHostException e) {
+      throw new IllegalArgumentException("invalid imageUrl parameter (unknown host)");
+    }
+    for(InetAddress address : addresses) {
+      if(isBlockedAddress(address)) {
+        throw new IllegalArgumentException("invalid imageUrl parameter (blocked address)");
+      }
+    }
+    return url;
+  }
+
+  private static boolean isBlockedAddress(InetAddress address) {
+    if(address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isLinkLocalAddress()
+        || address.isSiteLocalAddress() || address.isMulticastAddress()) {
+      return true;
+    }
+    byte[] bytes = address.getAddress();
+    if(bytes.length == 16) {
+      int b0 = bytes[0] & 0xFF;
+      int b1 = bytes[1] & 0xFF;
+      // Unique local address fc00::/7
+      if((b0 & 0xFE) == 0xFC) {
+        return true;
+      }
+      // Link-local fe80::/10
+      if(b0 == 0xFE && (b1 & 0xC0) == 0x80) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static void downloadAndResize(URL url, int size, File target) throws IOException {
+    HttpURLConnection con = (HttpURLConnection) url.openConnection();
+    con.setInstanceFollowRedirects(false);
+    con.setConnectTimeout(5000);
+    con.setReadTimeout(15000);
+    int code = con.getResponseCode();
+    if(code / 100 == 3) {
+      throw new IOException("redirects are not allowed");
+    }
+    if(code / 100 != 2) {
+      throw new IOException("unexpected response: " + code);
+    }
+    String contentType = con.getContentType();
+    if(contentType == null || !contentType.startsWith("image/")) {
+      throw new IOException("unsupported content type");
+    }
+    try (InputStream in = con.getInputStream()) {
+      Thumbnails.of(in).size(size, size).toFile(target);
+    } finally {
+      con.disconnect();
+    }
+  }
 }

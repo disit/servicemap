@@ -45,8 +45,16 @@
     String latitudine = request.getParameter("lat");
     String longitudine = request.getParameter("lng");
     String findGeometry = request.getParameter("findGeometry");
+    if (latitudine == null || longitudine == null) {
+      response.sendError(400);
+      return;
+    }
+    double latValue;
+    double lngValue;
 
     try {
+      latValue = Double.parseDouble(latitudine);
+      lngValue = Double.parseDouble(longitudine);
       ServiceMap.logAccess(request, null, latitudine+";"+longitudine, null, null, "ui-location", null, null, null, null, null, null, "user");
       ServiceMapApiV1 api = new ServiceMapApiV1();
       JSONObject obj = api.queryLocation(con, latitudine, longitudine, findGeometry, 0.0004);
@@ -68,11 +76,11 @@
         if(uri == null)
             out.println("<small>Address:</small> NOT FOUND ");
         else
-            out.println("<small>Address:</small> <span id='actualAddress'><a href=\""+logEndPoint+uri+"\" target=\"_blank\">" + address + obj.get("municipality")+"</a></span>");
+            out.println("<small>Address:</small> <span id='actualAddress'><a href=\""+escapeHtml(logEndPoint+uri)+"\" target=\"_blank\">" + escapeHtml(address + obj.get("municipality"))+"</a></span>");
 
         if(conf.get("enablePathSearch","true").equals("true") /*&& !address.equals("")*/)
-          out.println("<br><button style='margin:10px 10px 10px 0px' id='startpathsearch' onclick='setStartSearchPath("+latitudine+","+longitudine+")'>Path from here</button><button style='margin:10px 10px 10px 0px' id='endpathsearch' onclick='setEndSearchPath("+latitudine+","+longitudine+")'>Path to here</button>");
-        out.println("<button style='background-color: #c3caf9;' onclick='mapLatLngClick(L.latLng("+latitudine+", "+longitudine+"),false,true)'>Search geometry</button><br>");
+          out.println("<br><button style='margin:10px 10px 10px 0px' id='startpathsearch' onclick='setStartSearchPath("+latValue+","+lngValue+")'>Path from here</button><button style='margin:10px 10px 10px 0px' id='endpathsearch' onclick='setEndSearchPath("+latValue+","+lngValue+")'>Path to here</button>");
+        out.println("<button style='background-color: #c3caf9;' onclick='mapLatLngClick(L.latLng("+latValue+", "+lngValue+"),false,true)'>Search geometry</button><br>");
 
         JSONArray a=(JSONArray)obj.get("intersect");
         if(a!=null) {
@@ -83,20 +91,26 @@
             if(area.get("agency")!=null) 
               name += " - "+(String)area.get("agency");
 
-            if(area.get("agency")==null)
-              out.println("<small>"+area.get("class").toString().replace("http://www.disit.org/km4city/schema#","").replace("http://vocab.gtfs.org/terms#", "") +":</small> <a href=\""+logEndPoint+area.get("uri")+"\" target=\"_blank\">"+name+"</a>"+" (dist:"+String.format("%.4f",area.get("distance"))+")<br>");
-            else
-              out.println("<small>"+area.get("class").toString().replace("http://www.disit.org/km4city/schema#","").replace("http://vocab.gtfs.org/terms#", "") +":</small> <a href=\"#\" onclick=\"showLinea('','"+area.get("uri")+"','"+area.get("direction")+"','"+area.get("name")+"')\">"+name+"</a>"+" (dist:"+String.format("%.4f",area.get("distance"))+")<br>");
+            if(area.get("agency")==null) {
+              out.println("<small>"+escapeHtml(area.get("class").toString().replace("http://www.disit.org/km4city/schema#","").replace("http://vocab.gtfs.org/terms#", "")) +":</small> <a href=\""+escapeHtml(logEndPoint+area.get("uri"))+"\" target=\"_blank\">"+escapeHtml(name)+"</a>"+" (dist:"+String.format("%.4f",area.get("distance"))+")<br>");
+            } else {
+              String areaUri = (String) area.get("uri");
+              String areaDirection = (String) area.get("direction");
+              String areaName = (String) area.get("name");
+              String areaDirectionHtml = escapeHtml(areaDirection);
+              String areaNameHtml = escapeHtml(areaName);
+              out.println("<small>"+escapeHtml(area.get("class").toString().replace("http://www.disit.org/km4city/schema#","").replace("http://vocab.gtfs.org/terms#", "")) +":</small> <a href=\"#\" onclick=\"showLinea('','"+escapeJs(areaUri)+"','"+escapeJs(areaDirectionHtml)+"','"+escapeJs(areaNameHtml)+"')\">"+escapeHtml(name)+"</a>"+" (dist:"+String.format("%.4f",area.get("distance"))+")<br>");
+            }
           }
           out.println("</div>");
         }
       } else {
         out.println("<small>Address:</small> NOT FOUND ");
         if(conf.get("enablePathSearch","true").equals("true") /*&& !address.equals("")*/)
-          out.println("<br><button style='margin:10px 10px 10px 0px' id='startpathsearch' onclick='setStartSearchPath("+latitudine+","+longitudine+")'>Path from here</button><button style='margin:10px 10px 10px 0px' id='endpathsearch' onclick='setEndSearchPath("+latitudine+","+longitudine+")'>Path to here</button>");
-        out.println("<button style='background-color: #c3caf9;' onclick='mapLatLngClick(L.latLng("+latitudine+", "+longitudine+"),false,true)'>Search geometry</button><br>");      
+          out.println("<br><button style='margin:10px 10px 10px 0px' id='startpathsearch' onclick='setStartSearchPath("+latValue+","+lngValue+")'>Path from here</button><button style='margin:10px 10px 10px 0px' id='endpathsearch' onclick='setEndSearchPath("+latValue+","+lngValue+")'>Path to here</button>");
+        out.println("<button style='background-color: #c3caf9;' onclick='mapLatLngClick(L.latLng("+latValue+", "+lngValue+"),false,true)'>Search geometry</button><br>");      
       }
-    } catch (IllegalArgumentException e) {
+    } catch (NumberFormatException | IllegalArgumentException e) {
       response.sendError(400);
     } finally {
       con.close();

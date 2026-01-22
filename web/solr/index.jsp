@@ -20,6 +20,45 @@
 <%@page import="org.apache.solr.common.SolrInputDocument"%>
 <%@page import="org.apache.solr.client.solrj.impl.HttpSolrClient"%>
 <%@page import="org.apache.solr.client.solrj.SolrClient"%>
+<%!
+  private String safeString(String s) {
+    return (s == null) ? "" : s;
+  }
+
+  private String escapeHtml(String s) {
+    if (s == null) {
+      return "";
+    }
+    StringBuilder out = new StringBuilder(s.length());
+    for (int i = 0; i < s.length(); i++) {
+      char c = s.charAt(i);
+      switch (c) {
+        case '&':
+          out.append("&amp;");
+          break;
+        case '<':
+          out.append("&lt;");
+          break;
+        case '>':
+          out.append("&gt;");
+          break;
+        case '"':
+          out.append("&quot;");
+          break;
+        case '\'':
+          out.append("&#39;");
+          break;
+        default:
+          out.append(c);
+      }
+    }
+    return out.toString();
+  }
+
+  private String escapeJson(String s) {
+    return JSONObject.escape(safeString(s));
+  }
+%>
 <%
 String ipAddress = ServiceMap.getClientIpAddress(request);  
 
@@ -327,7 +366,7 @@ if(request.getParameter("reset")!=null) {
     String streetNumber = (String)d.getFieldValue("streetNumber_s");
     String municipalityName = (String)d.getFieldValue("municipalityName_s_lower");    
     String geo_coordinate = (String)d.getFieldValue("geo_coordinate_p");    
-    out.println("<li>"+roadName+", "+streetNumber+", "+municipalityName+": "+geo_coordinate+" ("+id+")</li>");
+    out.println("<li>"+escapeHtml(roadName)+", "+escapeHtml(streetNumber)+", "+escapeHtml(municipalityName)+": "+escapeHtml(geo_coordinate)+" ("+escapeHtml(id)+")</li>");
   }
   out.println("</ol>");  
 } else if(request.getParameter("search-json")!=null) {
@@ -374,10 +413,10 @@ if(request.getParameter("reset")!=null) {
       String roadName = (String)d.getFieldValue("roadName_s_lower");
       String streetNumber = (String)d.getFieldValue("streetNumber_s");
       String municipalityName = (String)d.getFieldValue("municipalityName_s_lower");
-      out.println("{\"label\":\""+roadName+", "+streetNumber+", "+municipalityName+"\",\"id\":\""+id+"\",\"lat\":"+g[0]+",\"lng\":"+g[1]+"}");
+      out.println("{\"label\":\""+escapeJson(roadName)+", "+escapeJson(streetNumber)+", "+escapeJson(municipalityName)+"\",\"id\":\""+escapeJson(id)+"\",\"lat\":"+g[0]+",\"lng\":"+g[1]+"}");
     } else {
       String name = (String)d.getFieldValue("name_s_lower");
-      out.println("{\"label\":\""+name+"\",\"id\":\""+id+"\",\"lat\":"+g[0]+",\"lng\":"+g[1]+"}");
+      out.println("{\"label\":\""+escapeJson(name)+"\",\"id\":\""+escapeJson(id)+"\",\"lat\":"+g[0]+",\"lng\":"+g[1]+"}");
     }
     i++;
   }
