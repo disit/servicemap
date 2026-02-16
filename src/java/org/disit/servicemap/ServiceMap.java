@@ -1647,12 +1647,15 @@ public class ServiceMap {
   
   public static boolean checkIP(String IPAddr, String requestType) throws Exception {
     Configuration conf = Configuration.getInstance();
-    boolean ret=false;
+    if(conf.get("disableCheckIP", "false").equals("true")) {
+      return true;
+    }
+    boolean ret;
     String ipNetworks = conf.get("ipNetworkPrefixes", null);
     String ipAddrOrNetw = IPAddr;
     if(ipNetworks!=null) {
-      String[] prefixes = ipNetworks.split(";");
-      for(String pfx : prefixes) {
+      String[] pfxs = ipNetworks.split(";");
+      for(String pfx : pfxs) {
         if(!pfx.trim().isEmpty() && IPAddr.startsWith(pfx.trim())) {
           ipAddrOrNetw = pfx;
           break;
@@ -1675,9 +1678,7 @@ public class ServiceMap {
     }
     int maxRequests = Integer.parseInt(maxReqs);
     int maxResults = Integer.parseInt(maxRslts);
-    Connection connection = ConnectionPool.getConnection();
-    try {
-      PreparedStatement st = connection.prepareStatement("SELECT doneCount,resultsCount FROM ServiceLimit WHERE ipaddr=? AND date=current_date() AND requestType=?");
+    try (Connection connection = ConnectionPool.getConnection(); PreparedStatement st = connection.prepareStatement("SELECT doneCount,resultsCount FROM ServiceLimit WHERE ipaddr=? AND date=current_date() AND requestType=?")) {
       st.setString(1, IPAddr);
       st.setString(2, requestType);
       ResultSet rs = st.executeQuery();
@@ -1685,78 +1686,75 @@ public class ServiceMap {
         int count = rs.getInt("doneCount");
         int results = rs.getInt("resultsCount");
         if((maxRequests>=0 && count>=maxRequests) || (maxResults>=0 && results>=maxResults)) {
-          PreparedStatement update = connection.prepareStatement(
-                  "UPDATE ServiceLimit SET limitedCount=limitedCount+1 WHERE ipaddr=? AND date=current_date() AND requestType=?");
-          update.setString(1, IPAddr);
-          update.setString(2, requestType);
-          update.executeUpdate();
-          update.close();
+          try (PreparedStatement update = connection.prepareStatement(
+                  "UPDATE ServiceLimit SET limitedCount=limitedCount+1 WHERE ipaddr=? AND date=current_date() AND requestType=?")) {
+            update.setString(1, IPAddr);
+            update.setString(2, requestType);
+            update.executeUpdate();
+          }
           ret=false;
         } else {
-          PreparedStatement update = connection.prepareStatement(
-                  "UPDATE ServiceLimit SET doneCount=doneCount+1 WHERE ipaddr=? AND date=current_date() AND requestType=?");
-          update.setString(1, IPAddr);
-          update.setString(2, requestType);
-          update.executeUpdate();
-          update.close();
+          try (PreparedStatement update = connection.prepareStatement(
+                  "UPDATE ServiceLimit SET doneCount=doneCount+1 WHERE ipaddr=? AND date=current_date() AND requestType=?")) {
+            update.setString(1, IPAddr);
+            update.setString(2, requestType);
+            update.executeUpdate();
+          }
           ret=true;          
         }
       } else {
         try {
-          PreparedStatement insert = connection.prepareStatement(
-                  "INSERT INTO ServiceLimit(ipaddr,requestType,date,doneCount) VALUES(?,?,current_date(),1)");
-          insert.setString(1, IPAddr);
-          insert.setString(2, requestType);
-          insert.executeUpdate();
-          insert.close();
+          try (PreparedStatement insert = connection.prepareStatement(
+                  "INSERT INTO ServiceLimit(ipaddr,requestType,date,doneCount) VALUES(?,?,current_date(),1)")) {
+            insert.setString(1, IPAddr);
+            insert.setString(2, requestType);
+            insert.executeUpdate();
+          }
           ret=true;
         } catch(SQLException ex) {
-          // se fallisce inserimento per chiave duplicata fa update
-          PreparedStatement update = connection.prepareStatement(
-                  "UPDATE ServiceLimit SET doneCount=doneCount+1 WHERE ipaddr=? AND date=current_date() AND requestType=?");
-          update.setString(1, IPAddr);
-          update.setString(2, requestType);
-          int updateCount = update.executeUpdate();
-          if(updateCount==0)
-            ServiceMap.notifyException(ex,"update failed");
-          update.close();
+          try ( // se fallisce inserimento per chiave duplicata fa update
+                  PreparedStatement update = connection.prepareStatement(
+                          "UPDATE ServiceLimit SET doneCount=doneCount+1 WHERE ipaddr=? AND date=current_date() AND requestType=?")) {
+            update.setString(1, IPAddr);
+            update.setString(2, requestType);
+            int updateCount = update.executeUpdate();
+            if(updateCount==0)
+              ServiceMap.notifyException(ex,"update failed");
+          }
           ret=true;
         }
       }
-      st.close();
     } catch (SQLException ex) {
       //connection.close();
       ServiceMap.notifyException(ex);
       ret=true;
-    } finally {
-      connection.close();      
     }
     return ret;
   }
 
   public static void updateResultsPerIP(String IPAddr, String requestType, int results) throws Exception {
-    Connection connection = ConnectionPool.getConnection();
-    try {
-      PreparedStatement update = connection.prepareStatement(
-              "UPDATE ServiceLimit SET resultsCount=resultsCount+? WHERE ipaddr=? AND date=current_date() AND requestType=?");
+    Configuration conf = Configuration.getInstance();
+    if(conf.get("disableCheckIP", "false").equals("true")) {
+      return;
+    }
+    try (Connection connection = ConnectionPool.getConnection(); 
+            PreparedStatement update = connection.prepareStatement(
+            "UPDATE ServiceLimit SET resultsCount=resultsCount+? WHERE ipaddr=? AND date=current_date() AND requestType=?")) {
       update.setInt(1, results);
       update.setString(2, IPAddr);
       update.setString(3, requestType);
       int updateCount = update.executeUpdate();
-      if(updateCount==0) { //se check fatto prima di mezzanotte e inserimento fatto dopo, la riga del giorno nuovo non c'e'
-        PreparedStatement insert = connection.prepareStatement(
-                "INSERT INTO ServiceLimit(ipaddr,requestType,date,doneCount,resultsCount) VALUES(?,?,current_date(),1,?)");
+      if(updateCount==0) { try ( //se check fatto prima di mezzanotte e inserimento fatto dopo, la riga del giorno nuovo non c'e'
+              PreparedStatement insert = connection.prepareStatement(
+                      "INSERT INTO ServiceLimit(ipaddr,requestType,date,doneCount,resultsCount) VALUES(?,?,current_date(),1,?)")) {
         insert.setString(1, IPAddr);
         insert.setString(2, requestType);
         insert.setInt(3, results);
         insert.executeUpdate();
-        insert.close();
+        }
       }
-      update.close();
     } catch (SQLException ex) {
       ServiceMap.notifyException(ex);
-    } finally {
-      connection.close();      
     }
   }
 
