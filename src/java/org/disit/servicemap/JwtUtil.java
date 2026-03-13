@@ -106,7 +106,7 @@ public class JwtUtil {
       }
       throw new Exception("user "+u+" with not valid role "+rr+" in "+accessToken);
     }
-    throw new Exception("user "+u+" with no roles found in "+accessToken);
+    return new User(u, "Observer", accessToken);
   }
   
   static public String getTokenFromRequest(HttpServletRequest r) throws Exception {

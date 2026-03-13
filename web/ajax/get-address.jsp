@@ -110,7 +110,7 @@
           out.println("<br><button style='margin:10px 10px 10px 0px' id='startpathsearch' onclick='setStartSearchPath("+latValue+","+lngValue+")'>Path from here</button><button style='margin:10px 10px 10px 0px' id='endpathsearch' onclick='setEndSearchPath("+latValue+","+lngValue+")'>Path to here</button>");
         out.println("<button style='background-color: #c3caf9;' onclick='mapLatLngClick(L.latLng("+latValue+", "+lngValue+"),false,true)'>Search geometry</button><br>");      
       }
-    } catch (NumberFormatException | IllegalArgumentException e) {
+    } catch (IllegalArgumentException e) {
       response.sendError(400);
     } finally {
       con.close();
