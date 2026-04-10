@@ -23,8 +23,12 @@
         <title>ServiceMap</title>
         <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/leaflet-gps.css" type="text/css" />
-        <script src='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.js'></script>
-        <link href='https://api.tiles.mapbox.com/mapbox.js/v2.1.4/mapbox.css' rel='stylesheet' />
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.5.1/dist/leaflet.css"
+   integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+   crossorigin="" />
+        <script src="https://unpkg.com/leaflet@1.5.1/dist/leaflet.js"
+   integrity="sha512-GffPMF3RvMeYyc1LWMHtK8EbPv0iNZ8/oTtHPx9/cc2ILxQ+u905qIwdpULaqDkyBKgOaB57QTMg7ztg8Jm2Og=="
+   crossorigin=""></script>
         <script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
         <script src="https://code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
         <script src="https://code.jquery.com/ui/1.11.2/jquery-ui.js"></script>
@@ -96,11 +100,25 @@ select distinct ?wkt {
 
             });
 
-            var mbAttr = '<%= Configuration.getInstance().get("mapAttribution","Map data &copy; <a href=\"http://openstreetmap.org\">OpenStreetMap</a> contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery &copy; <a href=\"http://mapbox.com\">Mapbox</a>")%>',
-                mbUrl = '<%= Configuration.getInstance().get("mapTilesUrl","https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=") + mapAccessToken%>';
-            var streets = L.tileLayer(mbUrl, {id: '<%= Configuration.getInstance().get("mapStreetsId", "mapbox/streets-v11") %>', attribution: mbAttr, tileSize: 512, zoomOffset: -1}),
-                satellite = L.tileLayer(mbUrl, {id: '<%= Configuration.getInstance().get("mapSatelliteId", "mapbox/satellite-streets-v11") %>', attribution: mbAttr, tileSize: 512, zoomOffset: -1}),
-                grayscale = L.tileLayer(mbUrl, {id: '<%= Configuration.getInstance().get("mapGrayscaleId", "mapbox/light-v10") %>', attribution: mbAttr, tileSize: 512, zoomOffset: -1});
+            var streets = L.tileLayer(
+                '<%= Configuration.getInstance().get("mapTilesStreetsUrl", "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png") %>',
+                {
+                    attribution: '<%= Configuration.getInstance().get("mapAttributionStreets", "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors") %>',
+                    maxZoom: 19
+                }),
+                satellite = L.tileLayer(
+                    '<%= Configuration.getInstance().get("mapTilesSatelliteUrl", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}") %>',
+                    {
+                        attribution: '<%= Configuration.getInstance().get("mapAttributionSatellite", "Tiles &copy; Esri") %>',
+                        maxZoom: 19
+                    }),
+                grayscale = L.tileLayer(
+                    '<%= Configuration.getInstance().get("mapTilesGrayscaleUrl", "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png") %>',
+                    {
+                        attribution: '<%= Configuration.getInstance().get("mapAttributionGrayscale", "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; CARTO") %>',
+                        subdomains: "abcd",
+                        maxZoom: 20
+                    });
             var map = L.map('map', {
                 center: [<%= ServiceMap.getMapDefaultLatLng(request, "43.3555664, 11.0290384") %>],
                 zoom: <%= ServiceMap.getMapDefaultZoom(request, "8") %>,

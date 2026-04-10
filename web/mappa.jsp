@@ -1494,13 +1494,11 @@
 
                                     // SCELTA DEL TILE LAYER ED IMPOSTAZIONE DEI PARAMETRI DI DEFAULT
                                     /*commentato marco
-                                     L.tileLayer('http://c.tiles.mapbox.com/v3/examples.map-szwdot65/{z}/{x}/{y}.png', { // NON MALE
                                      //L.tileLayer('http://{s}.tile.cloudmade.com/{key}/22677/256/{z}/{x}/{y}.png', {
                                      //L.tileLayer('http://a.www.toolserver.org/tiles/bw-mapnik/{z}/{x}/{y}.png', {
                                      //L.tileLayer('http://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                                      //L.tileLayer('http://tilesworld1.waze.com/tiles/{z}/{x}/{y}.png', {
                                      //		L.tileLayer('http://maps.yimg.com/hx/tl?v=4.4&x={x}&y={y}&z={z}', {
-                                     //L.tileLayer('http://a.tiles.mapbox.com/v3/examples.map-bestlap85.h67h4hc2/{z}/{x}/{y}.png', { MAPBOX MA NON FUNZIA
                                      //L.tileLayer('http://{s}.tile.cloudmade.com/1a1b06b230af4efdbb989ea99e9841af/998/256/{z}/{x}/{y}.png', { 
                                      //	L.tileLayer('http://{s}.tile.cloudmade.com/1a1b06b230af4efdbb989ea99e9841af/121900/256/{z}/{x}/{y}.png', { 
                                      attribution: 'Map data &copy; 2011 OpenStreetMap contributors, Imagery &copy; 2012 CloudMade',
@@ -1521,11 +1519,25 @@
                                     //http://a.tile.thunderforest.com/landscape/{z}/{x}/{y}.png
                                     //var osm = L.tileLayer('http://a.tile.thunderforest.com/landscape/{z}/{x}/{y}.png', {attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'});
 
-                                    var mbAttr = '<%= Configuration.getInstance().get("mapAttribution","Map data &copy; <a href=\"http://openstreetmap.org\">OpenStreetMap</a> contributors, <a href=\"http://creativecommons.org/licenses/by-sa/2.0/\">CC-BY-SA</a>, Imagery &copy; <a href=\"http://mapbox.com\">Mapbox</a>")%>',
-                                        mbUrl = '<%= Configuration.getInstance().get("mapTilesUrl","https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=") + mapAccessToken%>';
-                                    var streets = L.tileLayer(mbUrl, {id: '<%= Configuration.getInstance().get("mapStreetsId", "mapbox/streets-v11") %>', attribution: mbAttr, tileSize: 512, zoomOffset: -1}),
-                                            satellite = L.tileLayer(mbUrl, {id: '<%= Configuration.getInstance().get("mapSatelliteId", "mapbox/satellite-streets-v11") %>', attribution: mbAttr, tileSize: 512, zoomOffset: -1}),
-                                            grayscale = L.tileLayer(mbUrl, {id: '<%= Configuration.getInstance().get("mapGrayscaleId", "mapbox/light-v10") %>', attribution: mbAttr, tileSize: 512, zoomOffset: -1});
+                                    var streets = L.tileLayer(
+                                            '<%= Configuration.getInstance().get("mapTilesStreetsUrl", "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png") %>',
+                                            {
+                                                attribution: '<%= Configuration.getInstance().get("mapAttributionStreets", "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors") %>',
+                                                maxZoom: 19
+                                            }),
+                                            satellite = L.tileLayer(
+                                                    '<%= Configuration.getInstance().get("mapTilesSatelliteUrl", "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}") %>',
+                                                    {
+                                                        attribution: '<%= Configuration.getInstance().get("mapAttributionSatellite", "Tiles &copy; Esri") %>',
+                                                        maxZoom: 19
+                                                    }),
+                                            grayscale = L.tileLayer(
+                                                    '<%= Configuration.getInstance().get("mapTilesGrayscaleUrl", "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png") %>',
+                                                    {
+                                                        attribution: '<%= Configuration.getInstance().get("mapAttributionGrayscale", "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors &copy; CARTO") %>',
+                                                        subdomains: "abcd",
+                                                        maxZoom: 20
+                                                    });
                                     var map = L.map('map', {
                                         center: [<%= ServiceMap.getMapDefaultLatLng(request, "43.3555664, 11.0290384") %>],
                                         zoom: <%= ServiceMap.getMapDefaultZoom(request, "8") %>,
