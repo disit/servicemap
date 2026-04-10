@@ -777,6 +777,125 @@ function loadServiceInfo(uri, div, id, coord) {
         }
     }
 }
+var serviceMapLightboxState = {
+    items: [],
+    index: 0
+};
+
+function ensureServiceMapLightbox() {
+    if ($("#servicemap-lightbox").length > 0) {
+        return;
+    }
+
+    $("body").append(
+            '<div id="servicemap-lightbox" class="sm-lightbox-overlay" style="display:none;">' +
+            '<button type="button" class="sm-lightbox-close" aria-label="Close image viewer">&times;</button>' +
+            '<button type="button" class="sm-lightbox-nav sm-lightbox-prev" aria-label="Previous image">&#10094;</button>' +
+            '<div class="sm-lightbox-stage">' +
+            '<img id="servicemap-lightbox-image" class="sm-lightbox-image" src="" alt="Preview"/>' +
+            '<div id="servicemap-lightbox-counter" class="sm-lightbox-counter"></div>' +
+            '</div>' +
+            '<button type="button" class="sm-lightbox-nav sm-lightbox-next" aria-label="Next image">&#10095;</button>' +
+            '</div>'
+            );
+}
+
+function renderServiceMapLightbox() {
+    var currentItem;
+    var hasMultiple;
+
+    if (serviceMapLightboxState.items.length === 0) {
+        return;
+    }
+
+    currentItem = serviceMapLightboxState.items[serviceMapLightboxState.index];
+    hasMultiple = serviceMapLightboxState.items.length > 1;
+
+    $("#servicemap-lightbox-image").attr("src", currentItem.href);
+    $("#servicemap-lightbox-counter").text((serviceMapLightboxState.index + 1) + " / " + serviceMapLightboxState.items.length);
+    $(".sm-lightbox-prev, .sm-lightbox-next").toggle(hasMultiple);
+}
+
+function openServiceMapLightbox(items, index) {
+    ensureServiceMapLightbox();
+    serviceMapLightboxState.items = items;
+    serviceMapLightboxState.index = index;
+    renderServiceMapLightbox();
+    $("#servicemap-lightbox").fadeIn(120);
+    $("body").addClass("sm-lightbox-open");
+}
+
+function closeServiceMapLightbox() {
+    $("#servicemap-lightbox").fadeOut(120);
+    $("body").removeClass("sm-lightbox-open");
+}
+
+function moveServiceMapLightbox(step) {
+    var total = serviceMapLightboxState.items.length;
+
+    if (total <= 1) {
+        return;
+    }
+
+    serviceMapLightboxState.index = (serviceMapLightboxState.index + step + total) % total;
+    renderServiceMapLightbox();
+}
+
+$(document).on("click", ".sm-lightbox-trigger", function (event) {
+    var $current = $(this);
+    var gallery = $current.data("gallery");
+    var $items = $('.sm-lightbox-trigger[data-gallery="' + gallery + '"]');
+    var items = [];
+    var index = 0;
+
+    event.preventDefault();
+
+    $items.each(function (itemIndex) {
+        items.push({
+            href: $(this).attr("href")
+        });
+        if (this === $current[0]) {
+            index = itemIndex;
+        }
+    });
+
+    openServiceMapLightbox(items, index);
+});
+
+$(document).on("click", "#servicemap-lightbox, .sm-lightbox-close", function (event) {
+    if (event.target === this || $(event.target).hasClass("sm-lightbox-close")) {
+        closeServiceMapLightbox();
+    }
+});
+
+$(document).on("click", ".sm-lightbox-prev", function (event) {
+    event.stopPropagation();
+    moveServiceMapLightbox(-1);
+});
+
+$(document).on("click", ".sm-lightbox-next", function (event) {
+    event.stopPropagation();
+    moveServiceMapLightbox(1);
+});
+
+$(document).on("click", ".sm-lightbox-image", function (event) {
+    event.stopPropagation();
+});
+
+$(document).on("keydown", function (event) {
+    if ($("#servicemap-lightbox:visible").length === 0) {
+        return;
+    }
+
+    if (event.key === "Escape") {
+        closeServiceMapLightbox();
+    } else if (event.key === "ArrowLeft") {
+        moveServiceMapLightbox(-1);
+    } else if (event.key === "ArrowRight") {
+        moveServiceMapLightbox(1);
+    }
+});
+
 function createContenutoPopup(feature, div, id) {
     var contenutoPopup = "";
     var divMM = id + "-multimedia";
@@ -813,25 +932,19 @@ function createContenutoPopup(feature, div, id) {
             for(var k=0; k<feature.properties.photos.length; k++){
                 //photos[k] = feature.properties.photos[k].replace("localhost:8080/ServiceMap", "servicemap.disit.org/WebAppGrafo"); 
                 photos[k] = feature.properties.photos[k].replace("localhost:8080/ServiceMap", "disit.org/ServiceMap");
-                htmlPhotos = htmlPhotos + "<a class=\""+divPhotos+"\" rel=\"group\" href=\""+photos[k]+"\"><img class=\"img_photo\" src=\""+photos[k]+"\" width=\"80\" height=\"80\" style=\"margin-left:2px\"/></a>";
+                htmlPhotos = htmlPhotos + "<a class=\"sm-lightbox-trigger "+divPhotos+"\" data-gallery=\""+divPhotos+"\" href=\""+photos[k]+"\"><img class=\"img_photo\" src=\""+photos[k]+"\" width=\"80\" height=\"80\" style=\"margin-left:2px\"/></a>";
             }
         }
         if(multimedia != ""){
             // http://servicemap.km4city.org/WebAppGrafo/api/v1/imgcache?size=thumb&imageUrl=http://www.florenceheritage.it/mobileApp/immagini/aebOltrarno/90.jpg
             var cache_multimedia = "http://servicemap.km4city.org/WebAppGrafo/api/v1/imgcache?size=thumb&imageUrl="+ multimedia;
-            htmlPhotos = htmlPhotos + "<a class=\""+divPhotos+"\" rel=\"group\" href=\""+cache_multimedia+"\"><img class=\"img_photo\" src=\""+cache_multimedia+"\" width=\"80\" height=\"80\" style=\"margin-left:2px\"/></a>";
+            htmlPhotos = htmlPhotos + "<a class=\"sm-lightbox-trigger "+divPhotos+"\" data-gallery=\""+divPhotos+"\" href=\""+cache_multimedia+"\"><img class=\"img_photo\" src=\""+cache_multimedia+"\" width=\"80\" height=\"80\" style=\"margin-left:2px\"/></a>";
         }
         htmlPhotos = htmlPhotos+"</div>";
     }
-    
-    $(document).ready(function() {
-      $("."+divPhotos).fancybox({
-        openEffect	: 'none',
-        closeEffect	: 'none'
-      });
-      var show_number_of_thumbnails = 10;
-      $("."+divPhotos+':gt(' + (show_number_of_thumbnails - 1) + ')').hide();
-    });
+
+    var show_number_of_thumbnails = 10;
+    $("."+divPhotos+':gt(' + (show_number_of_thumbnails - 1) + ')').hide();
         
     var divInfo = div + "-info";
     var divInfoPlus = div + "-infoplus";
@@ -2177,71 +2290,12 @@ function showChart(selezione, raggioRicerca, coordinateSelezione) {
                                 "collapsable" : true,  
                               });
                               $('#overMap').show();
-                              // Create the chart
-                              $('#chart_container').highcharts({
-                                  chart: {
-                                      type: 'column',
-                                      options3d: {
-                                          enabled: true,
-                                          alpha: 10,
-                                          beta: 21,
-                                          depth: 50,
-                                          viewDistance: 25
-                                      }
-                                  },
-                                  credits:{
-                                      enabled:false
-                                  },
-                                  title: {
-                                      text: 'Total number of results: ' + total
-                                  },
-                                  xAxis: {
-                                      type: 'category'
-                                  },
-                                  yAxis: {
-                                      title: {
-                                          text: 'Item number for each category'
-                                      }
-                                  },
-                                  legend: {
-                                      enabled: false
-                                  },
-                                  plotOptions: {
-                                      column: {
-                                          depth: 25
-                                      },
-                                      series: {
-                                          borderWidth: 0,
-                                          dataLabels: {
-                                              enabled: true,
-                                              format: '{y}'
-                                          },
-                                          cursor: 'pointer',
-                                          //pointWidth: 25,
-                                          point: {
-                                              events: {
-                                                  click: function () {
-                                                      //$('#chart_dialog').dialog('close');
-                                                      $('#overMap').hide();
-                                                      var limit = this.y;
-                                                      if(limit>1000)
-                                                        limit=0;
-                                                      ricercaServizi('categorie', this.id, limit);
-                                                  }
-                                              }
-                                          }
-                                      }
-                                  },
-                                  tooltip: {
-                                      headerFormat: '<span style="font-size:11px">{series.name}</span><br>',
-                                      pointFormat: '<span style="color:{point.color}">{point.name}</span>: <b>{point.dataLabels:.2f}%</b> of total<br/>'
-                                  },
-                                  series: [{
-                                          name: "Class",
-                                          colorByPoint: true,
-                                          data: catArray
-
-                                      }],
+                              renderCategoryChart(total, catArray, function (point) {
+                                  $('#overMap').hide();
+                                  var limit = point.value;
+                                  if (limit > 1000)
+                                      limit = 0;
+                                  ricercaServizi('categorie', point.id, limit);
                               });
                             }else{
                                 //svuotaLayers();
@@ -2339,67 +2393,9 @@ function showChart(selezione, raggioRicerca, coordinateSelezione) {
                               });
 
                               $('#overMap').show();
-                              // Create the chart
-                              $('#chart_container').highcharts({
-                                  chart: {
-                                      type: 'column',
-                                      options3d: {
-                                          enabled: true,
-                                          alpha: 10,
-                                          beta: 21,
-                                          depth: 50,
-                                          viewDistance: 25
-                                      }
-                                  },
-                                  credits:{
-                                      enabled:false
-                                  },
-                                  title: {
-                                      text: 'Total number of results: ' + total
-                                  },
-                                  xAxis: {
-                                      type: 'category'
-                                  },
-                                  yAxis: {
-                                      title: {
-                                          text: 'Item number for each category'
-                                      }
-                                  },
-                                  legend: {
-                                      enabled: false
-                                  },
-                                  plotOptions: {
-                                      column: {
-                                          depth: 25
-                                      },
-                                      series: {
-                                          borderWidth: 0,
-                                          dataLabels: {
-                                              enabled: true,
-                                              format: '{y}'
-                                          },
-                                          cursor: 'pointer',
-                                          point: {
-                                              events: {
-                                                  click: function () {
-                                                      //$('#chart_dialog').dialog('close');
-                                                      $('#overMap').hide();
-                                                      ricercaServizi('categorie', this.id, this.y);
-                                                  }
-                                              }
-                                          }
-                                      }
-                                  },
-                                  tooltip: {
-                                      headerFormat: '<span style="font-size:11px">{series.name}</span><br>',
-                                      pointFormat: '<span style="color:{point.color}">{point.name}</span>: <b>{point.dataLabels:.2f}%</b> of total<br/>'
-                                  },
-                                  series: [{
-                                          name: "Class",
-                                          colorByPoint: true,
-                                          data: catArray
-
-                                      }],
+                              renderCategoryChart(total, catArray, function (point) {
+                                  $('#overMap').hide();
+                                  ricercaServizi('categorie', point.id, point.value);
                               });
                             }else{
                                 //svuotaLayers();
@@ -2419,6 +2415,106 @@ function showChart(selezione, raggioRicerca, coordinateSelezione) {
     } else {
         alert("Attention, you did not select any resources base for research");
     }
+}
+
+function renderCategoryChart(total, catArray, onCategoryClick) {
+    if (typeof echarts === "undefined") {
+        alert("Chart library not available");
+        return;
+    }
+
+    var chartDom = document.getElementById("chart_container");
+    var chart;
+    var seriesData = [];
+
+    if (!chartDom) {
+        return;
+    }
+
+    for (var i = 0; i < catArray.length; i++) {
+        seriesData.push({
+            value: catArray[i].y,
+            name: catArray[i].name,
+            id: catArray[i].id,
+            percentage: catArray[i].dataLabels,
+            itemStyle: {
+                color: catArray[i].color
+            }
+        });
+    }
+
+    chart = echarts.getInstanceByDom(chartDom);
+    if (chart) {
+        chart.dispose();
+    }
+
+    chart = echarts.init(chartDom);
+    chart.setOption({
+        animationDuration: 300,
+        grid: {
+            top: 70,
+            right: 20,
+            bottom: 90,
+            left: 60,
+            containLabel: true
+        },
+        title: {
+            text: "Total number of results: " + total,
+            left: "center"
+        },
+        tooltip: {
+            trigger: "axis",
+            axisPointer: {
+                type: "shadow"
+            },
+            formatter: function (params) {
+                var point = params[0];
+                return point.name + ": <b>" + point.data.value + "</b><br/>" +
+                        point.data.percentage.toFixed(2) + "% of total";
+            }
+        },
+        xAxis: {
+            type: "category",
+            data: $.map(seriesData, function (item) {
+                return item.name;
+            }),
+            axisLabel: {
+                interval: 0,
+                rotate: 35
+            }
+        },
+        yAxis: {
+            type: "value",
+            name: "Item number for each category",
+            nameLocation: "middle",
+            nameRotate: 90,
+            nameGap: 50
+        },
+        series: [{
+                name: "Class",
+                type: "bar",
+                barMaxWidth: 45,
+                data: seriesData,
+                label: {
+                    show: true,
+                    position: "top",
+                    formatter: "{c}"
+                }
+            }]
+    });
+
+    chart.off("click");
+    chart.on("click", function (params) {
+        if (typeof onCategoryClick === "function" && params.data) {
+            onCategoryClick(params.data);
+        }
+    });
+
+    $("#chart_dialog")
+            .off("dialogopen.chart dialogresize.chart")
+            .on("dialogopen.chart dialogresize.chart", function () {
+                chart.resize();
+            });
 }
 
 function mostraRealTimeData(divInfo, realtime, serviceUri) {

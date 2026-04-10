@@ -36,18 +36,8 @@
         <script src="${pageContext.request.contextPath}/js/leaflet.markercluster.js"></script>
         <script src="${pageContext.request.contextPath}/js/mustache.js"></script>
         <script src="${pageContext.request.contextPath}/js/mustache.min.js"></script>
-        <!-- code per gallery -->
-        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/lib/jquery.mousewheel-3.0.6.pack.js"></script>
-        <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/jquery.fancybox.css" type="text/css" media="screen" />
-        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/jquery.fancybox.pack.js"></script>
-        <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-buttons.css" type="text/css" media="screen" />
-        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-buttons.js"></script>
-        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-media.js"></script>
         <script src="${pageContext.request.contextPath}/js/wicket.js"></script>
         <script src="${pageContext.request.contextPath}/js/wicket-leaflet.js"></script>
-
-        <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-thumbs.css" type="text/css" media="screen" />
-        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-thumbs.js"></script>
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/MarkerCluster.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/MarkerCluster.Default.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css" type="text/css" />
@@ -96,7 +86,7 @@ select distinct ?wkt {
             }
 
 
-            /***  codice per mantenere aperto più di un popup per volta ***/
+            /***  codice per mantenere aperto piÃ¹ di un popup per volta ***/
             L.Map = L.Map.extend({
                 openPopup: function (popup) {
                     //        this.closePopup();  // just comment this

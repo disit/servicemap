@@ -35,8 +35,7 @@
         <script src="https://code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
         <!--<script src="http://code.jquery.com/ui/1.10.4/jquery-ui.js"></script>-->
         <script src="https://code.jquery.com/ui/1.11.2/jquery-ui.js"></script>
-        <script src="https://code.highcharts.com/highcharts.js"></script>
-        <script src="https://code.highcharts.com/highcharts-3d.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
         <link rel="stylesheet" href="https://code.jquery.com/ui/1.10.4/themes/smoothness/jquery-ui.css" />	
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/leaflet.awesome-markers.css">
         <script src="${pageContext.request.contextPath}/js/leaflet.awesome-markers.min.js"></script>
@@ -52,13 +51,6 @@
         <script src="${pageContext.request.contextPath}/js/jquery.timepicker.min.js"></script>
         <script src="${pageContext.request.contextPath}/js/zoomHandler.js"></script>
         <script src="${pageContext.request.contextPath}/js/oms.min.js"></script>
-        <!-- code per gallery -->
-        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/lib/jquery.mousewheel-3.0.6.pack.js"></script>
-        <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/jquery.fancybox.css" type="text/css" media="screen" />
-        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/jquery.fancybox.pack.js"></script>
-        <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-buttons.css" type="text/css" media="screen" />
-        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-buttons.js"></script>
-        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-media.js"></script>
         <script src="${pageContext.request.contextPath}/js/wicket.js"></script>
         <script src="${pageContext.request.contextPath}/js/wicket-leaflet.js"></script>
         <!--  CARICAMENTO DEL FILE utility.js CON FUNZIONI NECESSARIE  -->
@@ -66,8 +58,6 @@
         <script type="text/javascript" src="${pageContext.request.contextPath}/js/pathsearch.js"></script>
         <script type="text/javascript" src="${pageContext.request.contextPath}/js/save_embed.js"></script>
 
-        <link rel="stylesheet" href="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-thumbs.css" type="text/css" media="screen" />
-        <script type="text/javascript" src="${pageContext.request.contextPath}/fancybox/source/helpers/jquery.fancybox-thumbs.js"></script>
         <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" type="text/css" />
         <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" type="text/css" />
         <link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css" type="text/css" />
@@ -850,7 +840,7 @@
                                                     if (data.features.length >=<%=clusterResults%>) {
                                                         markers = new L.MarkerClusterGroup({maxClusterRadius: <%=clusterDistance%>, disableClusteringAtZoom: <%=noClusterAtZoom%>});
                                                         servicesLayer = markers.addLayer(servicesLayer);
-                                                        //$("#cluster-msg").text("più di <%=clusterResults%> risultati, attivato clustering");
+                                                        //$("#cluster-msg").text("piÃ¹ di <%=clusterResults%> risultati, attivato clustering");
                                                         $("#cluster-msg").text("more than <%=clusterResults%> results, clustering enable");
                                                         $("#cluster-msg").show();
                                                     }
@@ -881,7 +871,7 @@
                                     }
 
                                     function showResults(parameters) {
-                                        if (mode != "embed") {//caso in cui il link che sto visualizando è del tipo: http://.../ServiceMap/api/v1?queryId=...' o 
+                                        if (mode != "embed") {//caso in cui il link che sto visualizando Ã¨ del tipo: http://.../ServiceMap/api/v1?queryId=...' o 
                                             var queryId = parameters["queryId"];
                                             if (queryId != null) {
                                                 $.ajax({
@@ -1489,7 +1479,7 @@
                                         });
                                     }
 
-                                    /***  codice per mantenere aperto più di un popup per volta ***/
+                                    /***  codice per mantenere aperto piÃ¹ di un popup per volta ***/
                                     L.Map = L.Map.extend({
                                         openPopup: function (popup) {
                                             //        this.closePopup();  // just comment this
@@ -1623,7 +1613,7 @@
                                                     if( (serviceType == "TransferServiceAndRenting_BusStop" || serviceType == "Tram_stops" || 
                                                             serviceType == "Train_station" || serviceType == "Ferry_stop" )){
                                                         if(last_marker.feature.properties.agency)
-                                                            serviceIcon = serviceIcon +"_"+ last_marker.feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/ù/g, "u").replace(/à/g, "a").replace(/ /g, ""); 
+                                                            serviceIcon = serviceIcon +"_"+ last_marker.feature.properties.agency.toLowerCase().replace(/\./g, "").replace(/&/g, "").replace(/Ã¹/g, "u").replace(/Ã /g, "a").replace(/ /g, ""); 
                                                         else
                                                             serviceIcon = serviceIcon +"_ataflinea"; 
                                                     } 
@@ -2199,7 +2189,7 @@
                                             }
                                         }
                                         else {
-                                            //alert("Attenzione, non è stata selezionata alcuna risorsa di partenza per la ricerca");
+                                            //alert("Attenzione, non Ã¨ stata selezionata alcuna risorsa di partenza per la ricerca");
                                             alert("Attention, you did not select any resources base for research");
                                         }
                                     }
@@ -2386,7 +2376,7 @@
                                                                 if (msg.features.length >=<%=clusterResults%>) {
                                                                     markers = new L.MarkerClusterGroup({maxClusterRadius: <%=clusterDistance%>, disableClusteringAtZoom: <%=noClusterAtZoom%>});
                                                                     servicesLayer = markers.addLayer(servicesLayer);
-                                                                    //$("#cluster-msg").text("più di <%=clusterResults%> risultati, attivato clustering");
+                                                                    //$("#cluster-msg").text("piÃ¹ di <%=clusterResults%> risultati, attivato clustering");
                                                                     $("#cluster-msg").text("more than <%=clusterResults%> results, clustering enabled");
                                                                     $("#cluster-msg").show();
                                                                 }
@@ -2441,7 +2431,7 @@
                                                         }
                                                         $('#loading').hide();
                                                         console.log(error);
-                                                        alert('Si è verificato un errore');
+                                                        alert('Si Ã¨ verificato un errore');
                                                     }
                                                 });
                                                 //getServices in municipality FINE
@@ -2538,7 +2528,7 @@
                                                             if (msg.features.length >=<%=clusterResults%>) {
                                                                 markers = new L.MarkerClusterGroup({maxClusterRadius: <%=clusterDistance%>, disableClusteringAtZoom: <%=noClusterAtZoom%>});
                                                                 servicesLayer = markers.addLayer(servicesLayer);
-                                                                //$("#cluster-msg").text("più di <%=clusterResults%> risultati, attivato clustering");
+                                                                //$("#cluster-msg").text("piÃ¹ di <%=clusterResults%> risultati, attivato clustering");
                                                                 $("#cluster-msg").text("more than <%=clusterResults%> results, clustering enabled");
                                                                 $("#cluster-msg").show();
                                                             }
@@ -2753,7 +2743,7 @@
                                                                 if (msg.features.length >=<%=clusterResults%>) {
                                                                     markers = new L.MarkerClusterGroup({maxClusterRadius: <%=clusterDistance%>, disableClusteringAtZoom: <%=noClusterAtZoom%>});
                                                                     servicesLayer = markers.addLayer(servicesLayer);
-                                                                    //$("#cluster-msg").text("più di <%=clusterResults%> risultati, attivato clustering");
+                                                                    //$("#cluster-msg").text("piÃ¹ di <%=clusterResults%> risultati, attivato clustering");
                                                                     $("#cluster-msg").text("more than <%=clusterResults%> results, clustering enabled");
                                                                     $("#cluster-msg").show();
                                                                 }
@@ -2808,7 +2798,7 @@
                                                         }
                                                         $('#loading').hide();
                                                         console.log(error);
-                                                        alert('Si è verificato un errore');
+                                                        alert('Si Ã¨ verificato un errore');
                                                     }
                                                 });
                                             }/*
@@ -2872,7 +2862,7 @@
                                                     error: function (request, status, error) {
                                                         $('#loading').hide();
                                                         console.log(error);
-                                                        alert('Si è verificato un errore');
+                                                        alert('Si Ã¨ verificato un errore');
                                                     }
                                                 });
                                             }
