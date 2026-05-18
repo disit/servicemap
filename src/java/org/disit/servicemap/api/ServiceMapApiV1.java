@@ -2690,9 +2690,12 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
       fromTime = null;
     }
     ServiceMapping.MappingData md = ServiceMapping.getInstance().getMappingForServiceType(1, serviceTypes);
+    String detailsQuery;
+    String section;
     if(md==null || (md.detailsQuery==null)) {
-      ServiceMap.println("querySerice: no mapping or no details query");
-      String queryService = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
+      ServiceMap.println("querySerice: no mapping or no details query for "+serviceTypes);
+      section = "Service";
+      detailsQuery = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
               + "PREFIX geo:<http://www.w3.org/2003/01/geo/wgs84_pos#>\n"
               + "PREFIX xsd:<http://www.w3.org/2001/XMLSchema#>\n"
               + "PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
@@ -2700,369 +2703,170 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + "PREFIX skos:<http://www.w3.org/2004/02/skos/core#>\n"
               + "PREFIX dcterms:<http://purl.org/dc/terms/>\n"
               + "PREFIX opengis:<http://www.opengis.net/ont/geosparql#>\n"
-              + "SELECT ?serAddress ?serNumber ?elat ?elong (IF(?sName1,?sName1,?sName2) as ?sName) ?sType ?type ?sCategory ?sTypeIta ?email ?note ?multimedia ?description1 ?description2 ?phone ?fax ?website ?prov ?city ?cap ?coordList WHERE{\n"
+              + "SELECT (IF(?name2,?name2,?name1) as ?name) ?_elat ?_elong ?typeLabel ?_type ?_category ?description ?description2?website ?address ?civic ?city ?province ?cap ?multimedia ?email ?fax ?phone ?nature ?subnature ?_wktGeometry ?highLevelType WHERE {\n"
               + " {\n"
               + "  <" + serviceUri + "> km4c:hasAccess ?entry.\n"
-              + "  ?entry geo:lat ?elat.\n"
-              + "  ?entry geo:long ?elong.\n"
-              //+ " }UNION{\n"
-              //+ "  <" + idService + "> km4c:isInRoad ?road.\n"
-              //+ "  <" + idService + "> geo:lat ?elat.\n"
-              //+ "  <" + idService + "> geo:long ?elong.\n"
+              + "  ?entry geo:lat ?_elat.\n"
+              + "  ?entry geo:long ?_elong.\n"
               + " }UNION{\n"
-              + "  <" + serviceUri + "> geo:lat ?elat ; geo:long ?elong.\n"
+              + "  <" + serviceUri + "> geo:lat ?_elat ; geo:long ?_elong.\n"
               + " }\n"
-              + "   OPTIONAL {<" + serviceUri + "> schema:name ?sName1.}\n"
-              + "   OPTIONAL {<" + serviceUri + "> foaf:name ?sName2.}\n"
-              + "   OPTIONAL { <" + serviceUri + "> schema:streetAddress ?serAddress.}\n"
-              + "   OPTIONAL {<" + serviceUri + "> opengis:hasGeometry ?geometry .\n"
-              + "     ?geometry opengis:asWKT ?coordList .}\n"
-              + (km4cVersion.equals("old")
-                      ? " <" + serviceUri + "> km4c:hasServiceCategory ?cat .\n"
-                      + " ?cat rdfs:label ?nome.\n"
-                      + " BIND (?nome  AS ?sType).\n"
-                      + " BIND (?nome  AS ?sTypeIta).\n"
-                      + " FILTER(LANG(?nome) = \"it\").\n"
-                      + " OPTIONAL {<" + serviceUri + "> <http://purl.org/dc/elements/1.1/description> ?description.\n"
-                      + " FILTER(LANG(?description) = \"it\")}.\n"
-                  : " <" + serviceUri + "> a ?type . FILTER(?type!=km4c:RegularService && ?type!=km4c:Service && ?type!=km4c:DigitalLocation)\n"
-                      + " ?type rdfs:label ?nome.\n"
-                      + " ?type rdfs:subClassOf* ?sCategory.\n"
-                      + " ?sCategory rdfs:subClassOf km4c:Service.\n"
-                      + " BIND (?nome  AS ?sType).\n"
-                      + " BIND (?nome  AS ?sTypeIta).\n"
-                      + " FILTER(LANG(?nome) = \"" + lang + "\").\n")
-              + "   OPTIONAL {<" + serviceUri + "> km4c:houseNumber ?serNumber}.\n"
-              + "   OPTIONAL {<" + serviceUri + "> dcterms:description ?description1\n"
-              //+ " FILTER(LANG(?descriptionEng) = \"en\")"
-              + "}\n"
-              + "   OPTIONAL {<" + serviceUri + "> dcterms:description ?description2 FILTER(?description2!=?description1)\n"
-              + "}"
-              + "   OPTIONAL {<" + serviceUri + "> km4c:multimediaResource ?multimedia}.\n"
-              + "   OPTIONAL {<" + serviceUri + "> skos:note ?note}.\n"
-              + "   OPTIONAL {<" + serviceUri + "> schema:email ?email }.\n"
-              + "   OPTIONAL {<" + serviceUri + "> schema:faxNumber ?fax}\n"
-              + "   OPTIONAL {<" + serviceUri + "> schema:telephone ?phone}\n"
-              + "   OPTIONAL {<" + serviceUri + "> schema:addressRegion ?prov}\n"
-              + "   OPTIONAL {<" + serviceUri + "> schema:addressLocality ?city}\n"
-              + "   OPTIONAL {<" + serviceUri + "> schema:postalCode ?cap}\n"
-              + "   OPTIONAL {<" + serviceUri + "> schema:url ?website}\n"
+              + " OPTIONAL {<" + serviceUri + "> schema:name ?name1.}\n"
+              + " OPTIONAL {<" + serviceUri + "> foaf:name ?name2.}\n"
+              + " OPTIONAL {<" + serviceUri + "> opengis:hasGeometry ?geometry .\n"
+              + "   ?geometry opengis:asWKT ?_wkyGeometry . }\n"
+              + " <" + serviceUri + "> a ?_type . FILTER(?_type!=km4c:RegularService && ?_type!=km4c:Service && ?_type!=km4c:DigitalLocation)\n"
+              + " ?_type rdfs:label ?typeLabel.\n"
+              + " ?_type rdfs:subClassOf* ?_category.\n"
+              + " ?_category rdfs:subClassOf km4c:Service.\n"
+              + " OPTIONAL {<" + serviceUri + "> a ?_hlt. ?_hlt rdfs:subClassOf km4c:HighLevelType}\n"
+              + " BIND(STRAFTER(STR(?_type),\"#\") AS ?subnature)\n" 
+              + " BIND(STRAFTER(STR(?_category),\"#\") AS ?nature)\n"
+              + " BIND(STRAFTER(STR(?_hlt),\"#\") AS ?highLevelType)\n"
+              + " FILTER(LANG(?typeLabel) = \"" + lang + "\").\n"
+              + " OPTIONAL {<" + serviceUri + "> schema:streetAddress ?address.}\n"
+              + " OPTIONAL {<" + serviceUri + "> km4c:houseNumber ?civic}\n"
+              + " OPTIONAL {<" + serviceUri + "> dcterms:description ?description}\n"
+              + " OPTIONAL {<" + serviceUri + "> dcterms:description ?description2 FILTER(?description2!=?description)}\n"
+              + " OPTIONAL {<" + serviceUri + "> km4c:multimediaResource ?multimedia}\n"
+              + " OPTIONAL {<" + serviceUri + "> skos:note ?note}\n"
+              + " OPTIONAL {<" + serviceUri + "> schema:email ?email}\n"
+              + " OPTIONAL {<" + serviceUri + "> schema:faxNumber ?fax}\n"
+              + " OPTIONAL {<" + serviceUri + "> schema:telephone ?phone}\n"
+              + " OPTIONAL {<" + serviceUri + "> schema:addressRegion ?province}\n"
+              + " OPTIONAL {<" + serviceUri + "> schema:addressLocality ?city}\n"
+              + " OPTIONAL {<" + serviceUri + "> schema:postalCode ?cap}\n"
+              + " OPTIONAL {<" + serviceUri + "> schema:url ?website}\n"
               + "} LIMIT 1";
-      // out.println("count = "+count);
-      String queryDBpedia = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
-              + "PREFIX cito:<http://purl.org/spar/cito/>\n"
-              + "SELECT ?linkDBpedia WHERE{\n"
-              + " {<" + serviceUri + "> km4c:isInRoad/cito:cites ?linkDBpedia.}\n"
-              + " UNION { <" + serviceUri + "> rdfs:seeAlso ?linkDBpedia.}\n"
-              + "}";
-
-      if(!"geojson".equals(format))
-        out.println("{ \"Service\":");
-      out.println("{\"type\": \"FeatureCollection\",\n"
-              + "\"features\": [\n");
-      //ServiceMap.println(queryService);
-      TupleQuery tupleQueryService = con.prepareTupleQuery(QueryLanguage.SPARQL, queryService);
-      long tss = System.nanoTime();
-      TupleQueryResult resultService = tupleQueryService.evaluate();
-      logQuery(queryService, "API-service-info", sparqlType, serviceUri, System.nanoTime() - tss);
-      TupleQuery tupleQueryDBpedia = con.prepareTupleQuery(QueryLanguage.SPARQL, queryDBpedia);
-      tss = System.nanoTime();
-      TupleQueryResult resultDBpedia = tupleQueryDBpedia.evaluate();
-      logQuery(queryDBpedia, "API-service-dbpedia-info", sparqlType, serviceUri, System.nanoTime() - tss);
-      String valueOfDBpedia = "[";
-
-      while (resultService.hasNext()) {
-        BindingSet bindingSetService = resultService.next();
-        while (resultDBpedia.hasNext()) {
-
-          BindingSet bindingSetDBpedia = resultDBpedia.next();
-          if (bindingSetDBpedia.getValue("linkDBpedia") != null) {
-            if (!("[".equals(valueOfDBpedia))) {
-              valueOfDBpedia = valueOfDBpedia + ", \"" + bindingSetDBpedia.getValue("linkDBpedia").stringValue() + "\"";
-            } else {
-              valueOfDBpedia = valueOfDBpedia + "\"" + bindingSetDBpedia.getValue("linkDBpedia").stringValue() + "\"";
-            }
-          }
-        }
-        valueOfDBpedia = valueOfDBpedia + "]";
-        String valueOfSerAddress = "";
-        if (bindingSetService.getValue("serAddress") != null) {
-          valueOfSerAddress = bindingSetService.getValue("serAddress").stringValue();
-        }
-        String valueOfSerNumber = "";
-        if (bindingSetService.getValue("serNumber") != null) {
-          valueOfSerNumber = bindingSetService.getValue("serNumber").stringValue();
-        }
-
-        String valueOfSType = bindingSetService.getValue("sType").stringValue();
-        String valueOfSTypeIta = "";
-        if (bindingSetService.getValue("sTypeIta") != null) {
-          valueOfSTypeIta = bindingSetService.getValue("sTypeIta").stringValue();
-        }
-
-        // DICHIARAZIONE VARIABILI serviceType e serviceCategory per ICONA
-        if (bindingSetService.getValue("type") != null) {
-          subCategory = bindingSetService.getValue("type").stringValue();
-          subCategory = subCategory.replace("http://www.disit.org/km4city/schema#", "");
-          //subCategory = Character.toLowerCase(subCategory.charAt(0)) + subCategory.substring(1);
-          //subCategory = subCategory.replace(" ", "_");
-        }
-
-        if (bindingSetService.getValue("sCategory") != null) {
-          category = bindingSetService.getValue("sCategory").stringValue();
-          category = category.replace("http://www.disit.org/km4city/schema#", "");
-          //category = Character.toLowerCase(category.charAt(0)) + category.substring(1);
-          //category = category.replace(" ", "_");
-        }
-
-        String serviceType = category + "_" + subCategory;
-        r = category + ";" + subCategory; // return value
-
-        // controllo del Nome per i Geolocated Object
-        String valueOfSName = "";
-        if (bindingSetService.getValue("sName") != null) {
-          valueOfSName = bindingSetService.getValue("sName").stringValue();
-        } else {
-          valueOfSName = subCategory.replace("_", " ").toUpperCase();
-        }
-        String valueOfELat = bindingSetService.getValue("elat").stringValue();
-        String valueOfELong = bindingSetService.getValue("elong").stringValue();
-        String valueOfNote = "";
-        if (bindingSetService.getValue("note") != null) {
-          valueOfNote = bindingSetService.getValue("note").stringValue();
-        }
-
-        String valueOfEmail = "";
-        if (bindingSetService.getValue("email") != null) {
-          valueOfEmail = bindingSetService.getValue("email").stringValue();
-        }
-        String valueOfMultimediaResource = "";
-        if (bindingSetService.getValue("multimedia") != null) {
-          valueOfMultimediaResource = bindingSetService.getValue("multimedia").stringValue();
-        }
-        String valueOfDescription1 = "";
-        if (bindingSetService.getValue("description1") != null) {
-          valueOfDescription1 = ServiceMap.replaceHTMLEntities(bindingSetService.getValue("description1").stringValue());
-        }
-        String valueOfDescription2 = "";
-        if (bindingSetService.getValue("description2") != null) {
-          valueOfDescription2 = ServiceMap.replaceHTMLEntities(bindingSetService.getValue("description2").stringValue());
-        }
-        if(valueOfDescription1.isEmpty() || 
-                (!valueOfDescription2.isEmpty() && !valueOfDescription1.contains(" the ") && lang.equals("en")) ||
-                (!valueOfDescription2.isEmpty() && valueOfDescription1.contains(" the ") && !lang.equals("en"))) {
-          String tmp=valueOfDescription2;
-          valueOfDescription2 = valueOfDescription1;
-          valueOfDescription1 = tmp;        
-        }
-        
-        //AGGIUNTA CAMPI DA VISUALIZZARE SU SCHEDA
-        String valueOfFax = "";
-        if (bindingSetService.getValue("fax") != null) {
-          valueOfFax = bindingSetService.getValue("fax").stringValue();
-        }
-        String valueOfPhone = "";
-        if (bindingSetService.getValue("phone") != null) {
-          valueOfPhone = bindingSetService.getValue("phone").stringValue();
-        }
-        String valueOfProv = "";
-        if (bindingSetService.getValue("prov") != null) {
-          valueOfProv = bindingSetService.getValue("prov").stringValue();
-        }
-        String valueOfCity = "";
-        if (bindingSetService.getValue("city") != null) {
-          valueOfCity = bindingSetService.getValue("city").stringValue();
-        }
-        String valueOfUrl = "";
-        if (bindingSetService.getValue("website") != null) {
-          valueOfUrl = bindingSetService.getValue("website").stringValue();
-        }
-        String valueOfCap = "";
-        if (bindingSetService.getValue("cap") != null) {
-          valueOfCap = bindingSetService.getValue("cap").stringValue();
-        }
-        String valueOfCoordList = "";
-        if (bindingSetService.getValue("coordList") != null) {
-          valueOfCoordList = bindingSetService.getValue("coordList").stringValue();
-        }
-        NOS = valueOfSName;
-
-        valueOfSTypeIta = valueOfSTypeIta.replace("@it", "");
-        TOS = valueOfSTypeIta;
-
-        if(conf.get("normalizeNotes", "false").equals("true")) {
-          Normalizer.normalize(valueOfNote, Normalizer.Form.NFD).replaceAll("[^\\p{ASCII}]", "");
-          valueOfNote = valueOfNote.replaceAll("[^A-Za-z0-9 \\.:;,]+", "");
-        }
-
-        float[] avgServiceStars = ServiceMap.getAvgServiceStars(serviceUri);
-
-        if (i != 0) {
-          out.println(", ");
-        }
-
-        out.println("{ "
-                + " \"geometry\": {\n"
-                + "     \"type\": \"Point\",\n"
-                + "    \"coordinates\": [ " + valueOfELong + ", " + valueOfELat + " ]\n"
-                + "},\n"
-                + "\"type\": \"Feature\",\n"
-                + "\"properties\": {\n"
-                + "    \"name\": \"" + escapeJSON(valueOfSName) + "\",\n"
-                + "    \"typeLabel\": \"" + TOS + "\",\n"
-                + "    \"serviceType\": \"" + escapeJSON(serviceType) + "\",\n"
-                + "    \"phone\": \"" + escapeJSON(valueOfPhone) + "\",\n"
-                + "    \"fax\": \"" + escapeJSON(valueOfFax) + "\",\n"
-                + "    \"website\": \"" + escapeJSON(valueOfUrl) + "\",\n"
-                + "    \"province\": \"" + escapeJSON(valueOfProv) + "\",\n"
-                + "    \"city\": \"" + escapeJSON(valueOfCity) + "\",\n"
-                + "    \"cap\": \"" + escapeJSON(valueOfCap) + "\",\n"
-                + "    \"email\": \"" + escapeJSON(valueOfEmail) + "\",\n"
-                + "    \"linkDBpedia\": " + valueOfDBpedia + ",\n"
-                + "    \"note\": \"" + escapeJSON(valueOfNote) + "\",\n"
-                + "    \"description\": \"" + escapeJSON(valueOfDescription1) + "\",\n"
-                + "    \"description2\": \"" + escapeJSON(valueOfDescription2) + "\",\n"
-                + "    \"multimedia\": \"" + valueOfMultimediaResource + "\",\n"
-                + "    \"serviceUri\": \"" + serviceUri + "\",\n"
-                + "    \"address\": \"" + escapeJSON(valueOfSerAddress) + "\", \"civic\": \"" + escapeJSON(valueOfSerNumber) + "\",\n"
-                + "    \"wktGeometry\": \"" + escapeJSON(ServiceMap.fixWKT(valueOfCoordList)) + "\",");
-        if(md!=null)
-          rtAttributes = md.printServiceAttributes(out, con, serviceUri);
-        out.println(
-                  "    \"photos\": " + ServiceMap.getServicePhotos(serviceUri) + ",\n"
-                + "    \"photoThumbs\": " + ServiceMap.getServicePhotos(serviceUri,"thumbs") + ",\n"
-                + "    \"photoOrigs\": " + ServiceMap.getServicePhotos(serviceUri,"originals") + ",\n"
-                + "    \"avgStars\": " + avgServiceStars[0] + ",\n"
-                + "    \"starsCount\": " + (int) avgServiceStars[1] + ",\n"
-                + (uid != null ? "    \"userStars\": " + ServiceMap.getServiceStarsByUid(serviceUri, uid) + ",\n" : "")
-                + "    \"comments\": " + ServiceMap.getServiceComments(serviceUri)
-                + "},\n"
-                + "\"id\": " + Integer.toString(i + 1) + "\n"
-                + "}");
-        i++;
-      }
-      out.println("] }");
     } else {
         ServiceMap.println("queryService: using mapping "+md.serviceType);
-        String detailsQuery = md.detailsQuery;
+        detailsQuery = md.detailsQuery;
+        section = md.section;
         if(detailsQuery==null) {
           throw new Exception("Missing details query for "+serviceUri);
         }
-        if(!"geojson".equals(format))
-          out.println("{ \"" + md.section + "\":");
-        out.println("{\"type\": \"FeatureCollection\",\n"
-                + "\"features\": [\n");
+    }
+    if(!"geojson".equals(format))
+      out.println("{ \"" + section + "\":");
 
-        detailsQuery = detailsQuery.replace("%SERVICE_URI",ServiceMap.urlEncode(serviceUri));
-        detailsQuery = detailsQuery.replace("%LANG",lang);
-        ServiceMap.println(detailsQuery);
-        TupleQuery tupleQueryDetails = con.prepareTupleQuery(QueryLanguage.SPARQL, detailsQuery);
-        long ts = System.nanoTime();
-        TupleQueryResult resultDetails = tupleQueryDetails.evaluate();
-        logQuery(detailsQuery, "API-service-info", sparqlType, serviceUri, System.nanoTime() - ts);
-        ServiceMap.println(detailsQuery);
-        
-        if (resultDetails.hasNext()) {
-          String queryDBpedia = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
-              + "PREFIX cito:<http://purl.org/spar/cito/>\n"
-              + "SELECT ?linkDBpedia WHERE{\n"
-              + " {<" + serviceUri + "> km4c:isInRoad/cito:cites ?linkDBpedia.}\n"
-              + " UNION { <" + serviceUri + "> rdfs:seeAlso ?linkDBpedia.}\n"
-              + "}";
-          TupleQuery tupleQueryDBpedia = con.prepareTupleQuery(QueryLanguage.SPARQL, queryDBpedia);
-          ts = System.nanoTime();
-          TupleQueryResult resultDBpedia = tupleQueryDBpedia.evaluate();
-          logQuery(queryDBpedia, "API-service-dbpedia-info", sparqlType, serviceUri, System.nanoTime() - ts);
-          String valueOfDBpedia = "[";
-          while (resultDBpedia.hasNext()) {
-            BindingSet bindingSetDBpedia = resultDBpedia.next();
-            if (bindingSetDBpedia.getValue("linkDBpedia") != null) {
-              if (!("[".equals(valueOfDBpedia))) {
-                valueOfDBpedia = valueOfDBpedia + ", \"" + bindingSetDBpedia.getValue("linkDBpedia").stringValue() + "\"";
-              } else {
-                valueOfDBpedia = valueOfDBpedia + "\"" + bindingSetDBpedia.getValue("linkDBpedia").stringValue() + "\"";
-              }
+    out.println("{\"type\": \"FeatureCollection\",\n"
+            + "\"features\": [\n");
+
+    detailsQuery = detailsQuery.replace("%SERVICE_URI",ServiceMap.urlEncode(serviceUri));
+    detailsQuery = detailsQuery.replace("%LANG",lang);
+    ServiceMap.println(detailsQuery);
+
+    TupleQuery tupleQueryDetails = con.prepareTupleQuery(QueryLanguage.SPARQL, detailsQuery);
+    long ts = System.nanoTime();
+    TupleQueryResult resultDetails = tupleQueryDetails.evaluate();
+    logQuery(detailsQuery, "API-service-info", sparqlType, serviceUri, System.nanoTime() - ts);
+    ServiceMap.println(detailsQuery);
+
+    if (resultDetails.hasNext()) {
+      String valueOfDBpedia = "[";
+      if(conf.get("enableServiceDbpediaSearch", "true").equals("true")) {
+        String queryDBpedia = "PREFIX km4c:<http://www.disit.org/km4city/schema#>\n"
+            + "PREFIX cito:<http://purl.org/spar/cito/>\n"
+            + "SELECT ?linkDBpedia WHERE{\n"
+            + " {<" + serviceUri + "> km4c:isInRoad/cito:cites ?linkDBpedia.}\n"
+            + " UNION { <" + serviceUri + "> rdfs:seeAlso ?linkDBpedia.}\n"
+            + "}";
+        TupleQuery tupleQueryDBpedia = con.prepareTupleQuery(QueryLanguage.SPARQL, queryDBpedia);
+        ts = System.nanoTime();
+        TupleQueryResult resultDBpedia = tupleQueryDBpedia.evaluate();
+        logQuery(queryDBpedia, "API-service-dbpedia-info", sparqlType, serviceUri, System.nanoTime() - ts);
+        while (resultDBpedia.hasNext()) {
+          BindingSet bindingSetDBpedia = resultDBpedia.next();
+          if (bindingSetDBpedia.getValue("linkDBpedia") != null) {
+            if (!("[".equals(valueOfDBpedia))) {
+              valueOfDBpedia += ", \"" + bindingSetDBpedia.getValue("linkDBpedia").stringValue() + "\"";
+            } else {
+              valueOfDBpedia += "\"" + bindingSetDBpedia.getValue("linkDBpedia").stringValue() + "\"";
             }
-          }
-          valueOfDBpedia = valueOfDBpedia + "]";
-          
-          List<String> vars = resultDetails.getBindingNames();
-
-          int p = 0;
-          while (resultDetails.hasNext()) {
-            BindingSet bindingSet = resultDetails.next();
-
-            if (p != 0) {
-              out.println(" ,");
-            }
-
-            String valueOfELong = null;
-            if(bindingSet.getValue("_elong")!=null)
-              valueOfELong = bindingSet.getValue("_elong").stringValue();
-            String valueOfELat = null;
-            if(bindingSet.getValue("_elat")!=null)
-              valueOfELat = bindingSet.getValue("_elat").stringValue();
-            String valueOfWktGeometry = "";
-            if(bindingSet.getValue("_wktGeometry")!=null)
-              valueOfWktGeometry = bindingSet.getValue("_wktGeometry").stringValue();
-            if (bindingSet.getValue("_type") != null) {
-              subCategory = bindingSet.getValue("_type").stringValue();
-              subCategory = subCategory.replace("http://www.disit.org/km4city/schema#", "");
-            }
-            if (bindingSet.getValue("_category") != null) {
-              category = bindingSet.getValue("_category").stringValue();
-              category = category.replace("http://www.disit.org/km4city/schema#", "");
-            }
-
-            String serviceType = category;
-            if(!serviceType.isEmpty())
-             serviceType += "_";
-            serviceType += subCategory;
-            r = category + ";" + subCategory; // return value
-            
-            out.println("{");
-            if(valueOfELong!=null && valueOfELat!=null)
-                out.println(" \"geometry\": {\n"
-                + "     \"type\": \"Point\",\n"
-                + "    \"coordinates\": [ " + valueOfELong + ", " + valueOfELat + " ]\n"
-                + " },");
-            out.println(" \"type\": \"Feature\",\n"
-                + " \"properties\": {");
-
-            out.println("    \"serviceUri\": \"" + serviceUri + "\",");
-            out.println("    \"serviceType\": \"" + serviceType + "\",");
-            
-            for(String v : vars) {
-              if(!v.startsWith("_")) {
-                String value = "";
-                if (bindingSet.getValue(v) != null) {
-                  value = bindingSet.getValue(v).stringValue();
-                }
-                out.println("    \""+v+"\": \""+escapeJSON(value)+"\",");
-              }
-            }
-
-            rtAttributes = md.printServiceAttributes(out, con, serviceUri);
-            
-            float[] avgServiceStars = ServiceMap.getAvgServiceStars(serviceUri);
-            
-            out.println("    \"linkDBpedia\": " + valueOfDBpedia + ",");
-            out.println("    \"wktGeometry\": \"" + escapeJSON(valueOfWktGeometry ) + "\",\n"
-                + "    \"photos\": " + ServiceMap.getServicePhotos(serviceUri) + ",\n"
-                + "    \"photoThumbs\": " + ServiceMap.getServicePhotos(serviceUri,"thumbs") + ",\n"
-                + "    \"photoOrigs\": " + ServiceMap.getServicePhotos(serviceUri,"originals") + ",\n"
-                + "    \"avgStars\": " + avgServiceStars[0] + ",\n"
-                + "    \"starsCount\": " + (int) avgServiceStars[1] + ",\n"
-                + (uid != null ? "    \"userStars\": " + ServiceMap.getServiceStarsByUid(serviceUri, uid) + ",\n" : "")
-                + "    \"comments\": " + ServiceMap.getServiceComments(serviceUri));
-            if(!"geojson".equals(format))
-                out.println("}\n}");
-            p++;
           }
         }
+      }
+      valueOfDBpedia += "]";
+
+      List<String> vars = resultDetails.getBindingNames();
+
+      int p = 0;
+      while (resultDetails.hasNext()) {
+        BindingSet bindingSet = resultDetails.next();
+
+        if (p != 0) {
+          out.println(" ,");
+        }
+
+        String valueOfELong = null;
+        if(bindingSet.getValue("_elong")!=null)
+          valueOfELong = bindingSet.getValue("_elong").stringValue();
+        String valueOfELat = null;
+        if(bindingSet.getValue("_elat")!=null)
+          valueOfELat = bindingSet.getValue("_elat").stringValue();
+        String valueOfWktGeometry = "";
+        if(bindingSet.getValue("_wktGeometry")!=null)
+          valueOfWktGeometry = bindingSet.getValue("_wktGeometry").stringValue();
+        if (bindingSet.getValue("_type") != null) {
+          subCategory = bindingSet.getValue("_type").stringValue();
+          subCategory = subCategory.replace("http://www.disit.org/km4city/schema#", "");
+        }
+        if (bindingSet.getValue("_category") != null) {
+          category = bindingSet.getValue("_category").stringValue();
+          category = category.replace("http://www.disit.org/km4city/schema#", "");
+        }
+
+        String serviceType = category;
+        if(!serviceType.isEmpty())
+         serviceType += "_";
+        serviceType += subCategory;
+        r = category + ";" + subCategory; // return value
+
+        out.println("{");
+        if(valueOfELong!=null && valueOfELat!=null)
+            out.println(" \"geometry\": {\n"
+            + "     \"type\": \"Point\",\n"
+            + "    \"coordinates\": [ " + valueOfELong + ", " + valueOfELat + " ]\n"
+            + " },");
+        out.println(" \"type\": \"Feature\",\n"
+            + " \"properties\": {");
+
+        out.println("    \"serviceUri\": \"" + serviceUri + "\",");
+        out.println("    \"serviceType\": \"" + serviceType + "\",");
+
+        for(String v : vars) {
+          if(!v.startsWith("_")) {
+            String value = "";
+            if (bindingSet.getValue(v) != null) {
+              value = bindingSet.getValue(v).stringValue();
+            }
+            out.println("    \""+v+"\": \""+escapeJSON(value)+"\",");
+          }
+        }
+
+        if(md!=null)
+          rtAttributes = md.printServiceAttributes(out, con, serviceUri);
+
+        float[] avgServiceStars = ServiceMap.getAvgServiceStars(serviceUri);
+
+        out.println("    \"linkDBpedia\": " + valueOfDBpedia + ",");
+        out.println("    \"wktGeometry\": \"" + escapeJSON(valueOfWktGeometry ) + "\"");
+        if(conf.get("enableServicePhotosAndStarsLookup", "true").equals("true")) {
+          out.println("    ,\"photos\": " + ServiceMap.getServicePhotos(serviceUri) + ",\n"
+            + "    \"photoThumbs\": " + ServiceMap.getServicePhotos(serviceUri,"thumbs") + ",\n"
+            + "    \"photoOrigs\": " + ServiceMap.getServicePhotos(serviceUri,"originals") + ",\n"
+            + "    \"avgStars\": " + avgServiceStars[0] + ",\n"
+            + "    \"starsCount\": " + (int) avgServiceStars[1] + ",\n"
+            + (uid != null ? "    \"userStars\": " + ServiceMap.getServiceStarsByUid(serviceUri, uid) + ",\n" : "")
+            + "    \"comments\": " + ServiceMap.getServiceComments(serviceUri));
+        }
         if(!"geojson".equals(format))
-          out.println("]}");
+            out.println("}\n}");
+        p++;
+      }
     }
+    if(!"geojson".equals(format))
+      out.println("]}");
    
     serviceUri = ServiceMapping.getInstance().getServiceUriAlias(serviceUri);
         
@@ -3093,7 +2897,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
               + "} ORDER BY DESC (?timeInstant)"
               + (fromTime==null ? "LIMIT "+limit : "LIMIT " + conf.get("fromTimeLimitSparql",conf.get("fromTimeLimit","1500")));
       TupleQuery tupleQueryParking = con.prepareTupleQuery(QueryLanguage.SPARQL, queryStringParkingStatus);
-      long ts = System.nanoTime();
+      ts = System.nanoTime();
       TupleQueryResult resultParkingStatus = tupleQueryParking.evaluate();
       logQuery(queryStringParkingStatus, "API-service-park-info", sparqlType, serviceUri, System.nanoTime() - ts);
       out.println(",\"realtime\": ");
@@ -3234,8 +3038,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
         }
       }
     }
+    
     if(checkHealthiness.equals("true"))
       out.println(", \"healthiness\": "+ServiceMap.computeHealthiness(rtData, rtAttributes, toTime));
+    
     Connection rtCon = null;
     if(md!=null && md.predictionSqlQuery!=null) {
       rtCon = predictionQuery(md, serviceUri, out, rtCon, conf);
@@ -3243,8 +3049,10 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     if(md!=null && md.trendSqlQuery!=null) {
       rtCon = timeTrendQuery(md, serviceUri, out, rtCon, conf);
     }
+    
     if(rtCon!=null)
       rtCon.close();
+    
     if(!"geojson".equals(format))
       out.println("}");
     else

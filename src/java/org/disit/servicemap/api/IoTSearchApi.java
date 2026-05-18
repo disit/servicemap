@@ -116,7 +116,7 @@ public class IoTSearchApi {
       }
       ArrayList<String[]> delayConds = new ArrayList<>();
       ArrayList<String[]> rangeConds = new ArrayList<>();
-      if (condition != null) {
+      if (condition != null && !condition.trim().isEmpty()) {
         q = conditionQueryBuilder(q, condition, delayConds, rangeConds);
       }
       
@@ -614,7 +614,7 @@ public class IoTSearchApi {
         q = categoriesQueryBuilder(q, categories);
       }
       ArrayList<String[]> rangeConds = new ArrayList<>();
-      if (condition != null) {
+      if (condition != null && !condition.trim().isEmpty()) {
         q = conditionQueryBuilder(q, condition, null, rangeConds);
       }
       q = userQueryBuilder(q,user);
