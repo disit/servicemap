@@ -990,6 +990,10 @@ public class IoTSearchApi {
                 q += " OR organization_delegations:" + organization;
                 groups.addAll(ldap.getGroups(user.username, organization));
               }
+              groups.addAll(ldap.getGroups(user.username, null)); //groups outside organization
+              groups.remove("Dashboard");
+              groups.remove("ProcessLoader");
+              groups.remove("IoTDirectory");
               for(String grp : groups) {
                 q += " OR groups:" + grp;
               }

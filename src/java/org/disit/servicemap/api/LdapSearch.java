@@ -93,11 +93,14 @@ public class LdapSearch {
  
   public List<String> getGroups(String user, String organization) throws LDAPException {
     String userDN = new DN(new RDN("cn", user), new DN(baseDN)).toString();
-    String safeOrgDN = new DN(new RDN("ou", organization), new DN(baseDN)).toString();
+    String safeSearchBaseDN = new DN(baseDN).toString();
+    if(organization!=null && !organization.isEmpty())
+      safeSearchBaseDN = new DN(new RDN("ou", organization), new DN(baseDN)).toString();
+    
     Filter query = Filter.createANDFilter(
         Filter.createEqualityFilter("objectClass", "groupOfNames"),
         Filter.createEqualityFilter("member", userDN));
-    SearchRequest sr = new SearchRequest(safeOrgDN, SearchScope.ONE, query);
+    SearchRequest sr = new SearchRequest(safeSearchBaseDN, SearchScope.ONE, query);
     List<String> groups = new ArrayList<String>();
     LDAPConnection c = pool.getConnection();
     try {
