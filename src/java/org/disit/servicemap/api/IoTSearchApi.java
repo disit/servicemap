@@ -470,35 +470,51 @@ public class IoTSearchApi {
     return q;
   }
 
+  private String fieldTxt(String field, List<String> stdFields) {
+    if(stdFields.contains(field)) {
+        return field + ".text";
+    } else {
+        int p = field.indexOf('.');
+        if(p>=0) {
+          return field.substring(0, p) + ".value_obj" + field.substring(p);
+        } else {
+          return field + ".value_str";
+        }
+    }    
+  }
+  
+  private String fieldKwd(String field, List<String> stdFields) {
+      if(stdFields.contains(field)) {
+        return field;
+    } else {
+        int p = field.indexOf('.');
+        if(p>=0) {
+          return field.substring(0, p) + ".value_obj" + field.substring(p) + ".keyword";
+        } else {
+          return field + ".value_str.keyword";
+        }
+    }      
+  }
+  
   private void buildRangeCondQuery(BoolQueryBuilder boolQuery, ArrayList<String[]> rangeConds, List<String> stdFields) {
     for(String[] rangeCnd: rangeConds) {
-        String fieldTxt = null;
-        String fieldKwd = null;
-        if(stdFields.contains(rangeCnd[0])) {
-            fieldTxt = rangeCnd[0] + ".text";
-            fieldKwd = rangeCnd[0] + "";
-        } else {
-            int p = rangeCnd[0].indexOf('.');
-            if(p>=0) {
-              String field = rangeCnd[0].substring(0, p) + ".value_obj" + rangeCnd[0].substring(p);
-              fieldKwd = field + ".keyword";
-              fieldTxt = field;
-            } else {
-              fieldKwd = rangeCnd[0] + ".value_str.keyword";
-              fieldTxt = rangeCnd[0] + ".value_str";
-            }
-        }
-        
+       
         if(rangeCnd[1].equals("gt"))
-            boolQuery.must().add(QueryBuilders.rangeQuery(fieldKwd).gt(rangeCnd[2]));
+            boolQuery.must().add(QueryBuilders.rangeQuery(fieldKwd(rangeCnd[0].trim(), stdFields)).gt(rangeCnd[2]));
         else if(rangeCnd[1].equals("lt"))
-            boolQuery.must().add(QueryBuilders.rangeQuery(fieldKwd).lt(rangeCnd[2]));
+            boolQuery.must().add(QueryBuilders.rangeQuery(fieldKwd(rangeCnd[0].trim(), stdFields)).lt(rangeCnd[2]));
         else if(rangeCnd[1].equals("lte"))
-            boolQuery.must().add(QueryBuilders.rangeQuery(fieldKwd).lte(rangeCnd[2]));
+            boolQuery.must().add(QueryBuilders.rangeQuery(fieldKwd(rangeCnd[0].trim(), stdFields)).lte(rangeCnd[2]));
         else if(rangeCnd[1].equals("gte"))
-            boolQuery.must().add(QueryBuilders.rangeQuery(fieldKwd).gte(rangeCnd[2]));
-        else if(rangeCnd[1].equals("contains"))
-            boolQuery.must().add(QueryBuilders.wildcardQuery(fieldTxt, "*"+rangeCnd[2].toLowerCase()+"*"));
+            boolQuery.must().add(QueryBuilders.rangeQuery(fieldKwd(rangeCnd[0].trim(), stdFields)).gte(rangeCnd[2]));
+        else if(rangeCnd[1].equals("contains")) {
+            String[] fields = rangeCnd[0].split("\\|");
+            BoolQueryBuilder should = QueryBuilders.boolQuery();
+            for(String f: fields) {
+              should.should().add(QueryBuilders.wildcardQuery(fieldTxt(f.trim(), stdFields), "*"+rangeCnd[2].toLowerCase()+"*"));
+            }
+            boolQuery.must().add(should);
+        }
       }
   }
   
