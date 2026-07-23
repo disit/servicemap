@@ -2376,9 +2376,6 @@ public class ServiceMap {
   }
   
   static public RestHighLevelClient createElasticSearchClient(Configuration conf) {
-    if(elasticSearchClient!=null && conf.get("elasticSearchClientReuse", "true").equals("true"))
-      return elasticSearchClient;
-    
     //get RT data from Elastic
     String[] hosts = conf.get("elasticSearchHosts", "localhost").split(",");
     int port = Integer.parseInt(conf.get("elasticSearchPort", "9200"));
