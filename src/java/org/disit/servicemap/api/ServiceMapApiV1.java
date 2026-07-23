@@ -3171,250 +3171,258 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
   }
   
   private void realTimeElasticSearchQuery(Configuration conf, JsonObject rtAttributes,  ArrayList<String> customAttrs, String serviceUri, String valueName, String fromTime, String toTime, String aggregation, int limit, JspWriter out, JsonArray rtData) throws Exception {
-    RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf);
+    RestHighLevelClient client = ServiceMap.getSharedElasticSearchClient(conf);
     String[] index = conf.get("elasticSearchIndex", "sensorindex").split(";");
 
-    try {
-      String q = "serviceUri.keyword:\""+serviceUri+"\"";
+    String q = "serviceUri.keyword:\""+serviceUri+"\"";
 
-      DateFormat dateFormatterT = new SimpleDateFormat(ServiceMap.dateFormatT);
-      Date tTime = new Date();
-      if(toTime!=null) {
-        tTime = dateFormatterT.parse(toTime);
-      }
-      Date fTime = new Date();
+    DateFormat dateFormatterT = new SimpleDateFormat(ServiceMap.dateFormatT);
+    Date tTime = new Date();
+    if(toTime!=null) {
+      tTime = dateFormatterT.parse(toTime);
+    }
+    Date fTime = new Date();
+    if(fromTime!=null) {
+      fTime = dateFormatterT.parse(fromTime);
+    } 
+    if(fromTime!=null || toTime!=null) {
+      DateFormat dateFormatterGMT = new SimpleDateFormat(ServiceMap.dateFormatGMT);
+      String fq = null;
+      String tz = "Z";
+      String toTimeZ = null;
+      String fromTimeZ = null;
       if(fromTime!=null) {
-        fTime = dateFormatterT.parse(fromTime);
-      } 
-      if(fromTime!=null || toTime!=null) {
-        DateFormat dateFormatterGMT = new SimpleDateFormat(ServiceMap.dateFormatGMT);
-        String fq = null;
-        String tz = "Z";
-        String toTimeZ = null;
-        String fromTimeZ = null;
-        if(fromTime!=null) {
-          fromTimeZ = dateFormatterGMT.format(fTime);
-        }
-        if(toTime!=null) {
-          toTimeZ = dateFormatterGMT.format(tTime);
-        }
-        if(fromTime!=null && toTime==null)
-          fq = "date_time:["+fromTimeZ+" TO *]";
-        else if(fromTime==null && toTime!=null)
-          fq = "date_time:[* TO "+toTimeZ+"]";
-        else
-          fq = "date_time:["+fromTimeZ+" TO "+toTimeZ+"]";
-        q += " AND "+fq;
+        fromTimeZ = dateFormatterGMT.format(fTime);
       }
+      if(toTime!=null) {
+        toTimeZ = dateFormatterGMT.format(tTime);
+      }
+      if(fromTime!=null && toTime==null)
+        fq = "date_time:["+fromTimeZ+" TO *]";
+      else if(fromTime==null && toTime!=null)
+        fq = "date_time:[* TO "+toTimeZ+"]";
+      else
+        fq = "date_time:["+fromTimeZ+" TO "+toTimeZ+"]";
+      q += " AND "+fq;
+    }
+    if(valueName!=null) {
+      String[] vns = valueName.split(";");
+      q += " AND (";
+      for(int i=0;i<vns.length;i++) {
+        if(i!=0)
+          q += " OR ";
+        q += "value_name.keyword:\"" + valueName + "\"";
+      }
+      q += ")";
+    }
+    if(conf.get("elasticSearchFilterEmptyValue","false").equals("true")) {
+      q += " AND NOT value_str.keyword:\"\"";
+    }
+    int resultSize = Integer.parseInt(conf.get("elasticSearchMaxSize", "10000"));
+    if(fromTime == null) {
+      if(limit<0)
+        limit=-limit;
       if(valueName!=null) {
-        String[] vns = valueName.split(";");
-        q += " AND (";
-        for(int i=0;i<vns.length;i++) {
-          if(i!=0)
-            q += " OR ";
-          q += "value_name.keyword:\"" + valueName + "\"";
+        resultSize = limit;
+      } else {
+        if(rtAttributes!=null)
+          resultSize = (rtAttributes.entrySet().size()+10) * limit;
+        else
+          resultSize = 10 * limit;
+      }
+    } else if(limit<0)
+      resultSize=-limit;
+    SearchRequest sr = new SearchRequest();
+    SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder(); 
+    searchSourceBuilder.query(QueryBuilders.boolQuery().must(
+            QueryBuilders.queryStringQuery(q)
+    ));
+    //aggregate by UUID to be used if more records are stored with the same timestamp
+    if(conf.get("elasticSearchAggrByUUID", "false").equals("true")) {
+      searchSourceBuilder.sort("date_time", SortOrder.DESC)
+              .sort("uuid.keyword", SortOrder.ASC)
+              .sort("value_name.keyword", SortOrder.ASC);
+    } else {
+      /*if(valueName != null)
+        searchSourceBuilder.sort("date_time", SortOrder.DESC);
+      else*/
+        searchSourceBuilder.sort("date_time", SortOrder.DESC);
+        String sortBy = conf.get("elasticSearchLimitQuerySortBy", "none");
+        if(fromTime==null && limit!=0) {
+          if(!sortBy.equals("none"))
+            searchSourceBuilder.sort(sortBy + ".keyword", SortOrder.ASC);
+        } else
+          searchSourceBuilder.sort("value_name.keyword", SortOrder.ASC); //problems if multiple values at the same date_time
+    }
+    searchSourceBuilder.size(resultSize);
+    if(valueName==null) {
+      searchSourceBuilder.aggregation(AggregationBuilders.terms("value_name").field("value_name.keyword").size(Integer.parseInt(conf.get("elasticSearchMaxAggVName", "100"))).order(BucketOrder.key(true)));
+    }
+    boolean fromAggregation = false;
+    String resultAggregation = null;
+    if(valueName!=null && fromTime!=null) {
+      if(aggregation!=null) {
+        if(!aggregation.equals("no")) {
+          String[] aggr = aggregation.split("-");
+          int aggrVal = Integer.parseInt(aggr[0]);
+          if(aggrVal>0) {
+            String aggrType = aggr[1];
+            DateHistogramInterval dhInterval = null;
+            if(aggrType.equals("minute"))
+              dhInterval= DateHistogramInterval.minutes(aggrVal);
+            else if(aggrType.equals("hour"))
+              dhInterval= DateHistogramInterval.hours(aggrVal);
+            else if(aggrType.equals("day"))
+              dhInterval= DateHistogramInterval.days(aggrVal);
+            searchSourceBuilder.aggregation(
+                    AggregationBuilders.dateHistogram("date_time")
+                            .field(conf.get("elasticSearchAggField", "date_time"))
+                            .dateHistogramInterval(dhInterval)
+                            .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
+            fromAggregation = true;
+          }
+          resultAggregation = aggregation;
         }
-        q += ")";
+      } else if((tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays1", "100"))*24*60*60L) {
+        String elasticSearchAvgHours = conf.get("elasticSearchAvgHours", "6");
+        searchSourceBuilder.aggregation(
+                AggregationBuilders.dateHistogram("date_time")
+                        .field(conf.get("elasticSearchAggField", "date_time"))
+                        .dateHistogramInterval(DateHistogramInterval.hours(Integer.parseInt(elasticSearchAvgHours)))
+                        .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
+        fromAggregation = true;
+        resultAggregation = elasticSearchAvgHours+"-hours";
+      } else if((tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays", "20"))*24*60*60L) {
+        String elasticSearchAvgMins = conf.get("elasticSearchAvgMins", "15");
+        searchSourceBuilder.aggregation(
+                AggregationBuilders.dateHistogram("date_time")
+                        .field(conf.get("elasticSearchAggField", "date_time"))
+                        .dateHistogramInterval(DateHistogramInterval.minutes(Integer.parseInt(elasticSearchAvgMins)))
+                        .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
+        fromAggregation = true;
+        resultAggregation = elasticSearchAvgMins+"-minute";
       }
-      if(conf.get("elasticSearchFilterEmptyValue","false").equals("true")) {
-        q += " AND NOT value_str.keyword:\"\"";
+    }
+
+    sr.source(searchSourceBuilder);
+    if(conf.get("elasticSearchScrollSearch","false").equals("true"))
+      sr.scroll(TimeValue.timeValueMinutes(1));
+    sr.indices(index);
+
+    long ts = System.currentTimeMillis();
+    SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
+    SearchHit[] hits = r.getHits().getHits();
+    long nfound = hits.length;
+    if(nfound==0 && fromAggregation) {
+        Histogram agg = r.getAggregations().get("date_time");
+        if(!agg.getBuckets().isEmpty())
+          nfound = 1; //we don't need exact number
+    }
+    String jsonQuery = "NA";
+    if(conf.get("elasticSearchDebugQuery", "false").equals("true")) {
+      try {
+        jsonQuery = searchSourceBuilder.toString();
+      } catch(Exception e) {
+        e.printStackTrace();
       }
-      int resultSize = Integer.parseInt(conf.get("elasticSearchMaxSize", "10000"));
-      if(fromTime == null) {
-        if(limit<0)
-          limit=-limit;
-        if(valueName!=null) {
-          resultSize = limit;
+    }
+    ServiceMap.performance("elasticsearch query "+serviceUri+" from:"+fromTime+" to:"+toTime+" : "+(System.currentTimeMillis()-ts)+"ms nfound:"+nfound+" aggr:"+fromAggregation+" query:"+jsonQuery);
+
+
+    if(out!=null)
+      out.println(",\"realtime\": ");
+    if(nfound==0 && out!=null) {
+      out.println("{}");
+    } else {
+      if(out!=null) {
+        out.print("{ \"head\": {\n"
+                + " \"vars\":[ \"measuredTime\"");
+        if(valueName != null) {
+          out.print(",\""+valueName+"\"");                      
         } else {
-          if(rtAttributes!=null)
-            resultSize = (rtAttributes.entrySet().size()+10) * limit;
-          else
-            resultSize = 10 * limit;
-        }
-      } else if(limit<0)
-        resultSize=-limit;
-      SearchRequest sr = new SearchRequest();
-      SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder(); 
-      searchSourceBuilder.query(QueryBuilders.boolQuery().must(
-              QueryBuilders.queryStringQuery(q)
-      ));
-      //aggregate by UUID to be used if more records are stored with the same timestamp
-      if(conf.get("elasticSearchAggrByUUID", "false").equals("true")) {
-        searchSourceBuilder.sort("date_time", SortOrder.DESC)
-                .sort("uuid.keyword", SortOrder.ASC)
-                .sort("value_name.keyword", SortOrder.ASC);
-      } else {
-        /*if(valueName != null)
-          searchSourceBuilder.sort("date_time", SortOrder.DESC);
-        else*/
-          searchSourceBuilder.sort("date_time", SortOrder.DESC);
-          String sortBy = conf.get("elasticSearchLimitQuerySortBy", "none");
-          if(fromTime==null && limit!=0) {
-            if(!sortBy.equals("none"))
-              searchSourceBuilder.sort(sortBy + ".keyword", SortOrder.ASC);
-          } else
-            searchSourceBuilder.sort("value_name.keyword", SortOrder.ASC); //problems if multiple values at the same date_time
-      }
-      searchSourceBuilder.size(resultSize);
-      if(valueName==null) {
-        searchSourceBuilder.aggregation(AggregationBuilders.terms("value_name").field("value_name.keyword").size(Integer.parseInt(conf.get("elasticSearchMaxAggVName", "100"))).order(BucketOrder.key(true)));
-      }
-      boolean fromAggregation = false;
-      String resultAggregation = null;
-      if(valueName!=null && fromTime!=null) {
-        if(aggregation!=null) {
-          if(!aggregation.equals("no")) {
-            String[] aggr = aggregation.split("-");
-            int aggrVal = Integer.parseInt(aggr[0]);
-            if(aggrVal>0) {
-              String aggrType = aggr[1];
-              DateHistogramInterval dhInterval = null;
-              if(aggrType.equals("minute"))
-                dhInterval= DateHistogramInterval.minutes(aggrVal);
-              else if(aggrType.equals("hour"))
-                dhInterval= DateHistogramInterval.hours(aggrVal);
-              else if(aggrType.equals("day"))
-                dhInterval= DateHistogramInterval.days(aggrVal);
-              searchSourceBuilder.aggregation(
-                      AggregationBuilders.dateHistogram("date_time")
-                              .field(conf.get("elasticSearchAggField", "date_time"))
-                              .dateHistogramInterval(dhInterval)
-                              .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
-              fromAggregation = true;
-            }
-            resultAggregation = aggregation;
+          Terms agg = r.getAggregations().get("value_name");
+
+          for (Terms.Bucket entry : agg.getBuckets()) {
+            //System.out.println(" "+entry.getKey()+" "+entry.getDocCount());
+            if(entry.getDocCount()>0)
+              out.print(",\""+entry.getKey()+"\"");
           }
-        } else if((tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays1", "100"))*24*60*60L) {
-          String elasticSearchAvgHours = conf.get("elasticSearchAvgHours", "6");
-          searchSourceBuilder.aggregation(
-                  AggregationBuilders.dateHistogram("date_time")
-                          .field(conf.get("elasticSearchAggField", "date_time"))
-                          .dateHistogramInterval(DateHistogramInterval.hours(Integer.parseInt(elasticSearchAvgHours)))
-                          .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
-          fromAggregation = true;
-          resultAggregation = elasticSearchAvgHours+"-hours";
-        } else if((tTime.getTime() - fTime.getTime())/1000>=Integer.parseInt(conf.get("elasticSearchAggDays", "20"))*24*60*60L) {
-          String elasticSearchAvgMins = conf.get("elasticSearchAvgMins", "15");
-          searchSourceBuilder.aggregation(
-                  AggregationBuilders.dateHistogram("date_time")
-                          .field(conf.get("elasticSearchAggField", "date_time"))
-                          .dateHistogramInterval(DateHistogramInterval.minutes(Integer.parseInt(elasticSearchAvgMins)))
-                          .subAggregation(AggregationBuilders.avg("avg").field("value"))).size(0);
-          fromAggregation = true;
-          resultAggregation = elasticSearchAvgMins+"-minute";
-        }
-      }
-
-      sr.source(searchSourceBuilder);
-      if(conf.get("elasticSearchScrollSearch","false").equals("true"))
-        sr.scroll(TimeValue.timeValueMinutes(1));
-      sr.indices(index);
-
-      long ts = System.currentTimeMillis();
-      SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
-      SearchHit[] hits = r.getHits().getHits();
-      long nfound = hits.length;
-      if(nfound==0 && fromAggregation) {
-          Histogram agg = r.getAggregations().get("date_time");
-          if(!agg.getBuckets().isEmpty())
-            nfound = 1; //we don't need exact number
-      }
-      String jsonQuery = "NA";
-      if(conf.get("elasticSearchDebugQuery", "false").equals("true")) {
-        try {
-          jsonQuery = searchSourceBuilder.toString();
-        } catch(Exception e) {
-          e.printStackTrace();
-        }
-      }
-      ServiceMap.performance("elasticsearch query "+serviceUri+" from:"+fromTime+" to:"+toTime+" : "+(System.currentTimeMillis()-ts)+"ms nfound:"+nfound+" aggr:"+fromAggregation+" query:"+jsonQuery);
-
-
-      if(out!=null)
-        out.println(",\"realtime\": ");
-      if(nfound==0 && out!=null) {
-        out.println("{}");
-      } else {
-        if(out!=null) {
-          out.print("{ \"head\": {\n"
-                  + " \"vars\":[ \"measuredTime\"");
-          if(valueName != null) {
-            out.print(",\""+valueName+"\"");                      
-          } else {
-            Terms agg = r.getAggregations().get("value_name");
-
-            for (Terms.Bucket entry : agg.getBuckets()) {
-              //System.out.println(" "+entry.getKey()+" "+entry.getDocCount());
-              if(entry.getDocCount()>0)
-                out.print(",\""+entry.getKey()+"\"");
-            }
-            for(String a:customAttrs) {
-                out.print(",\""+a+"\"");              
-            }
+          for(String a:customAttrs) {
+              out.print(",\""+a+"\"");              
           }
-          out.println("]},");
-
-          out.println(" \"results\": {");
-          if(resultAggregation != null)
-            out.println(" \"aggregation\": \""+resultAggregation+"\",");
-          out.println(" \"bindings\": [");
         }
-        
-        int c=0;
-        Date cdt = null;
-        String cuuid = null;
-        JsonObject rt = new JsonObject();
-        DateFormat dateFormatterTZ[] = { 
-          new SimpleDateFormat(ServiceMap.dateFormatTZ), new SimpleDateFormat(ServiceMap.dateFormatTZ2),
-          new SimpleDateFormat(ServiceMap.dateFormatTZ3), new SimpleDateFormat(ServiceMap.dateFormatTZ4),
-          new SimpleDateFormat(ServiceMap.dateFormatTZ5), new SimpleDateFormat(ServiceMap.dateFormatTZ6)};
-        Gson gson = new Gson();                
-        if(!fromAggregation) {
-          do {
-            for(SearchHit h:hits) { 
-              Map<String, Object> d = h.getSourceAsMap();
+        out.println("]},");
 
-              String dts = (String)d.get("date_time");
-              Date dt = null;
-              ParseException exc = null;
-              for(DateFormat dtf: dateFormatterTZ) {
-                try {
-                  dt = dtf.parse(dts);
-                } catch(ParseException e) {
-                  exc = e;
-                  continue;
-                }
-                break;
-              }
-              if(dt == null) {
-                    ServiceMap.notifyException(exc, "date: "+dts+" suri:"+serviceUri);
-                    throw exc;
-              }
-              
-              ServiceMap.println("d: "+d);
-              String uuid = (String)d.get("uuid");
+        out.println(" \"results\": {");
+        if(resultAggregation != null)
+          out.println(" \"aggregation\": \""+resultAggregation+"\",");
+        out.println(" \"bindings\": [");
+      }
 
-              /*int offset=TimeZone.getDefault().getOffset(dt.getTime());
-              dt.setTime(dt.getTime()-offset);*/
+      int c=0;
+      Date cdt = null;
+      String cuuid = null;
+      JsonObject rt = new JsonObject();
+      DateFormat dateFormatterTZ[] = { 
+        new SimpleDateFormat(ServiceMap.dateFormatTZ), new SimpleDateFormat(ServiceMap.dateFormatTZ2),
+        new SimpleDateFormat(ServiceMap.dateFormatTZ3), new SimpleDateFormat(ServiceMap.dateFormatTZ4),
+        new SimpleDateFormat(ServiceMap.dateFormatTZ5), new SimpleDateFormat(ServiceMap.dateFormatTZ6)};
+      Gson gson = new Gson();                
+      if(!fromAggregation) {
+        do {
+          for(SearchHit h:hits) { 
+            Map<String, Object> d = h.getSourceAsMap();
 
-              Object vn = d.get("value_name");
-
-              if(conf.get("elasticSearchCheckDuplicates", "false").equals("true") && rt.has(vn.toString()) && dt.equals(cdt)) {
-                //ServiceMap.notifyException(null, "WARNING ESearch "+serviceUri+" duplicate value name "+vn+" @ "+dts);
-                ServiceMap.println("WARNING ESearch "+serviceUri+" duplicate value name "+vn+" @ "+dts);
+            String dts = (String)d.get("date_time");
+            Date dt = null;
+            ParseException exc = null;
+            for(DateFormat dtf: dateFormatterTZ) {
+              try {
+                dt = dtf.parse(dts);
+              } catch(ParseException e) {
+                exc = e;
                 continue;
               }
+              break;
+            }
+            if(dt == null) {
+                  ServiceMap.notifyException(exc, "date: "+dts+" suri:"+serviceUri);
+                  throw exc;
+            }
 
-              Object value = d.get("value");
-              Object valueOut = value;
-              //ServiceMap.println("value:"+value);
-              boolean elasticSearchValueObjAsString = conf.get("elasticSearchValueObjAsString", "false").equals("true");
-              if(value==null) {
-                value = d.get("value_str");
-                if(value!=null)
-                  valueOut = "\""+JSONObject.escape(ServiceMap.decodeOrionForbiddenChars(value.toString()))+"\"";
-                else {
-                  value = d.get("value_obj");
+            ServiceMap.println("d: "+d);
+            String uuid = (String)d.get("uuid");
+
+            /*int offset=TimeZone.getDefault().getOffset(dt.getTime());
+            dt.setTime(dt.getTime()-offset);*/
+
+            Object vn = d.get("value_name");
+
+            if(conf.get("elasticSearchCheckDuplicates", "false").equals("true") && rt.has(vn.toString()) && dt.equals(cdt)) {
+              //ServiceMap.notifyException(null, "WARNING ESearch "+serviceUri+" duplicate value name "+vn+" @ "+dts);
+              ServiceMap.println("WARNING ESearch "+serviceUri+" duplicate value name "+vn+" @ "+dts);
+              continue;
+            }
+
+            Object value = d.get("value");
+            Object valueOut = value;
+            //ServiceMap.println("value:"+value);
+            boolean elasticSearchValueObjAsString = conf.get("elasticSearchValueObjAsString", "false").equals("true");
+            if(value==null) {
+              value = d.get("value_str");
+              if(value!=null)
+                valueOut = "\""+JSONObject.escape(ServiceMap.decodeOrionForbiddenChars(value.toString()))+"\"";
+              else {
+                value = d.get("value_obj");
+                if(value!=null) {
+                  if(elasticSearchValueObjAsString)
+                    valueOut = value = gson.toJson(value);
+                  else {
+                    value = gson.toJson(value);
+                    valueOut = "\""+JSONObject.escape(value.toString())+"\"";
+                  }
+                } else {
+                  value = d.get("value_arr_obj");
                   if(value!=null) {
                     if(elasticSearchValueObjAsString)
                       valueOut = value = gson.toJson(value);
@@ -3423,7 +3431,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                       valueOut = "\""+JSONObject.escape(value.toString())+"\"";
                     }
                   } else {
-                    value = d.get("value_arr_obj");
+                    value = d.get("value_arr");
                     if(value!=null) {
                       if(elasticSearchValueObjAsString)
                         valueOut = value = gson.toJson(value);
@@ -3431,139 +3439,127 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
                         value = gson.toJson(value);
                         valueOut = "\""+JSONObject.escape(value.toString())+"\"";
                       }
-                    } else {
-                      value = d.get("value_arr");
+                    } else {                      
+                      value = d.get("value_bool");
                       if(value!=null) {
-                        if(elasticSearchValueObjAsString)
-                          valueOut = value = gson.toJson(value);
-                        else {
-                          value = gson.toJson(value);
-                          valueOut = "\""+JSONObject.escape(value.toString())+"\"";
-                        }
-                      } else {                      
-                        value = d.get("value_bool");
+                        valueOut = "\""+value+"\"";
+                      } else {
+                        value = d.get("value_json_str");
                         if(value!=null) {
-                          valueOut = "\""+value+"\"";
+                          if(elasticSearchValueObjAsString)
+                            valueOut = value;
+                          else
+                            valueOut = "\""+JSONObject.escape(value.toString())+"\"";
                         } else {
-                          value = d.get("value_json_str");
-                          if(value!=null) {
-                            if(elasticSearchValueObjAsString)
-                              valueOut = value;
-                            else
-                              valueOut = "\""+JSONObject.escape(value.toString())+"\"";
-                          } else {
-                            valueOut = "\"\"";
-                            value = "";
-                          }
+                          valueOut = "\"\"";
+                          value = "";
                         }
                       }
                     }
                   }
                 }
-              } else {
-                valueOut = "\""+value+"\"";
               }
-              //ServiceMap.println(dts+" "+vn+":"+value);
+            } else {
+              valueOut = "\""+value+"\"";
+            }
+            //ServiceMap.println(dts+" "+vn+":"+value);
 
-              ServiceMap.println(dateFormatterTZ[0].format(dt)+" "+uuid+" "+vn+" "+value);
-              
-              if(cdt==null || ( cdt.equals(dt) &&
-                      ( conf.get("elasticSearchAggrByUUID","false").equals("false") || cuuid.equals(uuid) ) ) ) {
-                if(c==0) {
-                  String measuredTime = dateFormatterTZ[0].format(dt);
-                  if(out!=null)
-                    out.print("  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
-                  rt.addProperty("measuredTime", measuredTime);
-                }
-                else
-                  if(out!=null) 
-                    out.print(",");
-                c++;
-                cdt = dt;
-                cuuid = uuid;
-              } else {
-                if(fromTime==null && rtData.size()>=limit-1) //prende i primi valori
-                  break;
-                cdt = dt;
-                cuuid = uuid;
-                rtData.add(rt);
-                rt = new JsonObject();
+            ServiceMap.println(dateFormatterTZ[0].format(dt)+" "+uuid+" "+vn+" "+value);
+
+            if(cdt==null || ( cdt.equals(dt) &&
+                    ( conf.get("elasticSearchAggrByUUID","false").equals("false") || cuuid.equals(uuid) ) ) ) {
+              if(c==0) {
                 String measuredTime = dateFormatterTZ[0].format(dt);
                 if(out!=null)
-                  out.print("},  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
+                  out.print("  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
                 rt.addProperty("measuredTime", measuredTime);
-                c=1;
               }
-              if(out!=null)
-                out.print("  \""+vn+"\":{\"value\":"+valueOut+"}");
-              rt.addProperty(vn.toString(),value.toString());
-            }
-            if(conf.get("elasticSearchScrollSearch","false").equals("true")) {
-              SearchScrollRequest scrollRequest = new SearchScrollRequest(r.getScrollId()); 
-              scrollRequest.scroll(TimeValue.timeValueMinutes(1));
-              ServiceMap.println("elaticSearch scroll");
-              r = client.scroll(scrollRequest, RequestOptions.DEFAULT);
-              hits = r.getHits().getHits();
-              ServiceMap.println("elaticSearch scroll found "+hits.length+" hits");
-            } else 
-              break;
-          } while(hits.length > 0);
-          rtData.add(rt);
-        } else {
-          Histogram agg = r.getAggregations().get("date_time");
-
-          List<? extends Histogram.Bucket> l = agg.getBuckets();
-          ListIterator<? extends Histogram.Bucket> li = l.listIterator(l.size());
-          while(li.hasPrevious()) {
-            Histogram.Bucket entry = li.previous();
-            org.elasticsearch.search.aggregations.metrics.avg.Avg avg = entry.getAggregations().get("avg");
-            //System.out.println(" "+entry.getKey()+" "+entry.getDocCount()+" "+avg.getValueAsString());
-            String value = avg.getValueAsString();
-            if(!value.equals("Infinity")) {
-              if(c!=0 && out!=null)
-                out.println("},");
-              rt = new JsonObject();
-              Date measuredTime = dateFormatterTZ[0].parse(entry.getKeyAsString());
-              if(out!=null) out.print("{\n\"measuredTime\":{\"value\":\""+dateFormatterTZ[0].format(measuredTime)+"\"},");
-              rt.addProperty("measuredTime", dateFormatterTZ[0].format(measuredTime));
-              if(out!=null) out.print(" \""+valueName+"\":{\"value\":\""+value+"\"}");
-              rt.addProperty(valueName, value);
-              rtData.add(rt);
+              else
+                if(out!=null) 
+                  out.print(",");
               c++;
+              cdt = dt;
+              cuuid = uuid;
+            } else {
+              if(fromTime==null && rtData.size()>=limit-1) //prende i primi valori
+                break;
+              cdt = dt;
+              cuuid = uuid;
+              rtData.add(rt);
+              rt = new JsonObject();
+              String measuredTime = dateFormatterTZ[0].format(dt);
+              if(out!=null)
+                out.print("},  {\n  \"measuredTime\":{\"value\":\""+measuredTime+"\"},");
+              rt.addProperty("measuredTime", measuredTime);
+              c=1;
             }
+            if(out!=null)
+              out.print("  \""+vn+"\":{\"value\":"+valueOut+"}");
+            rt.addProperty(vn.toString(),value.toString());
           }
-          /*for (Histogram.Bucket entry : agg.getBuckets()) {
-            org.elasticsearch.search.aggregations.metrics.avg.Avg avg = entry.getAggregations().get("avg");
-            System.out.println(" "+entry.getKey()+" "+entry.getDocCount()+" "+avg.getValueAsString());
-          }*/       
+          if(conf.get("elasticSearchScrollSearch","false").equals("true")) {
+            SearchScrollRequest scrollRequest = new SearchScrollRequest(r.getScrollId()); 
+            scrollRequest.scroll(TimeValue.timeValueMinutes(1));
+            ServiceMap.println("elaticSearch scroll");
+            r = client.scroll(scrollRequest, RequestOptions.DEFAULT);
+            hits = r.getHits().getHits();
+            ServiceMap.println("elaticSearch scroll found "+hits.length+" hits");
+          } else 
+            break;
+        } while(hits.length > 0);
+        rtData.add(rt);
+      } else {
+        Histogram agg = r.getAggregations().get("date_time");
+
+        List<? extends Histogram.Bucket> l = agg.getBuckets();
+        ListIterator<? extends Histogram.Bucket> li = l.listIterator(l.size());
+        while(li.hasPrevious()) {
+          Histogram.Bucket entry = li.previous();
+          org.elasticsearch.search.aggregations.metrics.avg.Avg avg = entry.getAggregations().get("avg");
+          //System.out.println(" "+entry.getKey()+" "+entry.getDocCount()+" "+avg.getValueAsString());
+          String value = avg.getValueAsString();
+          if(!value.equals("Infinity")) {
+            if(c!=0 && out!=null)
+              out.println("},");
+            rt = new JsonObject();
+            Date measuredTime = dateFormatterTZ[0].parse(entry.getKeyAsString());
+            if(out!=null) out.print("{\n\"measuredTime\":{\"value\":\""+dateFormatterTZ[0].format(measuredTime)+"\"},");
+            rt.addProperty("measuredTime", dateFormatterTZ[0].format(measuredTime));
+            if(out!=null) out.print(" \""+valueName+"\":{\"value\":\""+value+"\"}");
+            rt.addProperty(valueName, value);
+            rtData.add(rt);
+            c++;
+          }
         }
-        String customAttrLastValues = "";
-        if(fromTime == null) {
-          try(Connection rtCon = ServiceMap.getRTConnection()) {
-            if(rtCon!=null) {
-              for(String a:customAttrs) {
-                if(valueName==null || a.equals(valueName)) {
-                  JsonArray cdata = new JsonArray();
-                  ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
-                  if(cdata.size()>0) {
-                    customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
-                    if(rtData.size()>0)
-                      rtData.get(0).getAsJsonObject().add(a, cdata.get(0));
-                  }
+        /*for (Histogram.Bucket entry : agg.getBuckets()) {
+          org.elasticsearch.search.aggregations.metrics.avg.Avg avg = entry.getAggregations().get("avg");
+          System.out.println(" "+entry.getKey()+" "+entry.getDocCount()+" "+avg.getValueAsString());
+        }*/       
+      }
+      String customAttrLastValues = "";
+      if(fromTime == null) {
+        try(Connection rtCon = ServiceMap.getRTConnection()) {
+          if(rtCon!=null) {
+            for(String a:customAttrs) {
+              if(valueName==null || a.equals(valueName)) {
+                JsonArray cdata = new JsonArray();
+                ServiceValuesServlet.getValues(rtCon, conf, null, toTime, "1", serviceUri, a, cdata, null);
+                if(cdata.size()>0) {
+                  customAttrLastValues += ",\""+a+"\":"+cdata.get(0);
+                  if(rtData.size()>0)
+                    rtData.get(0).getAsJsonObject().add(a, cdata.get(0));
                 }
               }
-              if(out!=null)
-                out.print(customAttrLastValues);
             }
+            if(out!=null)
+              out.print(customAttrLastValues);
           }
         }
-        if(c!=0 && out!=null)
-          out.println(" }");
-        if(out!=null)
-          out.println("]}}");
       }
-    } finally {
-      client.close();
+      if(c!=0 && out!=null)
+        out.println(" }");
+      if(out!=null)
+        out.println("]}}");
     }
   }
   

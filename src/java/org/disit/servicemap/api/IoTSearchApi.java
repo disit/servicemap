@@ -87,7 +87,7 @@ public class IoTSearchApi {
   public int iotSearch(JspWriter out, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String notHealthy, String forceCheck) throws Exception {
     Configuration conf = Configuration.getInstance();
 
-    RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf);
+    RestHighLevelClient client = ServiceMap.getSharedElasticSearchClient(conf);
     String[] index = conf.get("elasticSearchDevicesIndex", "devices-state-all").split(";");
 
     Set<String> fieldList = new HashSet<>();
@@ -103,262 +103,258 @@ public class IoTSearchApi {
     List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", 
             "deviceName", "deviceModel", "date_time", "expected_next_date_time", "deviceDelay_s", "entry_date");
     
-    try {
-      String q = null;
-      if (serviceUris != null && serviceUris.length > 0) {
-        q = serviceUriQueryBuilder(q, serviceUris);
-      }
-      if (model != null) {
-        q = modelQueryBuilder(q, model);
-      }
-      if (categories != null && !categories.isEmpty()) {
-        q = categoriesQueryBuilder(q, categories);
-      }
-      ArrayList<String[]> delayConds = new ArrayList<>();
-      ArrayList<String[]> rangeConds = new ArrayList<>();
-      if (condition != null && !condition.trim().isEmpty()) {
-        q = conditionQueryBuilder(q, condition, delayConds, rangeConds);
-      }
-      
-      if(! "true".equals(forceCheck) )
-        q = userQueryBuilder(q, user);
+    String q = null;
+    if (serviceUris != null && serviceUris.length > 0) {
+      q = serviceUriQueryBuilder(q, serviceUris);
+    }
+    if (model != null) {
+      q = modelQueryBuilder(q, model);
+    }
+    if (categories != null && !categories.isEmpty()) {
+      q = categoriesQueryBuilder(q, categories);
+    }
+    ArrayList<String[]> delayConds = new ArrayList<>();
+    ArrayList<String[]> rangeConds = new ArrayList<>();
+    if (condition != null && !condition.trim().isEmpty()) {
+      q = conditionQueryBuilder(q, condition, delayConds, rangeConds);
+    }
 
-      if (text != null) {
-        q = textQueryBuilder(q, text);
+    if(! "true".equals(forceCheck) )
+      q = userQueryBuilder(q, user);
+
+    if (text != null) {
+      q = textQueryBuilder(q, text);
+    }
+
+    if("true".equals(notHealthy)) {
+      q = notHealthyQuery(q, conf);
+    }
+
+    SearchRequest sr = new SearchRequest();
+
+    SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+
+    QueryBuilder geoQuery = QueryBuilders.matchAllQuery();
+    double lat = 0, lon = 0;
+    if (coords != null) {
+      switch (coords.length) {
+        case 2:
+          lat = Double.parseDouble(coords[0]);
+          lon = Double.parseDouble(coords[1]);
+          geoQuery = QueryBuilders.geoDistanceQuery("latlon").distance(maxDist + "km").point(lat, lon);
+          break;
+        case 4:
+          lat = (Double.parseDouble(coords[0]) + Double.parseDouble(coords[2])) / 2;
+          lon = (Double.parseDouble(coords[1]) + Double.parseDouble(coords[3])) / 2;
+          geoQuery = QueryBuilders.geoBoundingBoxQuery("latlon").setCorners(
+                  Double.parseDouble(coords[2]), Double.parseDouble(coords[1]),
+                  Double.parseDouble(coords[0]), Double.parseDouble(coords[3])
+          );
+          break;
+        default:
+          throw new IllegalArgumentException("selection type not supported");
       }
-      
-      if("true".equals(notHealthy)) {
-        q = notHealthyQuery(q, conf);
+    }
+
+    QueryBuilder dataQuery = QueryBuilders.matchAllQuery();
+    if (q != null) {
+      dataQuery = QueryBuilders.queryStringQuery(q).defaultField("serviceUri").lenient(Boolean.TRUE);
+    }
+    BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(dataQuery).filter(geoQuery);
+
+    buildRangeCondQuery(boolQuery, rangeConds, stdFields);
+
+    for(String[] delayCnd: delayConds) {
+      Map<String, Object> params = new HashMap<>();
+      Script delay_s_script = new Script(ScriptType.INLINE, "painless",
+                    "Instant Currentdate = Instant.ofEpochMilli(new Date().getTime());\n" +
+                    "Instant Startdate = Instant.ofEpochMilli(doc['date_time'].value.getMillis());\n" +
+                    "ChronoUnit.SECONDS.between(Startdate, Currentdate) "+delayCnd[0]+" "+delayCnd[1]+";", params);
+      boolQuery.filter(QueryBuilders.scriptQuery(delay_s_script));
+    }
+
+    searchSourceBuilder.query(boolQuery);
+    searchSourceBuilder.size(limit == null ? 100 : Integer.parseInt(limit));
+    searchSourceBuilder.from(offset == null ? 0 : Integer.parseInt(offset));
+
+    if (coords != null) {
+      Map<String, Object> params = new HashMap<>();
+      params.put("lat", lat);
+      params.put("lon", lon);
+      searchSourceBuilder.scriptField("geo_distance",
+              new Script(ScriptType.INLINE, "painless",
+                      "doc['latlon'].arcDistance(params.lat,params.lon)/1000", params));
+      if (sortField == null) {
+        searchSourceBuilder.sort(new GeoDistanceSortBuilder("latlon", lat, lon));
+      }
+    }
+
+    boolean sortOnDelay = false;
+    if (sortField != null && !sortField.equals("none")) {
+      String[] sortF = sortField.split(":");
+      String check;
+      if ((check = CheckParameters.checkAlphanumString(sortF[0])) != null) {
+        throw new IllegalArgumentException("sort value name is not valid: " + check);
+      }
+      if (sortF.length > 1 && (check = CheckParameters.checkEnum(sortF[1], new String[]{"asc", "desc"})) != null) {
+        throw new IllegalArgumentException("invalid sort type asc/desc");
+      }
+      if (sortF.length > 2 && (check = CheckParameters.checkEnum(sortF[2], new String[]{"string", "date", "long", "short"})) != null) {
+        throw new IllegalArgumentException("invalid sort datatype string/date/long/short");
       }
 
-      SearchRequest sr = new SearchRequest();
-
-      SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-
-      QueryBuilder geoQuery = QueryBuilders.matchAllQuery();
-      double lat = 0, lon = 0;
-      if (coords != null) {
-        switch (coords.length) {
-          case 2:
-            lat = Double.parseDouble(coords[0]);
-            lon = Double.parseDouble(coords[1]);
-            geoQuery = QueryBuilders.geoDistanceQuery("latlon").distance(maxDist + "km").point(lat, lon);
-            break;
-          case 4:
-            lat = (Double.parseDouble(coords[0]) + Double.parseDouble(coords[2])) / 2;
-            lon = (Double.parseDouble(coords[1]) + Double.parseDouble(coords[3])) / 2;
-            geoQuery = QueryBuilders.geoBoundingBoxQuery("latlon").setCorners(
-                    Double.parseDouble(coords[2]), Double.parseDouble(coords[1]),
-                    Double.parseDouble(coords[0]), Double.parseDouble(coords[3])
-            );
-            break;
-          default:
-            throw new IllegalArgumentException("selection type not supported");
-        }
+      SortOrder order = SortOrder.ASC;
+      if (sortF.length > 1 && sortF[1].equals("desc")) {
+        order = SortOrder.DESC;
       }
-
-      QueryBuilder dataQuery = QueryBuilders.matchAllQuery();
-      if (q != null) {
-        dataQuery = QueryBuilders.queryStringQuery(q).defaultField("serviceUri").lenient(Boolean.TRUE);
+      String unmappedType = "string";
+      if (sortF.length > 2) {
+        unmappedType = sortF[2];
       }
-      BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(dataQuery).filter(geoQuery);
-      
-      buildRangeCondQuery(boolQuery, rangeConds, stdFields);
-      
-      for(String[] delayCnd: delayConds) {
+      if(sortF[0].equals("deviceDelay_s")) {
+        sortOnDelay = true;
         Map<String, Object> params = new HashMap<>();
         Script delay_s_script = new Script(ScriptType.INLINE, "painless",
                       "Instant Currentdate = Instant.ofEpochMilli(new Date().getTime());\n" +
                       "Instant Startdate = Instant.ofEpochMilli(doc['date_time'].value.getMillis());\n" +
-                      "ChronoUnit.SECONDS.between(Startdate, Currentdate) "+delayCnd[0]+" "+delayCnd[1]+";", params);
-        boolQuery.filter(QueryBuilders.scriptQuery(delay_s_script));
+                      "ChronoUnit.SECONDS.between(Startdate, Currentdate);", params);
+        searchSourceBuilder.sort(SortBuilders.scriptSort(delay_s_script, ScriptSortBuilder.ScriptSortType.NUMBER).order(order));
+      } else if (stdFields.contains(sortF[0].trim())) {
+        searchSourceBuilder.sort(new FieldSortBuilder(sortF[0]).order(order).unmappedType(unmappedType));
+      } else {
+        searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value").order(order).unmappedType(unmappedType));
+        searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str.keyword").order(order).unmappedType(unmappedType));
       }
-      
-      searchSourceBuilder.query(boolQuery);
-      searchSourceBuilder.size(limit == null ? 100 : Integer.parseInt(limit));
-      searchSourceBuilder.from(offset == null ? 0 : Integer.parseInt(offset));
+    }
 
-      if (coords != null) {
-        Map<String, Object> params = new HashMap<>();
-        params.put("lat", lat);
-        params.put("lon", lon);
-        searchSourceBuilder.scriptField("geo_distance",
-                new Script(ScriptType.INLINE, "painless",
-                        "doc['latlon'].arcDistance(params.lat,params.lon)/1000", params));
-        if (sortField == null) {
-          searchSourceBuilder.sort(new GeoDistanceSortBuilder("latlon", lat, lon));
-        }
+    searchSourceBuilder.fetchSource(true);
+    sr.source(searchSourceBuilder);
+
+    sr.indices(index);
+
+    long ts = System.currentTimeMillis();
+    SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
+    ShardSearchFailure[] failures = r.getShardFailures();
+    for(ShardSearchFailure sf: failures) {
+        ServiceMap.println("failure:" + sf);
+    }
+    SearchHit[] hits = r.getHits().getHits();
+    long nfound = r.getHits().totalHits;
+    String jsonQuery = "NA";
+    if (conf.get("elasticSearchDebugQuery", "false").equals("true")) {
+      try {
+        jsonQuery = searchSourceBuilder.toString();
+      } catch (Exception e) {
+        e.printStackTrace();
       }
+    }
 
-      boolean sortOnDelay = false;
-      if (sortField != null && !sortField.equals("none")) {
-        String[] sortF = sortField.split(":");
-        String check;
-        if ((check = CheckParameters.checkAlphanumString(sortF[0])) != null) {
-          throw new IllegalArgumentException("sort value name is not valid: " + check);
-        }
-        if (sortF.length > 1 && (check = CheckParameters.checkEnum(sortF[1], new String[]{"asc", "desc"})) != null) {
-          throw new IllegalArgumentException("invalid sort type asc/desc");
-        }
-        if (sortF.length > 2 && (check = CheckParameters.checkEnum(sortF[2], new String[]{"string", "date", "long", "short"})) != null) {
-          throw new IllegalArgumentException("invalid sort datatype string/date/long/short");
-        }
+    ServiceMap.performance("elasticsearch device " + q + "  : " + (System.currentTimeMillis() - ts) + "ms nfound:" + nfound + " query:" + jsonQuery);
 
-        SortOrder order = SortOrder.ASC;
-        if (sortF.length > 1 && sortF[1].equals("desc")) {
-          order = SortOrder.DESC;
-        }
-        String unmappedType = "string";
-        if (sortF.length > 2) {
-          unmappedType = sortF[2];
-        }
-        if(sortF[0].equals("deviceDelay_s")) {
-          sortOnDelay = true;
-          Map<String, Object> params = new HashMap<>();
-          Script delay_s_script = new Script(ScriptType.INLINE, "painless",
-                        "Instant Currentdate = Instant.ofEpochMilli(new Date().getTime());\n" +
-                        "Instant Startdate = Instant.ofEpochMilli(doc['date_time'].value.getMillis());\n" +
-                        "ChronoUnit.SECONDS.between(Startdate, Currentdate);", params);
-          searchSourceBuilder.sort(SortBuilders.scriptSort(delay_s_script, ScriptSortBuilder.ScriptSortType.NUMBER).order(order));
-        } else if (stdFields.contains(sortF[0].trim())) {
-          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0]).order(order).unmappedType(unmappedType));
-        } else {
-          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value").order(order).unmappedType(unmappedType));
-          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str.keyword").order(order).unmappedType(unmappedType));
-        }
-      }
+    out.println("{");
+    if(user!=null && user.isWrong()) {
+        out.println("\"warning\":\"invalid JWT access token, " + JSONObject.escape(user.error) + ", returning only public data\",");
+    }
+    out.println("\"type\":\"FeatureCollection\"");
+    if (conf.get("debug", "false").equals("true")) {
+      out.println(",\"query\":\"" + JSONObject.escape(q) + "\"");
+    }
+    out.println(",\"features\":[");
+    Gson gson = new Gson();
 
-      searchSourceBuilder.fetchSource(true);
-      sr.source(searchSourceBuilder);
+    int pp = 0;
+    for (int i = 0; i < hits.length; i++) {
+      Map<String, Object> src = hits[i].getSourceAsMap();
+      Map<String, DocumentField> fld = hits[i].getFields();
+      if("true".equals(forceCheck)) {
+          String serviceUri = ((String) src.get("serviceUri"));
+          String apikey = null;
+          if(user!=null)
+              apikey="user:"+user.username+" role:"+user.role+" at:"+user.accessToken;
 
-      sr.indices(index);
-
-      long ts = System.currentTimeMillis();
-      SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
-      ShardSearchFailure[] failures = r.getShardFailures();
-      for(ShardSearchFailure sf: failures) {
-          ServiceMap.println("failure:" + sf);
-      }
-      SearchHit[] hits = r.getHits().getHits();
-      long nfound = r.getHits().totalHits;
-      String jsonQuery = "NA";
-      if (conf.get("elasticSearchDebugQuery", "false").equals("true")) {
-        try {
-          jsonQuery = searchSourceBuilder.toString();
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-      }
-
-      ServiceMap.performance("elasticsearch device " + q + "  : " + (System.currentTimeMillis() - ts) + "ms nfound:" + nfound + " query:" + jsonQuery);
-
-      out.println("{");
-      if(user!=null && user.isWrong()) {
-          out.println("\"warning\":\"invalid JWT access token, " + JSONObject.escape(user.error) + ", returning only public data\",");
-      }
-      out.println("\"type\":\"FeatureCollection\"");
-      if (conf.get("debug", "false").equals("true")) {
-        out.println(",\"query\":\"" + JSONObject.escape(q) + "\"");
-      }
-      out.println(",\"features\":[");
-      Gson gson = new Gson();
-
-      int pp = 0;
-      for (int i = 0; i < hits.length; i++) {
-        Map<String, Object> src = hits[i].getSourceAsMap();
-        Map<String, DocumentField> fld = hits[i].getFields();
-        if("true".equals(forceCheck)) {
-            String serviceUri = ((String) src.get("serviceUri"));
-            String apikey = null;
-            if(user!=null)
-                apikey="user:"+user.username+" role:"+user.role+" at:"+user.accessToken;
-            
-            if(!IoTChecker.checkIoTService(serviceUri, apikey)) {
-                nfound--;
-                continue;
-            }
-        }
-        String[] latlon = ((String) src.get("latlon")).split(",");
-        out.println((pp++ > 0 ? "," : "") + "{\"type\":\"Feature\"");
-        out.println(", \"geometry\":{ \"type\":\"Point\", \"coordinates\":[" + latlon[1] + "," + latlon[0] + "] }");
-        out.println(", \"properties\":{");
-        int p = 0;
-        for (String f : stdFields) {
-          Object value = src.get(f);
-          if (value == null) {
-            continue;
+          if(!IoTChecker.checkIoTService(serviceUri, apikey)) {
+              nfound--;
+              continue;
           }
+      }
+      String[] latlon = ((String) src.get("latlon")).split(",");
+      out.println((pp++ > 0 ? "," : "") + "{\"type\":\"Feature\"");
+      out.println(", \"geometry\":{ \"type\":\"Point\", \"coordinates\":[" + latlon[1] + "," + latlon[0] + "] }");
+      out.println(", \"properties\":{");
+      int p = 0;
+      for (String f : stdFields) {
+        Object value = src.get(f);
+        if (value == null) {
+          continue;
+        }
+        if (value instanceof Map) {
+          Map vv = (Map) value;
+          if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
+            //nothing to do
+          } else if (vv.containsKey("value_str")) {
+            value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
+          }
+        } else {
+          value = "\"" + JSONObject.escape(value.toString()) + "\"";
+        }
+        out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
+      }
+      if(sortOnDelay) {
+        out.println(",\"deviceDelay_s\":" + hits[i].getSortValues()[0]);
+      }
+      if (coords != null) {
+        out.println(",\"geo_distance\":" + fld.get("geo_distance").getValue());
+      }
+      out.println(",\"values\":{");
+      p = 0;
+      Set<String> flds;
+      if (fieldList.isEmpty()) {
+        flds = src.keySet();
+      } else {
+        flds = new HashSet(fieldList);
+      }
+      boolean elasticSearchValueObjAsString = conf.get("elasticSearchValueObjAsString", "false").equals("true");
+      for (String f : flds) {
+        if (skipFields.contains(f) || stdFields.contains(f)) {
+          continue;
+        }
+        Object value = src.get(f);
+        if (value == null) {
+          continue;
+        }
+
           if (value instanceof Map) {
             Map vv = (Map) value;
             if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
               //nothing to do
+            } else if (vv.containsKey("value_arr_obj")) {
+              value = gson.toJson(vv.get("value_arr_obj"));
+              if (elasticSearchValueObjAsString) {
+                value = "\"" + JSONObject.escape(value.toString()) + "\"";
+              }
+            } else if (vv.containsKey("value_obj")) {
+              value = gson.toJson(vv.get("value_obj"));
+              if (elasticSearchValueObjAsString) {
+                value = "\"" + JSONObject.escape(value.toString()) + "\"";
+              }
+            } else if (vv.containsKey("value_json_str")) {
+              value = vv.get("value_json_str");
+              if (elasticSearchValueObjAsString) {
+                value = "\"" + JSONObject.escape(value.toString()) + "\"";
+              }
             } else if (vv.containsKey("value_str")) {
               value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
             }
           } else {
             value = "\"" + JSONObject.escape(value.toString()) + "\"";
           }
-          out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
-        }
-        if(sortOnDelay) {
-          out.println(",\"deviceDelay_s\":" + hits[i].getSortValues()[0]);
-        }
-        if (coords != null) {
-          out.println(",\"geo_distance\":" + fld.get("geo_distance").getValue());
-        }
-        out.println(",\"values\":{");
-        p = 0;
-        Set<String> flds;
-        if (fieldList.isEmpty()) {
-          flds = src.keySet();
-        } else {
-          flds = new HashSet(fieldList);
-        }
-        boolean elasticSearchValueObjAsString = conf.get("elasticSearchValueObjAsString", "false").equals("true");
-        for (String f : flds) {
-          if (skipFields.contains(f) || stdFields.contains(f)) {
-            continue;
-          }
-          Object value = src.get(f);
-          if (value == null) {
-            continue;
-          }
-
-            if (value instanceof Map) {
-              Map vv = (Map) value;
-              if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
-                //nothing to do
-              } else if (vv.containsKey("value_arr_obj")) {
-                value = gson.toJson(vv.get("value_arr_obj"));
-                if (elasticSearchValueObjAsString) {
-                  value = "\"" + JSONObject.escape(value.toString()) + "\"";
-                }
-              } else if (vv.containsKey("value_obj")) {
-                value = gson.toJson(vv.get("value_obj"));
-                if (elasticSearchValueObjAsString) {
-                  value = "\"" + JSONObject.escape(value.toString()) + "\"";
-                }
-              } else if (vv.containsKey("value_json_str")) {
-                value = vv.get("value_json_str");
-                if (elasticSearchValueObjAsString) {
-                  value = "\"" + JSONObject.escape(value.toString()) + "\"";
-                }
-              } else if (vv.containsKey("value_str")) {
-                value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
-              }
-            } else {
-              value = "\"" + JSONObject.escape(value.toString()) + "\"";
-            }
-          out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
-        }
-        out.println("}}}");
+        out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
       }
-      out.println("]");
-      out.println(",\"fullCount\":" + nfound+ " }");
-      return (int) hits.length;
-    } finally {
-      client.close();
+      out.println("}}}");
     }
+    out.println("]");
+    out.println(",\"fullCount\":" + nfound+ " }");
+    return (int) hits.length;
   }
 
   private static String conditionQueryBuilder(String q, String condition, ArrayList<String[]> delayConds, ArrayList<String[]> rangeConds) throws IllegalArgumentException {
@@ -611,7 +607,7 @@ public class IoTSearchApi {
   public int iotSearchOverTimeRange(JspWriter out, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String fromTime, String toTime, String aggregate) throws Exception {
     Configuration conf = Configuration.getInstance();
 
-    RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf);
+    RestHighLevelClient client = ServiceMap.getSharedElasticSearchClient(conf);
     String[] index = conf.get("elasticSearchFullDevicesIndex", "ot-devices-state-disit").split(";");
 
     Set<String> fieldList = new HashSet<>();
@@ -625,294 +621,290 @@ public class IoTSearchApi {
             "user_delegations", "organization_delegations", "sensorID", "latlon",
             "kind", "groups", "value_name", "value_type", "value_unit", "data_type"));
     List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", "deviceName", "deviceModel", "entry_date", "highLevelType");
-    try {
-      String q = null;
-      if (serviceUris != null && serviceUris.length > 0) {
-        q = serviceUriQueryBuilder(q, serviceUris);
-      }
-      if (model != null) {
-        q = modelQueryBuilder(q, model);
-      }
-      if (categories != null) {
-        q = categoriesQueryBuilder(q, categories);
-      }
-      ArrayList<String[]> rangeConds = new ArrayList<>();
-      if (condition != null && !condition.trim().isEmpty()) {
-        q = conditionQueryBuilder(q, condition, null, rangeConds);
-      }
-      q = userQueryBuilder(q,user);
+    String q = null;
+    if (serviceUris != null && serviceUris.length > 0) {
+      q = serviceUriQueryBuilder(q, serviceUris);
+    }
+    if (model != null) {
+      q = modelQueryBuilder(q, model);
+    }
+    if (categories != null) {
+      q = categoriesQueryBuilder(q, categories);
+    }
+    ArrayList<String[]> rangeConds = new ArrayList<>();
+    if (condition != null && !condition.trim().isEmpty()) {
+      q = conditionQueryBuilder(q, condition, null, rangeConds);
+    }
+    q = userQueryBuilder(q,user);
 
-      if (text != null) {
-        q = textQueryBuilder(q, text);
+    if (text != null) {
+      q = textQueryBuilder(q, text);
+    }
+
+    q = fromToTimeQueryBuilder(q, fromTime, toTime);
+
+    SearchRequest sr = new SearchRequest();
+
+    SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+
+    QueryBuilder geoQuery = QueryBuilders.matchAllQuery();
+    double lat = 0, lon = 0;
+    if (coords != null) {
+      switch (coords.length) {
+        case 2:
+          lat = Double.parseDouble(coords[0]);
+          lon = Double.parseDouble(coords[1]);
+          geoQuery = QueryBuilders.geoDistanceQuery("latlon").distance(maxDist + "km").point(lat, lon);
+          break;
+        case 4:
+          lat = (Double.parseDouble(coords[0]) + Double.parseDouble(coords[2])) / 2;
+          lon = (Double.parseDouble(coords[1]) + Double.parseDouble(coords[3])) / 2;
+          geoQuery = QueryBuilders.geoBoundingBoxQuery("latlon").setCorners(
+                  Double.parseDouble(coords[2]), Double.parseDouble(coords[1]),
+                  Double.parseDouble(coords[0]), Double.parseDouble(coords[3])
+          );
+          break;
+        default:
+          throw new IllegalArgumentException("selection type not supported");
       }
-      
-      q = fromToTimeQueryBuilder(q, fromTime, toTime);
+    }
 
-      SearchRequest sr = new SearchRequest();
+    QueryBuilder dataQuery = QueryBuilders.matchAllQuery();
+    if (q != null) {
+      dataQuery = QueryBuilders.queryStringQuery(q).defaultField("serviceUri").lenient(Boolean.TRUE);
+    }
+    BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(dataQuery).filter(geoQuery);
 
-      SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+    buildRangeCondQuery(boolQuery, rangeConds, stdFields);
 
-      QueryBuilder geoQuery = QueryBuilders.matchAllQuery();
-      double lat = 0, lon = 0;
-      if (coords != null) {
-        switch (coords.length) {
-          case 2:
-            lat = Double.parseDouble(coords[0]);
-            lon = Double.parseDouble(coords[1]);
-            geoQuery = QueryBuilders.geoDistanceQuery("latlon").distance(maxDist + "km").point(lat, lon);
-            break;
-          case 4:
-            lat = (Double.parseDouble(coords[0]) + Double.parseDouble(coords[2])) / 2;
-            lon = (Double.parseDouble(coords[1]) + Double.parseDouble(coords[3])) / 2;
-            geoQuery = QueryBuilders.geoBoundingBoxQuery("latlon").setCorners(
-                    Double.parseDouble(coords[2]), Double.parseDouble(coords[1]),
-                    Double.parseDouble(coords[0]), Double.parseDouble(coords[3])
-            );
-            break;
-          default:
-            throw new IllegalArgumentException("selection type not supported");
+    searchSourceBuilder.query(boolQuery);
+    boolean aggreg = ("true".equalsIgnoreCase(aggregate));
+
+    int lmt = limit == null ? 100 : Integer.parseInt(limit);
+    searchSourceBuilder.size( aggreg ? 0 : lmt);
+    searchSourceBuilder.from(offset == null ? 0 : Integer.parseInt(offset));
+
+    if (coords != null) {
+      Map<String, Object> params = new HashMap<>();
+      params.put("lat", lat);
+      params.put("lon", lon);
+      searchSourceBuilder.scriptField("geo_distance",
+              new Script(ScriptType.INLINE, "painless",
+                      "doc['latlon'].arcDistance(params.lat,params.lon)/1000", params));
+      if (sortField == null && !aggreg) {
+        searchSourceBuilder.sort(new GeoDistanceSortBuilder("latlon", lat, lon));
+        sortField = "latlon";
+      }
+    }
+
+    if (!aggreg) {
+      if(sortField==null)
+        sortField = "date_time:desc";
+      if(!sortField.equals("none") && !sortField.equals("latlon")) {
+        String[] sortF = sortField.split(":");
+        String check;
+        if ((check = CheckParameters.checkAlphanumString(sortF[0])) != null) {
+          throw new IllegalArgumentException("sort value name is not valid: " + check);
+        }
+        if (sortF.length > 1 && (check = CheckParameters.checkEnum(sortF[1], new String[]{"asc", "desc"})) != null) {
+          throw new IllegalArgumentException("invalid sort type asc/desc");
+        }
+        if (sortF.length > 2 && (check = CheckParameters.checkEnum(sortF[2], new String[]{"string", "date", "long", "short"})) != null) {
+          throw new IllegalArgumentException("invalid sort datatype string/date/long/short");
+        }
+
+        SortOrder order = SortOrder.ASC;
+        if (sortF.length > 1 && sortF[1].equals("desc")) {
+          order = SortOrder.DESC;
+        }
+        String unmappedType = "string";
+        if (sortF.length > 2) {
+          unmappedType = sortF[2];
+        }
+        if(sortF[0].trim().equals("date_time")) {
+          searchSourceBuilder.sort(new FieldSortBuilder("date_time").order(order));
+        } else if (stdFields.contains(sortF[0].trim())) {
+          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0]).order(order).unmappedType(unmappedType));
+        } else {
+          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value").order(order).unmappedType(unmappedType));
+          searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str.keyword").order(order).unmappedType(unmappedType));
         }
       }
+    }
 
-      QueryBuilder dataQuery = QueryBuilders.matchAllQuery();
-      if (q != null) {
-        dataQuery = QueryBuilders.queryStringQuery(q).defaultField("serviceUri").lenient(Boolean.TRUE);
+    if(aggreg) {
+      //perform serviceUri aggregation
+      searchSourceBuilder.aggregation(AggregationBuilders.terms("serviceUri_agg").field("serviceUri.keyword").size(lmt)
+              .subAggregation(AggregationBuilders.topHits("sample").size(1))
+      );
+      searchSourceBuilder.size(0);
+    }
+
+    if(fields != null) {
+      HashSet<String> srcFields = (HashSet<String>)((HashSet<String>)fieldList).clone();
+      srcFields.add("latlon");
+      srcFields.addAll(stdFields);
+      String[] includes = srcFields.toArray(new String[0]);
+      String[] excludes = new String[] {};
+      searchSourceBuilder.fetchSource(includes, excludes);
+    } else {
+      searchSourceBuilder.fetchSource(true);
+    }
+    sr.source(searchSourceBuilder);
+
+    if (conf.get("elasticSearchScrollSearch", "false").equals("true")) {
+      sr.scroll(TimeValue.timeValueMinutes(1));
+    }
+
+    sr.indices(index);
+
+    long ts = System.currentTimeMillis();
+    SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
+    String jsonQuery = "NA";
+    if (conf.get("elasticSearchDebugQuery", "false").equals("true")) {
+      try {
+        jsonQuery = searchSourceBuilder.toString();
+      } catch (Exception e) {
+        e.printStackTrace();
       }
-      BoolQueryBuilder boolQuery = QueryBuilders.boolQuery().must(dataQuery).filter(geoQuery);
-           
-      buildRangeCondQuery(boolQuery, rangeConds, stdFields);
-      
-      searchSourceBuilder.query(boolQuery);
-      boolean aggreg = ("true".equalsIgnoreCase(aggregate));
+    }
+    if(!aggreg) {
+      SearchHit[] hits = r.getHits().getHits();
+      long nfound = r.getHits().totalHits;
 
-      int lmt = limit == null ? 100 : Integer.parseInt(limit);
-      searchSourceBuilder.size( aggreg ? 0 : lmt);
-      searchSourceBuilder.from(offset == null ? 0 : Integer.parseInt(offset));
-      
-      if (coords != null) {
-        Map<String, Object> params = new HashMap<>();
-        params.put("lat", lat);
-        params.put("lon", lon);
-        searchSourceBuilder.scriptField("geo_distance",
-                new Script(ScriptType.INLINE, "painless",
-                        "doc['latlon'].arcDistance(params.lat,params.lon)/1000", params));
-        if (sortField == null && !aggreg) {
-          searchSourceBuilder.sort(new GeoDistanceSortBuilder("latlon", lat, lon));
-          sortField = "latlon";
-        }
+      ServiceMap.performance("elasticsearch device " + q + "  : " + (System.currentTimeMillis() - ts) + "ms nfound:" + nfound + " query:" + jsonQuery);
+
+      out.println("{");
+      out.println("\"type\":\"FeatureCollection\"");
+      if (conf.get("debug", "false").equals("true")) {
+        out.println(",\"query\":\"" + JSONObject.escape(q) + "\"");
       }
-      
-      if (!aggreg) {
-        if(sortField==null)
-          sortField = "date_time:desc";
-        if(!sortField.equals("none") && !sortField.equals("latlon")) {
-          String[] sortF = sortField.split(":");
-          String check;
-          if ((check = CheckParameters.checkAlphanumString(sortF[0])) != null) {
-            throw new IllegalArgumentException("sort value name is not valid: " + check);
-          }
-          if (sortF.length > 1 && (check = CheckParameters.checkEnum(sortF[1], new String[]{"asc", "desc"})) != null) {
-            throw new IllegalArgumentException("invalid sort type asc/desc");
-          }
-          if (sortF.length > 2 && (check = CheckParameters.checkEnum(sortF[2], new String[]{"string", "date", "long", "short"})) != null) {
-            throw new IllegalArgumentException("invalid sort datatype string/date/long/short");
-          }
+      out.println(",\"fullCount\":" + nfound);
+      out.println(",\"features\":[");
+      Gson gson = new Gson();
 
-          SortOrder order = SortOrder.ASC;
-          if (sortF.length > 1 && sortF[1].equals("desc")) {
-            order = SortOrder.DESC;
+      for (int i = 0; i < hits.length; i++) {
+        Map<String, Object> src = hits[i].getSourceAsMap();
+        Map<String, DocumentField> fld = hits[i].getFields();
+        String[] latlon = ((String) src.get("latlon")).split(",");
+        out.println((i > 0 ? "," : "") + "{\"type\":\"Feature\"");
+        out.println(", \"geometry\":{ \"type\":\"Point\", \"coordinates\":[" + latlon[1] + "," + latlon[0] + "] }");
+        out.println(", \"properties\":{");
+        int p = 0;
+        for (String f : stdFields) {
+          Object value = src.get(f);
+          if (value == null) {
+            continue;
           }
-          String unmappedType = "string";
-          if (sortF.length > 2) {
-            unmappedType = sortF[2];
-          }
-          if(sortF[0].trim().equals("date_time")) {
-            searchSourceBuilder.sort(new FieldSortBuilder("date_time").order(order));
-          } else if (stdFields.contains(sortF[0].trim())) {
-            searchSourceBuilder.sort(new FieldSortBuilder(sortF[0]).order(order).unmappedType(unmappedType));
+          if (value instanceof Map) {
+            Map vv = (Map) value;
+            if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
+              //nothing to do
+            } else if (vv.containsKey("value_str")) {
+              value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
+            } else if (vv.containsKey("value_json_str")) {
+              value = vv.get("value_json_str");                  
+            }
           } else {
-            searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value").order(order).unmappedType(unmappedType));
-            searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str.keyword").order(order).unmappedType(unmappedType));
+            value = "\"" + JSONObject.escape(value.toString()) + "\"";
           }
+          out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
         }
-      }
-      
-      if(aggreg) {
-        //perform serviceUri aggregation
-        searchSourceBuilder.aggregation(AggregationBuilders.terms("serviceUri_agg").field("serviceUri.keyword").size(lmt)
-                .subAggregation(AggregationBuilders.topHits("sample").size(1))
-        );
-        searchSourceBuilder.size(0);
-      }
-      
-      if(fields != null) {
-        HashSet<String> srcFields = (HashSet<String>)((HashSet<String>)fieldList).clone();
-        srcFields.add("latlon");
-        srcFields.addAll(stdFields);
-        String[] includes = srcFields.toArray(new String[0]);
-        String[] excludes = new String[] {};
-        searchSourceBuilder.fetchSource(includes, excludes);
-      } else {
-        searchSourceBuilder.fetchSource(true);
-      }
-      sr.source(searchSourceBuilder);
-
-      if (conf.get("elasticSearchScrollSearch", "false").equals("true")) {
-        sr.scroll(TimeValue.timeValueMinutes(1));
-      }
-
-      sr.indices(index);
-
-      long ts = System.currentTimeMillis();
-      SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
-      String jsonQuery = "NA";
-      if (conf.get("elasticSearchDebugQuery", "false").equals("true")) {
-        try {
-          jsonQuery = searchSourceBuilder.toString();
-        } catch (Exception e) {
-          e.printStackTrace();
+        if (coords != null) {
+          out.println(",\"geo_distance\":" + fld.get("geo_distance").getValue());
         }
-      }
-      if(!aggreg) {
-        SearchHit[] hits = r.getHits().getHits();
-        long nfound = r.getHits().totalHits;
-
-        ServiceMap.performance("elasticsearch device " + q + "  : " + (System.currentTimeMillis() - ts) + "ms nfound:" + nfound + " query:" + jsonQuery);
-
-        out.println("{");
-        out.println("\"type\":\"FeatureCollection\"");
-        if (conf.get("debug", "false").equals("true")) {
-          out.println(",\"query\":\"" + JSONObject.escape(q) + "\"");
+        out.println(",\"values\":{");
+        p = 0;
+        Set<String> flds;
+        if (fieldList.isEmpty()) {
+          flds = src.keySet();
+        } else {
+          flds = new HashSet(fieldList);
         }
-        out.println(",\"fullCount\":" + nfound);
-        out.println(",\"features\":[");
-        Gson gson = new Gson();
+        for (String f : flds) {
+          if (skipFields.contains(f) || stdFields.contains(f)) {
+            continue;
+          }
+          Object value = src.get(f);
+          if (value == null) {
+            continue;
+          }
 
-        for (int i = 0; i < hits.length; i++) {
-          Map<String, Object> src = hits[i].getSourceAsMap();
-          Map<String, DocumentField> fld = hits[i].getFields();
-          String[] latlon = ((String) src.get("latlon")).split(",");
-          out.println((i > 0 ? "," : "") + "{\"type\":\"Feature\"");
-          out.println(", \"geometry\":{ \"type\":\"Point\", \"coordinates\":[" + latlon[1] + "," + latlon[0] + "] }");
-          out.println(", \"properties\":{");
-          int p = 0;
-          for (String f : stdFields) {
-            Object value = src.get(f);
-            if (value == null) {
-              continue;
-            }
-            if (value instanceof Map) {
-              Map vv = (Map) value;
-              if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
-                //nothing to do
-              } else if (vv.containsKey("value_str")) {
-                value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
-              } else if (vv.containsKey("value_json_str")) {
-                value = vv.get("value_json_str");                  
+          if (value instanceof Map) {
+            Map vv = (Map) value;
+            if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
+              //nothing to do
+            } else if (vv.containsKey("value_arr_obj")) {
+              value = gson.toJson(vv.get("value_arr_obj"));
+              if (conf.get("elasticSearchValueObjAsString", "false").equals("true")) {
+                value = "\"" + JSONObject.escape(value.toString()) + "\"";
               }
-            } else {
-              value = "\"" + JSONObject.escape(value.toString()) + "\"";
+            } else if (vv.containsKey("value_obj")) {
+              value = gson.toJson(vv.get("value_obj"));
+              if (conf.get("elasticSearchValueObjAsString", "false").equals("true")) {
+                value = "\"" + JSONObject.escape(value.toString()) + "\"";
+              }
+            } else if (vv.containsKey("value_json_str")) {
+              value = vv.get("value_json_str");
+              if (conf.get("elasticSearchValueObjAsString", "false").equals("true")) {
+                value = "\"" + JSONObject.escape(value.toString()) + "\"";
+              }
+            } else if (vv.containsKey("value_str")) {
+              value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
             }
-            out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
-          }
-          if (coords != null) {
-            out.println(",\"geo_distance\":" + fld.get("geo_distance").getValue());
-          }
-          out.println(",\"values\":{");
-          p = 0;
-          Set<String> flds;
-          if (fieldList.isEmpty()) {
-            flds = src.keySet();
           } else {
-            flds = new HashSet(fieldList);
+            value = "\"" + JSONObject.escape(value.toString()) + "\"";
           }
-          for (String f : flds) {
-            if (skipFields.contains(f) || stdFields.contains(f)) {
-              continue;
-            }
-            Object value = src.get(f);
-            if (value == null) {
-              continue;
-            }
-
-            if (value instanceof Map) {
-              Map vv = (Map) value;
-              if (vv.containsKey("value") && (value = vv.get("value"))!=null) {
-                //nothing to do
-              } else if (vv.containsKey("value_arr_obj")) {
-                value = gson.toJson(vv.get("value_arr_obj"));
-                if (conf.get("elasticSearchValueObjAsString", "false").equals("true")) {
-                  value = "\"" + JSONObject.escape(value.toString()) + "\"";
-                }
-              } else if (vv.containsKey("value_obj")) {
-                value = gson.toJson(vv.get("value_obj"));
-                if (conf.get("elasticSearchValueObjAsString", "false").equals("true")) {
-                  value = "\"" + JSONObject.escape(value.toString()) + "\"";
-                }
-              } else if (vv.containsKey("value_json_str")) {
-                value = vv.get("value_json_str");
-                if (conf.get("elasticSearchValueObjAsString", "false").equals("true")) {
-                  value = "\"" + JSONObject.escape(value.toString()) + "\"";
-                }
-              } else if (vv.containsKey("value_str")) {
-                value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
-              }
-            } else {
-              value = "\"" + JSONObject.escape(value.toString()) + "\"";
-            }
-            out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
-          }
-          out.println("}}}");
+          out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
         }
-        out.println("]}");
-        return (int) hits.length; 
-      } else {
-        ServiceMap.performance("elasticsearch device aggregation " + q + "  : " + (System.currentTimeMillis() - ts) + "ms query:" + jsonQuery);
-
-        out.println("{");
-        out.println("\"type\":\"FeatureCollection\"");
-        if (conf.get("debug", "false").equals("true")) {
-          out.println(",\"query\":\"" + JSONObject.escape(q) + "\"");
-        }
-        Aggregations a = r.getAggregations();
-        Terms terms = a.get("serviceUri_agg");
-        List<? extends Terms.Bucket> b = terms.getBuckets();
-        out.println(",\"sumOtherDocs\":"+terms.getSumOfOtherDocCounts());
-        out.println(",\"features\":[");
-        int i=0;
-        for(Terms.Bucket x: b) {
-          TopHits sample = x.getAggregations().get("sample");
-          Map<String, Object> src = sample.getHits().getHits()[0].getSourceAsMap();
-          String[] latlon = ((String) src.get("latlon")).split(",");
-          out.println((i++ > 0 ? "," : "") + "{\"type\":\"Feature\"");
-          out.println(", \"geometry\":{ \"type\":\"Point\", \"coordinates\":[" + latlon[1] + "," + latlon[0] + "] }");
-          out.println(", \"properties\":{");
-          int p=0;
-          for (String f : stdFields) {
-            Object value = src.get(f);
-            if (value == null) {
-              continue;
-            }
-            if (value instanceof Map) {
-              Map vv = (Map) value;
-              if (vv.containsKey("value")) {
-                value = vv.get("value");
-              } else if (vv.containsKey("value_str")) {
-                value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
-              }
-            } else {
-              value = "\"" + JSONObject.escape(value.toString()) + "\"";
-            }
-            out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
-          }
-          out.println(", \"aggregationCount\": "+x.getDocCount());
-          out.println("}}");
-        }
-        out.println("]}");
-        return b.size();
+        out.println("}}}");
       }
-    } finally {
-      client.close();
+      out.println("]}");
+      return (int) hits.length; 
+    } else {
+      ServiceMap.performance("elasticsearch device aggregation " + q + "  : " + (System.currentTimeMillis() - ts) + "ms query:" + jsonQuery);
+
+      out.println("{");
+      out.println("\"type\":\"FeatureCollection\"");
+      if (conf.get("debug", "false").equals("true")) {
+        out.println(",\"query\":\"" + JSONObject.escape(q) + "\"");
+      }
+      Aggregations a = r.getAggregations();
+      Terms terms = a.get("serviceUri_agg");
+      List<? extends Terms.Bucket> b = terms.getBuckets();
+      out.println(",\"sumOtherDocs\":"+terms.getSumOfOtherDocCounts());
+      out.println(",\"features\":[");
+      int i=0;
+      for(Terms.Bucket x: b) {
+        TopHits sample = x.getAggregations().get("sample");
+        Map<String, Object> src = sample.getHits().getHits()[0].getSourceAsMap();
+        String[] latlon = ((String) src.get("latlon")).split(",");
+        out.println((i++ > 0 ? "," : "") + "{\"type\":\"Feature\"");
+        out.println(", \"geometry\":{ \"type\":\"Point\", \"coordinates\":[" + latlon[1] + "," + latlon[0] + "] }");
+        out.println(", \"properties\":{");
+        int p=0;
+        for (String f : stdFields) {
+          Object value = src.get(f);
+          if (value == null) {
+            continue;
+          }
+          if (value instanceof Map) {
+            Map vv = (Map) value;
+            if (vv.containsKey("value")) {
+              value = vv.get("value");
+            } else if (vv.containsKey("value_str")) {
+              value = "\"" + JSONObject.escape(vv.get("value_str").toString()) + "\"";
+            }
+          } else {
+            value = "\"" + JSONObject.escape(value.toString()) + "\"";
+          }
+          out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
+        }
+        out.println(", \"aggregationCount\": "+x.getDocCount());
+        out.println("}}");
+      }
+      out.println("]}");
+      return b.size();
     }
   }
 

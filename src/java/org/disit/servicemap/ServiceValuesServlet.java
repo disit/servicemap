@@ -573,17 +573,16 @@ public class ServiceValuesServlet extends HttpServlet {
       if(access.username!=null && conf.get("saveUserOnTypicalTrends", "true").equals("true"))
         obj.addProperty("username", Encrypter.encrypt(access.username));
 
-      try (RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf)) {
-        String trendsIndex = conf.get("elasticSearchTrendsIndex","typicaltrends");
+      RestHighLevelClient client = ServiceMap.getSharedElasticSearchClient(conf);
+      String trendsIndex = conf.get("elasticSearchTrendsIndex","typicaltrends");
 
-        IndexRequest indexRequest = new IndexRequest(trendsIndex); 
-        //indexRequest.id("1");
-        indexRequest.type("_doc");
-        indexRequest.source(obj.toString(), XContentType.JSON);
+      IndexRequest indexRequest = new IndexRequest(trendsIndex); 
+      //indexRequest.id("1");
+      indexRequest.type("_doc");
+      indexRequest.source(obj.toString(), XContentType.JSON);
 
-        IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
-        ServiceMap.println("typicaltrends: result="+indexResponse.getResult());
-      }
+      IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
+      ServiceMap.println("typicaltrends: result="+indexResponse.getResult());
     } catch (Exception e) {
       ServiceMap.logError(request, response, 500, "request failed: "+e.getMessage());
       ServiceMap.notifyException(e);
@@ -597,52 +596,51 @@ public class ServiceValuesServlet extends HttpServlet {
   
   public String getTypicalTrends(String serviceUri, String valueName, String trendType, String date, String from, String to, String computationType) throws IOException {
     Configuration conf = Configuration.getInstance();
-    try (RestHighLevelClient client = ServiceMap.createElasticSearchClient(conf)) {
-      String trendsIndex = conf.get("elasticSearchTrendsIndex","typicaltrends");
-      
-      String q = "serviceUri.keyword:\""+serviceUri+"\"";
-      if(valueName!=null) {
-        q += " AND valueName.keyword:\"" + valueName + "\"";
-      }
-      if(trendType!=null) {
-        q += " AND trendType.keyword:\"" + trendType + "\"";
-      }
-      if(date!=null) {
-        q += " AND from:[* TO "+date+"] AND to:["+date+" TO *]";
-      }
-      if(computationType!=null) {
-        q += " AND computationType.keyword:\"" + computationType + "\"";
-      }
-      if(from!=null) {
-        q += " AND from:\"" + from + "\"";
-      }
-      if(to!=null) {
-        q += " AND to:\"" + to + "\"";
-      }
-      SearchRequest sr = new SearchRequest();
-      SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder(); 
-      searchSourceBuilder.query(QueryBuilders.boolQuery().must(
-              QueryBuilders.queryStringQuery(q)
-      ));
-      searchSourceBuilder.sort("referenceDate", SortOrder.DESC);
-      
-      sr.source(searchSourceBuilder);
-      if(conf.get("elasticSearchScrollSearch","false").equals("true"))
-        sr.scroll(TimeValue.timeValueMinutes(1));
-      sr.indices(trendsIndex);
+    RestHighLevelClient client = ServiceMap.getSharedElasticSearchClient(conf);
+    String trendsIndex = conf.get("elasticSearchTrendsIndex","typicaltrends");
 
-      //long ts = System.currentTimeMillis();
-      SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
-      SearchHit[] hits = r.getHits().getHits();
-      StringBuilder sb = new StringBuilder().append('[');
-      for(int i=0; i<hits.length; i++) {
-        if(i>0)
-          sb.append(',');
-        sb.append(hits[i].getSourceAsString());
-      }
-      sb.append(']');
-      return sb.toString();
+    String q = "serviceUri.keyword:\""+serviceUri+"\"";
+    if(valueName!=null) {
+      q += " AND valueName.keyword:\"" + valueName + "\"";
     }
+    if(trendType!=null) {
+      q += " AND trendType.keyword:\"" + trendType + "\"";
+    }
+    if(date!=null) {
+      q += " AND from:[* TO "+date+"] AND to:["+date+" TO *]";
+    }
+    if(computationType!=null) {
+      q += " AND computationType.keyword:\"" + computationType + "\"";
+    }
+    if(from!=null) {
+      q += " AND from:\"" + from + "\"";
+    }
+    if(to!=null) {
+      q += " AND to:\"" + to + "\"";
+    }
+    SearchRequest sr = new SearchRequest();
+    SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder(); 
+    searchSourceBuilder.query(QueryBuilders.boolQuery().must(
+            QueryBuilders.queryStringQuery(q)
+    ));
+    searchSourceBuilder.sort("referenceDate", SortOrder.DESC);
+
+    sr.source(searchSourceBuilder);
+    if(conf.get("elasticSearchScrollSearch","false").equals("true"))
+      sr.scroll(TimeValue.timeValueMinutes(1));
+    sr.indices(trendsIndex);
+
+    //long ts = System.currentTimeMillis();
+    SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
+    SearchHit[] hits = r.getHits().getHits();
+    StringBuilder sb = new StringBuilder().append('[');
+    for(int i=0; i<hits.length; i++) {
+      if(i>0)
+        sb.append(',');
+      sb.append(hits[i].getSourceAsString());
+    }
+    sb.append(']');
+    return sb.toString();
   }
 
   @Override

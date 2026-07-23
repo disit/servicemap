@@ -2420,8 +2420,18 @@ public class ServiceMap {
       });
     }
     
-    elasticSearchClient = new RestHighLevelClient(restClientBuilder);
-    return elasticSearchClient;    
+    return new RestHighLevelClient(restClientBuilder);
+  }
+  
+  public static RestHighLevelClient getSharedElasticSearchClient(Configuration conf) {
+    if(elasticSearchClient != null)
+      return elasticSearchClient;
+    synchronized (ServiceMap.class) {
+      if(elasticSearchClient != null)      
+        return elasticSearchClient;
+      elasticSearchClient = createElasticSearchClient(conf);
+    }
+    return elasticSearchClient;
   }
 
   public synchronized static List<String> getMacroCategories() throws Exception {
