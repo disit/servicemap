@@ -277,17 +277,17 @@ public class IoTChecker {
         String hitPerc="NA";
         if(nAccess>0)
           hitPerc = ((nPublicHit+nPrivateHit+nPrivateUserHit)*100.0/nAccess)+"%";
-        String r = "IoTPublicCache ( nRootAdm: "+nRootAdminHits+" nPassw:"+nPasswordHits+" hit: pub "+nPublicHit+"+ priv "+nPrivateHit+" user "+nPrivateUserHit+" access:"+nAccess+" "+hitPerc+") <ol>";
+        String r = "IoTPublicCache ( nRootAdm: "+nRootAdminHits+" nPassw:"+nPasswordHits+" hit: pub "+nPublicHit+"+ priv "+nPrivateHit+" user "+nPrivateUserHit+" access:"+nAccess+" "+hitPerc+")\n<ol>\n";
         for(Entry<String,IoTCacheData> d: cache.entrySet()) {
           if(d.getValue()!=null) {
             Map<String, Long> u = d.getValue().grantedUsers;
             String users = u.keySet().toString();
-            r+="<li>"+d.getKey()+": "+(d.getValue().isPublic ? "public" : "private")+" "+(System.currentTimeMillis()-d.getValue().generationTime)/1000.0+"s old, grantedusers:"+users+" hits:"+d.getValue().nHits+"</li>";
+            r+="<li>"+d.getKey()+": "+(d.getValue().isPublic ? "public" : "private")+" "+(System.currentTimeMillis()-d.getValue().generationTime)/1000.0+"s old, grantedusers:"+users+" hits:"+d.getValue().nHits+"</li>\n";
           } else {
-            r+="<li>"+d.getKey()+": null </li>";            
+            r+="<li>"+d.getKey()+": null </li>\n";            
           }
         }
-        r+="</ol>";
+        r+="</ol>\n";
         return r;
       }
     }

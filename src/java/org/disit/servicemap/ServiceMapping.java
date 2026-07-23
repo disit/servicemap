@@ -229,8 +229,8 @@ public class ServiceMapping {
 
   public String asHtml() {
     String html = "";
-    html+="<table border=\"1\" cellspacing=\"0\">";
-    html += "<tr><th>Class</th><th>Attributes</th><th>details</th><th>RT SOLR</th><th>RT SPARQL</th><th>RT SQL</th></tr>";
+    html+="<table border=\"1\" cellspacing=\"0\">\n";
+    html += "<tr><th>Class</th><th>Attributes</th><th>details</th><th>RT SOLR</th><th>RT SPARQL</th><th>RT SQL</th></tr>\n";
     for(Map.Entry<String,MappingData> e:maps.get(0).entrySet()) {
       MappingData md=e.getValue();
       html += "<tr><td>"+e.getKey()+
@@ -239,19 +239,19 @@ public class ServiceMapping {
               "</td><td>"+md.realTimeSolrQuery+
               "</td><td>"+md.realTimeSparqlQuery+
               "</td><td>"+md.realTimeSqlQuery+
-              "</td></tr>"
+              "</td></tr>\n"
               ;
     }
-    html+="</table><br>";
-    html+="<table border=\"1\" cellspacing=\"0\">";
-    html += "<tr><th>serviceUri</th><th>alias</th></tr>";
+    html+="</table><br>\n";
+    html+="<table border=\"1\" cellspacing=\"0\">\n";
+    html += "<tr><th>serviceUri</th><th>alias</th></tr>\n";
     for(Map.Entry<String,String> e:aliases.entrySet()) {
       html += "<tr><td>"+e.getKey()+
               "</td><td>"+e.getValue()+
-              "</td></tr>"
+              "</td></tr>\n"
               ;
     }
-    html+="</table>";
+    html+="</table>\n";
     return html;
   }
   

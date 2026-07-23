@@ -1350,6 +1350,7 @@ public class ServiceMap {
   static synchronized public void reset() {
     tplAgencies = null;
     macroCategories = null;
+    elasticSearchClient = null;
   }
 
   static public String makeServiceType(String category, String type) {

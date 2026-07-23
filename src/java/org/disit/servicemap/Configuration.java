@@ -110,13 +110,13 @@ public class Configuration {
   }
   
   public String asHtml() {
-    String html="<p>"+System.getProperty("user.home")+PROP+"</p><ul>";
+    String html="<p>"+System.getProperty("user.home")+PROP+"</p><ul>\n";
     for(Entry<String, String> x: map.entrySet()) {
-      html+="<li><b>"+x.getKey()+"</b>: \""+x.getValue()+"\"</li>";
+      html+="<li><b>"+x.getKey()+"</b>: \""+x.getValue()+"\"</li>\n";
     }
-    html+="</ul>";
+    html+="</ul>\n";
     if(map.size()==0) {
-      html+="<p><b>WARNING! empty configuration file</b></p>";
+      html+="<p><b>WARNING! empty configuration file</b></p>\n";
     }
     return html;
   }
