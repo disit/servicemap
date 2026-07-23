@@ -139,6 +139,8 @@ public class ServiceMap {
   
   static private long lastNotification = 0;
   static private int skippedNotifications = 0;
+  
+  static private RestHighLevelClient elasticSearchClient = null;
 
   static public void initLogging() {
   }
@@ -2373,6 +2375,9 @@ public class ServiceMap {
   }
   
   static public RestHighLevelClient createElasticSearchClient(Configuration conf) {
+    if(elasticSearchClient!=null && conf.get("elasticSearchClientReuse", "true").equals("true"))
+      return elasticSearchClient;
+    
     //get RT data from Elastic
     String[] hosts = conf.get("elasticSearchHosts", "localhost").split(",");
     int port = Integer.parseInt(conf.get("elasticSearchPort", "9200"));
@@ -2416,7 +2421,9 @@ public class ServiceMap {
           }
       });
     }
-    return new RestHighLevelClient(restClientBuilder);    
+    
+    elasticSearchClient = new RestHighLevelClient(restClientBuilder);
+    return elasticSearchClient;    
   }
 
   public synchronized static List<String> getMacroCategories() throws Exception {

@@ -471,6 +471,10 @@ public class IoTSearchApi {
   }
 
   private String fieldTxt(String field, List<String> stdFields) {
+    if(field.endsWith(".text") || field.endsWith(".keyword"))
+      return field;
+    if(field.endsWith(".this"))
+      return field.substring(0, field.lastIndexOf('.'));
     if(stdFields.contains(field)) {
         return field + ".text";
     } else {
@@ -484,7 +488,7 @@ public class IoTSearchApi {
   }
   
   private String fieldKwd(String field, List<String> stdFields) {
-      if(stdFields.contains(field)) {
+    if(stdFields.contains(field)) {
         return field;
     } else {
         int p = field.indexOf('.');
@@ -510,8 +514,11 @@ public class IoTSearchApi {
         else if(rangeCnd[1].equals("contains")) {
             String[] fields = rangeCnd[0].split("\\|");
             BoolQueryBuilder should = QueryBuilders.boolQuery();
+            String[] keywords = rangeCnd[2].toLowerCase().split("\\|");
             for(String f: fields) {
-              should.should().add(QueryBuilders.wildcardQuery(fieldTxt(f.trim(), stdFields), "*"+rangeCnd[2].toLowerCase()+"*"));
+              for(String k: keywords) {
+                should.should().add(QueryBuilders.wildcardQuery(fieldTxt(f.trim(), stdFields), "*"+ k.trim() +"*"));
+              }
             }
             boolQuery.must().add(should);
         }
@@ -617,7 +624,7 @@ public class IoTSearchApi {
     Set<String> skipFields = new HashSet<>(Arrays.asList("src", "uuid", "username",
             "user_delegations", "organization_delegations", "sensorID", "latlon",
             "kind", "groups", "value_name", "value_type", "value_unit", "data_type"));
-    List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", "deviceName", "deviceModel", "entry_date");
+    List<String> stdFields = Arrays.asList("serviceUri", "nature", "subnature", "organization", "deviceName", "deviceModel", "entry_date", "highLevelType");
     try {
       String q = null;
       if (serviceUris != null && serviceUris.length > 0) {
