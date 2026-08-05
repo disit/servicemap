@@ -85,6 +85,7 @@ import org.apache.http.util.EntityUtils;
 import org.disit.servicemap.JwtUtil.User;
 import org.disit.servicemap.api.CheckParameters;
 import org.disit.servicemap.api.SparqlQuery;
+import org.elasticsearch.client.Node;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -1347,9 +1348,11 @@ public class ServiceMap {
     return tplAgencies.get(agency_id);    
   }
   
-  static synchronized public void reset() {
+  static synchronized public void reset() throws IOException {
     tplAgencies = null;
     macroCategories = null;
+    if(elasticSearchClient != null)
+      elasticSearchClient.close();
     elasticSearchClient = null;
   }
 
@@ -2419,6 +2422,12 @@ public class ServiceMap {
           }
       });
     }
+    restClientBuilder.setFailureListener(new RestClient.FailureListener() {
+      @Override
+      public void onFailure(Node node) {
+        ServiceMap.notifyException(null, "ERROR ElasticSearch communication failure: host=" + node.getHost());
+      }
+    });
     
     return new RestHighLevelClient(restClientBuilder);
   }
@@ -2427,9 +2436,8 @@ public class ServiceMap {
     if(elasticSearchClient != null)
       return elasticSearchClient;
     synchronized (ServiceMap.class) {
-      if(elasticSearchClient != null)      
-        return elasticSearchClient;
-      elasticSearchClient = createElasticSearchClient(conf);
+      if(elasticSearchClient == null)      
+        elasticSearchClient = createElasticSearchClient(conf);
     }
     return elasticSearchClient;
   }

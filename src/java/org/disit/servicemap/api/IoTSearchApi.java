@@ -232,6 +232,14 @@ public class IoTSearchApi {
 
     sr.indices(index);
 
+    if (conf.get("elasticSearchPrintDebugQuery", "true").equals("true")) {
+      try {
+        System.out.println("DEBUG iot-search ES query: "+searchSourceBuilder.toString());
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+    
     long ts = System.currentTimeMillis();
     SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
     ShardSearchFailure[] failures = r.getShardFailures();
