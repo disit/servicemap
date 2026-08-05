@@ -17,6 +17,8 @@ package org.disit.servicemap.api;
 
 import com.google.gson.Gson;
 import com.unboundid.ldap.sdk.LDAPException;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -30,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.servlet.jsp.JspWriter;
 import org.apache.lucene.queryparser.classic.QueryParserBase;
 import org.disit.servicemap.Configuration;
@@ -69,7 +73,58 @@ import org.json.simple.JSONObject;
  * @author bellini
  */
 public class IoTSearchApi {
-  
+  private static final AtomicInteger activeEsRequests = new AtomicInteger();
+  private static final AtomicInteger maxActiveEsRequests = new AtomicInteger();
+
+  public SearchResponse search(
+        SearchRequest request,
+        RequestOptions options) throws IOException {
+
+    int active = activeEsRequests.incrementAndGet();
+    maxActiveEsRequests.accumulateAndGet(active, Math::max);
+
+    long start = System.nanoTime();
+
+    try {
+        Configuration conf = Configuration.getInstance();
+        SearchResponse response = ServiceMap.getSharedElasticSearchClient(conf).search(request, options);
+
+        long elapsed = TimeUnit.NANOSECONDS.toMillis(
+            System.nanoTime() - start
+        );
+
+        if (elapsed > 5_000) {
+          System.out.printf("WARN "+new Date()+" Slow ES request elapsedMs={} esTookMs={} active={} maxActive={} indices={}",
+                  elapsed,
+                  response.getTook().getMillis(),
+                  active,
+                  maxActiveEsRequests.get(),
+                  Arrays.toString(request.indices()));
+        }
+
+        return response;
+
+    } catch (IOException e) {
+        long elapsed = TimeUnit.NANOSECONDS.toMillis(
+            System.nanoTime() - start
+        );
+
+        System.out.printf(
+            "ERROR "+new Date()+" ES failure elapsedMs={} active={} maxActive={} indices={} query={}",
+            elapsed,
+            active,
+            maxActiveEsRequests.get(),
+            Arrays.toString(request.indices()),
+            request.source(),
+            e
+        );
+
+        throw e;
+    } finally {
+        activeEsRequests.decrementAndGet();
+    }
+  }
+
   public static String[] processServiceUris(String serviceUris) {
     int p = serviceUris.indexOf('|');
     if(p>=0) {
@@ -87,7 +142,6 @@ public class IoTSearchApi {
   public int iotSearch(JspWriter out, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String notHealthy, String forceCheck) throws Exception {
     Configuration conf = Configuration.getInstance();
 
-    RestHighLevelClient client = ServiceMap.getSharedElasticSearchClient(conf);
     String[] index = conf.get("elasticSearchDevicesIndex", "devices-state-all").split(";");
 
     Set<String> fieldList = new HashSet<>();
@@ -241,13 +295,14 @@ public class IoTSearchApi {
     }
     
     long ts = System.currentTimeMillis();
-    SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
+    SearchResponse r = this.search(sr, RequestOptions.DEFAULT);
     ShardSearchFailure[] failures = r.getShardFailures();
     for(ShardSearchFailure sf: failures) {
         ServiceMap.println("failure:" + sf);
     }
     SearchHit[] hits = r.getHits().getHits();
     long nfound = r.getHits().totalHits;
+    
     String jsonQuery = "NA";
     if (conf.get("elasticSearchDebugQuery", "false").equals("true")) {
       try {

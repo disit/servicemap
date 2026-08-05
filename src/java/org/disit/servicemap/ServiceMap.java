@@ -2396,8 +2396,12 @@ public class ServiceMap {
             @Override
             public RequestConfig.Builder customizeRequestConfig(
                     RequestConfig.Builder requestConfigBuilder) {
-                return requestConfigBuilder.setSocketTimeout(timeout);
-            }}).setMaxRetryTimeoutMillis(timeout);
+                return requestConfigBuilder.setSocketTimeout(timeout)
+                        .setConnectTimeout(3000)
+                        .setConnectionRequestTimeout(2000);
+            }});
+    restClientBuilder.setHttpClientConfigCallback(httpClientBuilder -> 
+            httpClientBuilder.setKeepAliveStrategy((response, context) -> 60_000));
     if(conf.get("elasticSearchUser", null)!=null) {
       final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
       credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(conf.get("elasticSearchUser", null), conf.get("elasticSearchPassword", "")));
