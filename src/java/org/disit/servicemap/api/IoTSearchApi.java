@@ -222,8 +222,8 @@ public class IoTSearchApi {
       } else if (stdFields.contains(sortF[0].trim())) {
         searchSourceBuilder.sort(new FieldSortBuilder(sortF[0]).order(order).unmappedType(unmappedType));
       } else {
-        searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value").order(order).unmappedType(unmappedType));
-        searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str.keyword").order(order).unmappedType(unmappedType));
+        searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value").order(order).unmappedType("float"));
+        searchSourceBuilder.sort(new FieldSortBuilder(sortF[0] + ".value_str.keyword").order(order).unmappedType("string"));
       }
     }
 
