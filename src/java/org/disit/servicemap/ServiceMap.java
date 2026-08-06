@@ -2398,6 +2398,8 @@ public class ServiceMap {
     final int connectTimeout = Integer.parseInt(conf.get("elasticSearchConnectTimeout", "3000"));
     final int connectionRequestTimeout = Integer.parseInt(conf.get("elasticSearchConnectionRequestTimeout", "2000"));
     final int keepAliveTime = Integer.parseInt(conf.get("elasticSearchKeepAliveTime", "60000"));
+    final int maxConnTotal = Integer.parseInt(conf.get("elasticSearchMaxConnTotal", "30"));
+    final int maxConnPerRoute = Integer.parseInt(conf.get("elasticSearchMaxConnPerRoute", "10"));
     
     RestClientBuilder restClientBuilder = RestClient.builder(httpHosts);
     restClientBuilder.setRequestConfigCallback(
@@ -2408,6 +2410,7 @@ public class ServiceMap {
                 return requestConfigBuilder.setSocketTimeout(timeout)
                         .setConnectTimeout(connectTimeout)
                         .setConnectionRequestTimeout(connectionRequestTimeout);
+                        
             }});
     restClientBuilder.setHttpClientConfigCallback(httpClientBuilder -> 
             httpClientBuilder.setKeepAliveStrategy((response, context) -> keepAliveTime));
@@ -2419,7 +2422,9 @@ public class ServiceMap {
         public HttpAsyncClientBuilder customizeHttpClient(
                 HttpAsyncClientBuilder httpClientBuilder) {
             return httpClientBuilder
-                .setDefaultCredentialsProvider(credentialsProvider);
+                .setDefaultCredentialsProvider(credentialsProvider)
+                .setMaxConnTotal(maxConnTotal)
+                .setMaxConnPerRoute(maxConnPerRoute);
         }
       });
     }
