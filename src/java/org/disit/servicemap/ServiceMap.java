@@ -2474,13 +2474,14 @@ public class ServiceMap {
 
     try {
         Configuration conf = Configuration.getInstance();
+        int slowQueryTimeMs = Integer.parseInt(conf.get("elasticSearchSlowQueryTimeMs", "5000"));
         SearchResponse response = ServiceMap.getSharedElasticSearchClient(conf).search(request, options);
 
         long elapsed = TimeUnit.NANOSECONDS.toMillis(
             System.nanoTime() - start
         );
 
-        if (elapsed > 5_000) {
+        if (elapsed > slowQueryTimeMs) {
           System.out.printf("WARN "+new Date()+" Slow ES request elapsedMs=%d esTookMs=%d active=%d maxActive=%d indices=%d",
                   elapsed,
                   response.getTook().getMillis(),
