@@ -2412,8 +2412,6 @@ public class ServiceMap {
                         .setConnectionRequestTimeout(connectionRequestTimeout);
                         
             }});
-    restClientBuilder.setHttpClientConfigCallback(httpClientBuilder -> 
-            httpClientBuilder.setKeepAliveStrategy((response, context) -> keepAliveTime));
     if(conf.get("elasticSearchUser", null)!=null) {
       final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
       credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(conf.get("elasticSearchUser", null), conf.get("elasticSearchPassword", "")));
@@ -2424,7 +2422,8 @@ public class ServiceMap {
             return httpClientBuilder
                 .setDefaultCredentialsProvider(credentialsProvider)
                 .setMaxConnTotal(maxConnTotal)
-                .setMaxConnPerRoute(maxConnPerRoute);
+                .setMaxConnPerRoute(maxConnPerRoute)
+                .setKeepAliveStrategy((response, context) -> keepAliveTime);
         }
       });
     }
