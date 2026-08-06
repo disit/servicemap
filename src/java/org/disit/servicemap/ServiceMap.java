@@ -57,6 +57,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.mail.Message;
@@ -85,7 +87,10 @@ import org.apache.http.util.EntityUtils;
 import org.disit.servicemap.JwtUtil.User;
 import org.disit.servicemap.api.CheckParameters;
 import org.disit.servicemap.api.SparqlQuery;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Node;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -2390,6 +2395,10 @@ public class ServiceMap {
     
     final int timeout = Integer.parseInt(conf.get("elasticSearchTimeout", "30000"));
     final int threadCount = Integer.parseInt(conf.get("elasticSearchThreadCount", "0"));
+    final int connectTimeout = Integer.parseInt(conf.get("elasticSearchConnectTimeout", "3000"));
+    final int connectionRequestTimeout = Integer.parseInt(conf.get("elasticSearchConnectionRequestTimeout", "2000"));
+    final int keepAliveTime = Integer.parseInt(conf.get("elasticSearchKeepAliveTime", "60000"));
+    
     RestClientBuilder restClientBuilder = RestClient.builder(httpHosts);
     restClientBuilder.setRequestConfigCallback(
         new RestClientBuilder.RequestConfigCallback() {
@@ -2397,11 +2406,11 @@ public class ServiceMap {
             public RequestConfig.Builder customizeRequestConfig(
                     RequestConfig.Builder requestConfigBuilder) {
                 return requestConfigBuilder.setSocketTimeout(timeout)
-                        .setConnectTimeout(3000)
-                        .setConnectionRequestTimeout(2000);
+                        .setConnectTimeout(connectTimeout)
+                        .setConnectionRequestTimeout(connectionRequestTimeout);
             }});
     restClientBuilder.setHttpClientConfigCallback(httpClientBuilder -> 
-            httpClientBuilder.setKeepAliveStrategy((response, context) -> 60_000));
+            httpClientBuilder.setKeepAliveStrategy((response, context) -> keepAliveTime));
     if(conf.get("elasticSearchUser", null)!=null) {
       final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
       credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials(conf.get("elasticSearchUser", null), conf.get("elasticSearchPassword", "")));
@@ -2446,6 +2455,58 @@ public class ServiceMap {
     return elasticSearchClient;
   }
 
+  private static final AtomicInteger activeEsRequests = new AtomicInteger();
+  private static final AtomicInteger maxActiveEsRequests = new AtomicInteger();
+
+  public static SearchResponse search(
+        SearchRequest request,
+        RequestOptions options) throws IOException {
+
+    int active = activeEsRequests.incrementAndGet();
+    maxActiveEsRequests.accumulateAndGet(active, Math::max);
+
+    long start = System.nanoTime();
+
+    try {
+        Configuration conf = Configuration.getInstance();
+        SearchResponse response = ServiceMap.getSharedElasticSearchClient(conf).search(request, options);
+
+        long elapsed = TimeUnit.NANOSECONDS.toMillis(
+            System.nanoTime() - start
+        );
+
+        if (elapsed > 5_000) {
+          System.out.printf("WARN "+new Date()+" Slow ES request elapsedMs=%d esTookMs=%d active=%d maxActive=%d indices=%d",
+                  elapsed,
+                  response.getTook().getMillis(),
+                  active,
+                  maxActiveEsRequests.get(),
+                  Arrays.toString(request.indices()));
+        }
+
+        return response;
+
+    } catch (IOException e) {
+        long elapsed = TimeUnit.NANOSECONDS.toMillis(
+            System.nanoTime() - start
+        );
+
+        System.out.printf(
+            "ERROR "+new Date()+" ES failure elapsedMs=%d active=%d maxActive=%d indices=%d query=%s",
+            elapsed,
+            active,
+            maxActiveEsRequests.get(),
+            Arrays.toString(request.indices()),
+            request.source(),
+            e
+        );
+
+        throw e;
+    } finally {
+        activeEsRequests.decrementAndGet();
+    }
+  }
+  
   public synchronized static List<String> getMacroCategories() throws Exception {
     if(macroCategories == null) {
       //String mCats[] = {"Accommodation", "Advertising", "AgricultureAndLivestock", "CivilAndEdilEngineering", "CulturalActivity", "EducationAndResearch", "Emergency", "Environment", "Entertainment", "FinancialService",

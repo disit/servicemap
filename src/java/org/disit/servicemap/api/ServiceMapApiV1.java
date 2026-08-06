@@ -3310,7 +3310,7 @@ public int queryAllBusLines(JspWriter out, RepositoryConnection con, String agen
     sr.indices(index);
 
     long ts = System.currentTimeMillis();
-    SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
+    SearchResponse r = ServiceMap.search(sr, RequestOptions.DEFAULT);
     SearchHit[] hits = r.getHits().getHits();
     long nfound = hits.length;
     if(nfound==0 && fromAggregation) {

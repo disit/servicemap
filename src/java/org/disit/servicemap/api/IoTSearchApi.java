@@ -73,57 +73,6 @@ import org.json.simple.JSONObject;
  * @author bellini
  */
 public class IoTSearchApi {
-  private static final AtomicInteger activeEsRequests = new AtomicInteger();
-  private static final AtomicInteger maxActiveEsRequests = new AtomicInteger();
-
-  public SearchResponse search(
-        SearchRequest request,
-        RequestOptions options) throws IOException {
-
-    int active = activeEsRequests.incrementAndGet();
-    maxActiveEsRequests.accumulateAndGet(active, Math::max);
-
-    long start = System.nanoTime();
-
-    try {
-        Configuration conf = Configuration.getInstance();
-        SearchResponse response = ServiceMap.getSharedElasticSearchClient(conf).search(request, options);
-
-        long elapsed = TimeUnit.NANOSECONDS.toMillis(
-            System.nanoTime() - start
-        );
-
-        if (elapsed > 5_000) {
-          System.out.printf("WARN "+new Date()+" Slow ES request elapsedMs={} esTookMs={} active={} maxActive={} indices={}",
-                  elapsed,
-                  response.getTook().getMillis(),
-                  active,
-                  maxActiveEsRequests.get(),
-                  Arrays.toString(request.indices()));
-        }
-
-        return response;
-
-    } catch (IOException e) {
-        long elapsed = TimeUnit.NANOSECONDS.toMillis(
-            System.nanoTime() - start
-        );
-
-        System.out.printf(
-            "ERROR "+new Date()+" ES failure elapsedMs={} active={} maxActive={} indices={} query={}",
-            elapsed,
-            active,
-            maxActiveEsRequests.get(),
-            Arrays.toString(request.indices()),
-            request.source(),
-            e
-        );
-
-        throw e;
-    } finally {
-        activeEsRequests.decrementAndGet();
-    }
-  }
 
   public static String[] processServiceUris(String serviceUris) {
     int p = serviceUris.indexOf('|');
@@ -295,7 +244,7 @@ public class IoTSearchApi {
     }
     
     long ts = System.currentTimeMillis();
-    SearchResponse r = this.search(sr, RequestOptions.DEFAULT);
+    SearchResponse r = ServiceMap.search(sr, RequestOptions.DEFAULT);
     ShardSearchFailure[] failures = r.getShardFailures();
     for(ShardSearchFailure sf: failures) {
         ServiceMap.println("failure:" + sf);
@@ -822,7 +771,7 @@ public class IoTSearchApi {
     sr.indices(index);
 
     long ts = System.currentTimeMillis();
-    SearchResponse r = client.search(sr, RequestOptions.DEFAULT);
+    SearchResponse r = ServiceMap.search(sr, RequestOptions.DEFAULT);
     String jsonQuery = "NA";
     if (conf.get("elasticSearchDebugQuery", "false").equals("true")) {
       try {
