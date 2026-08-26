@@ -52,6 +52,7 @@
         out.println("</ul>");
         out.println(ServiceMapping.getInstance().asHtml());
         out.println(IoTChecker.print());
+        out.println(ServiceMap.getElasticSearchStats()+"<br>");
         out.println("<small>from: "+ipAddress+"</small>");
       }
       else {

@@ -1769,11 +1769,23 @@ public class ServiceMap {
     }
   }
 
+  public static void notifyError(String details) {
+    notifyException(null, "ERROR", details);
+  }
+  
+  public static void notifyWarning(String details) {
+    notifyException(null, "WARNING", details);
+  }
+
   public static void notifyException(Throwable exc) {
     notifyException(exc, null);
   }
   
   public static void notifyException(Throwable exc, String details) {
+    notifyException(exc, "ERROR", details);
+  }
+  
+  public static void notifyException(Throwable exc, String type, String details) {
     Configuration conf = Configuration.getInstance();
 
     String url = conf.get("notificatorRestInterfaceUrl", null);
@@ -1805,7 +1817,7 @@ public class ServiceMap {
             subj += " skp "+skippedNotifications+" ";
           skippedNotifications = 0;
         }
-        sendEmail(notifyExceptionTo, subj+(exc!=null ? " Exception "+exc.getClass().getSimpleName() : " ERROR"), exceptionMessage(exc, details), "text/plain", conf.get("notifySmtpPrefix", ""));
+        sendEmail(notifyExceptionTo, subj+(exc!=null ? " Exception "+exc.getClass().getSimpleName() : " "+type), exceptionMessage(exc, type, details), "text/plain", conf.get("notifySmtpPrefix", ""));
         return;
       }
     }
@@ -1822,7 +1834,7 @@ public class ServiceMap {
     String generatorOriginalType = "Exception";
     String containerName = "Exceptions";
     String eventType = "Exception";
-    String furtherDetails = exceptionMessage(exc, details);
+    String furtherDetails = exceptionMessage(exc, type, details);
 
     Calendar date = new GregorianCalendar();
     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -1875,11 +1887,11 @@ public class ServiceMap {
     }
   }
   
-  public static String exceptionMessage(Throwable exp, String details) {
+  public static String exceptionMessage(Throwable exp, String type, String details) {
     DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     Date data_attuale = new Date();
     String data_fixed = df.format(data_attuale);
-    String msgBody = "ERROR ";
+    String msgBody = type + " ";
     if(exp!=null) {
       msgBody = "Exception: " + exp.getClass().getSimpleName();
     }
@@ -2442,7 +2454,7 @@ public class ServiceMap {
     restClientBuilder.setFailureListener(new RestClient.FailureListener() {
       @Override
       public void onFailure(Node node) {
-        ServiceMap.notifyException(null, "ERROR ElasticSearch communication failure: host=" + node.getHost());
+        ServiceMap.notifyWarning("ElasticSearch communication failure: host=" + node.getHost());
       }
     });
     
@@ -2481,12 +2493,17 @@ public class ServiceMap {
         );
 
         if (elapsed > slowQueryTimeMs) {
-          System.out.printf("WARN "+new Date()+" Slow ES request elapsedMs=%d esTookMs=%d active=%d maxActive=%d indices=%d",
+          String msg = String.format(
+                  "Slow ES request elapsedMs=%d > %d esTookMs=%d active=%d maxActive=%d indices=%s query=%s\n",
                   elapsed,
+                  slowQueryTimeMs,
                   response.getTook().getMillis(),
                   active,
                   maxActiveEsRequests.get(),
-                  Arrays.toString(request.indices()));
+                  Arrays.toString(request.indices()),
+                  request.source());
+          System.out.println("WARN "+new Date()+" "+msg);
+          ServiceMap.notifyWarning(msg);
         }
 
         return response;
@@ -2496,20 +2513,25 @@ public class ServiceMap {
             System.nanoTime() - start
         );
 
-        System.out.printf(
-            "ERROR "+new Date()+" ES failure elapsedMs=%d active=%d maxActive=%d indices=%d query=%s",
+        String msg = String.format(
+            "ES failure elapsedMs=%d active=%d maxActive=%d indices=%s query=%s\n",
             elapsed,
             active,
             maxActiveEsRequests.get(),
             Arrays.toString(request.indices()),
-            request.source(),
-            e
+            request.source()
         );
+        System.out.println("ERROR "+new Date()+" "+msg);
+        ServiceMap.notifyError(msg);
 
         throw e;
     } finally {
         activeEsRequests.decrementAndGet();
     }
+  }
+  
+  public static String getElasticSearchStats() {
+    return String.format("ES requests active: %d maxActive: %d", activeEsRequests.get(), maxActiveEsRequests.get());
   }
   
   public synchronized static List<String> getMacroCategories() throws Exception {

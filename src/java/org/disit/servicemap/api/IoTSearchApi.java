@@ -235,7 +235,7 @@ public class IoTSearchApi {
 
     sr.indices(index);
 
-    if (conf.get("elasticSearchPrintDebugQuery", "true").equals("true")) {
+    if (conf.get("elasticSearchPrintDebugQuery", "false").equals("true")) {
       try {
         System.out.println("DEBUG iot-search ES query: "+searchSourceBuilder.toString());
       } catch (Exception e) {
