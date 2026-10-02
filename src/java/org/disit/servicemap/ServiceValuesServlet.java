@@ -908,14 +908,15 @@ public class ServiceValuesServlet extends HttpServlet {
       return null;
     }
     
-    if(!allowByIpAddr)
+    if(!allowByIpAddr || conf.get("disableIpAddrAccessCheck", "false").equals("true"))
       return null;
     
     String ipAddress = ServiceMap.getClientIpAddress(request);
     String[] otherIps = conf.get("allowedNetworkIpPrefixes", "127.0.0.1;192.168.0.;192.168.1.").split(";");
     boolean allowed = false;
     for(String s: otherIps) {
-      if(ipAddress.startsWith(s.trim())) {
+      String pfx = s.trim();
+      if(!pfx.isEmpty() && ipAddress.startsWith(pfx)) {
         allowed=true;
         break;
       }

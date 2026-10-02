@@ -58,6 +58,8 @@ public class LdapSearch {
     defaultOrg = conf.get("ldapDefaultOrganization", "DISIT");
     LDAPConnection c = new LDAPConnection(host, port, bindDN, passw);
     pool = new LDAPConnectionPool(c, 1, Integer.parseInt(conf.get("ldapMaxPoolConnections", "10")));
+    pool.setCreateIfNecessary(conf.get("ldapPoolCreateIfNecessary", "false").equals("true"));
+    pool.setMaxWaitTimeMillis(Integer.parseInt(conf.get("ldapMaxPoolWaitMillis", "1000")));
   }
   
   public List<String> getOrganization(String user) throws LDAPException {
@@ -67,26 +69,21 @@ public class LdapSearch {
         Filter.createEqualityFilter("l", userDN));
     SearchRequest sr = new SearchRequest(baseDN, SearchScope.ONE, query, "ou");
     Set<String> organizations = new LinkedHashSet<String>();
-    LDAPConnection c = pool.getConnection();
-    try {
-      SearchResult result = c.search(sr);
-      if(result.getEntryCount()>0) {
-        for(SearchResultEntry e : result.getSearchEntries()) {
-          RDN rdn = e.getRDN();
-          if(rdn.hasAttribute("ou")) {
-            for(String value : rdn.getAttributeValues()) {
-              if(value!=null && !value.isEmpty()) {
-                organizations.add(value);
-              }
+    SearchResult result = pool.search(sr);
+    if(result.getEntryCount()>0) {
+      for(SearchResultEntry e : result.getSearchEntries()) {
+        RDN rdn = e.getRDN();
+        if(rdn.hasAttribute("ou")) {
+          for(String value : rdn.getAttributeValues()) {
+            if(value!=null && !value.isEmpty()) {
+              organizations.add(value);
             }
           }
         }
-        if(organizations.isEmpty() && result.getEntryCount()>1) {
-          organizations.add(defaultOrg);
-        }
       }
-    } finally {
-      c.close();
+      if(organizations.isEmpty() && result.getEntryCount()>1) {
+        organizations.add(defaultOrg);
+      }
     }
     return new ArrayList<String>(organizations);
   }
@@ -102,19 +99,14 @@ public class LdapSearch {
         Filter.createEqualityFilter("member", userDN));
     SearchRequest sr = new SearchRequest(safeSearchBaseDN, SearchScope.ONE, query);
     List<String> groups = new ArrayList<String>();
-    LDAPConnection c = pool.getConnection();
-    try {
-      SearchResult result = c.search(sr);
-      for(SearchResultEntry e : result.getSearchEntries()) {
-        RDN rdn = e.getRDN();
-        
-        if(rdn.hasAttribute("cn")) {
-          String group = rdn.getAttributeValues()[0];
-          groups.add(group);
-        }
+    SearchResult result = pool.search(sr);
+    for(SearchResultEntry e : result.getSearchEntries()) {
+      RDN rdn = e.getRDN();
+
+      if(rdn.hasAttribute("cn")) {
+        String group = rdn.getAttributeValues()[0];
+        groups.add(group);
       }
-    } finally {
-      c.close();
     }
     return groups;
   }

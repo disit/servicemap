@@ -525,7 +525,10 @@ public class IoTSearchApi {
             String[] keywords = rangeCnd[2].toLowerCase().split("\\|");
             for(String f: fields) {
               for(String k: keywords) {
-                should.should().add(QueryBuilders.wildcardQuery(fieldTxt(f.trim(), stdFields), "*"+ k.trim() +"*"));
+                String field = ServiceMap.escapeJSON(fieldTxt(f.trim(), stdFields));
+                String value = ServiceMap.escapeJSON("*"+k.trim()+"*");
+                String wildcardQuery = "{\"wildcard\":{\""+field+"\":{\"value\":\""+value+"\",\"case_insensitive\":true}}}";
+                should.should().add(QueryBuilders.wrapperQuery(wildcardQuery));
               }
             }
             boolQuery.must().add(should);
@@ -1025,10 +1028,10 @@ public class IoTSearchApi {
                 q += " OR groups:" + grp;
               }
             } else {
-              System.out.println("WARNING user "+user.username+" org not found on ldap");
+              ServiceMap.notifyWarning("WARNING user "+user.username+" org not found on ldap");
             }
           } catch(LDAPException e) {
-            e.printStackTrace();
+            ServiceMap.notifyException(e);
           }
         }
       }
