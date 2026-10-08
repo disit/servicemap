@@ -13,7 +13,8 @@
     String ipAddress = ServiceMap.getClientIpAddress(request);  
 
     Configuration conf = Configuration.getInstance();
-    if(!ipAddress.startsWith(conf.get("internalNetworkIpPrefix", "192.168.0.")) && !ipAddress.equals("127.0.0.1")) {
+    if(conf.get("disableIpAddrAccessCheck", "false").equals("true") || (!ipAddress.startsWith(conf.get("internalNetworkIpPrefix", "192.168.0.")) && !ipAddress.equals("127.0.0.1"))) {
+
       response.sendError(403, "unaccessible from "+ipAddress);
       return;
     }

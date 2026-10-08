@@ -19,6 +19,7 @@ import com.google.gson.Gson;
 import com.unboundid.ldap.sdk.LDAPException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.security.InvalidParameterException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -87,11 +88,34 @@ public class IoTSearchApi {
       return serviceUris.split(";");
     }
   }
+  
+  private String[] getIndexes(String organizations, String[] coords) {
+    Configuration conf = Configuration.getInstance();
+    
+    if(organizations !=null) {
+      String checkMsg;
+      String[] orgs = organizations.split(";");
+      String[] indexes = new String[ orgs.length ];
+      int i = 0;
+      for(String org: orgs) {
+        if ((checkMsg = CheckParameters.checkAlphanumString(org)) != null) {
+          throw new InvalidParameterException("invalid organization "+org+" : "+checkMsg);
+        }
+        indexes[i] = conf.get("elasticSearchDevicesIndex-"+org.toLowerCase(), null);
+        if(indexes[i]==null)
+          throw new InvalidParameterException("invalid organization "+org+" index not set");
+        i++;
+      }
+      return indexes;
+    } else {
+      return conf.get("elasticSearchDevicesIndex", "devices-state-all").split(";");
+    }
+  }
 
-  public int iotSearch(JspWriter out, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String notHealthy, String forceCheck) throws Exception {
+  public int iotSearch(JspWriter out, final String organizations, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String notHealthy, String forceCheck) throws Exception {
     Configuration conf = Configuration.getInstance();
 
-    String[] index = conf.get("elasticSearchDevicesIndex", "devices-state-all").split(";");
+    String[] index = getIndexes(organizations, coords);
 
     Set<String> fieldList = new HashSet<>();
     if (fields != null) {
