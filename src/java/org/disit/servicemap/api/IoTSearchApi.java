@@ -19,6 +19,8 @@ import com.google.gson.Gson;
 import com.unboundid.ldap.sdk.LDAPException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.InvalidParameterException;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -88,8 +90,48 @@ public class IoTSearchApi {
       return serviceUris.split(";");
     }
   }
-  
-  private String[] getIndexes(String organizations, String[] coords) {
+
+  public static String extractOrganization(String serviceUri) {
+      final String prefix = "/km4city/resource/iot/";
+
+      if (serviceUri == null || serviceUri.trim().isEmpty()) {
+          throw new IllegalArgumentException("serviceUri cannot be empty");
+      }
+
+      try {
+          String path = new URI(serviceUri).getPath();
+          int prefixPosition = path.indexOf(prefix);
+
+          if (prefixPosition < 0) {
+              throw new IllegalArgumentException(
+                  "serviceUri does not contain the expected path: " + prefix
+              );
+          }
+
+          String remainingPath =
+              path.substring(prefixPosition + prefix.length());
+
+          String[] parts = remainingPath.split("/", -1);
+
+          if (parts.length != 3 ||
+              parts[0].isEmpty() ||
+              parts[1].isEmpty() ||
+              parts[2].isEmpty()) {
+
+              throw new IllegalArgumentException(
+                  "Expected format: " +
+                  ".../km4city/resource/iot/<broker>/<organization>/<id>"
+              );
+          }
+
+          return parts[1];
+
+      } catch (URISyntaxException e) {
+          throw new IllegalArgumentException("Invalid serviceUri", e);
+      }
+  }
+
+  private String[] getIndexes(String confPfx, String defaultIndexes, String organizations, String[] coords, String maxDist, String[] serviceUris) {
     Configuration conf = Configuration.getInstance();
     
     if(organizations !=null) {
@@ -99,23 +141,61 @@ public class IoTSearchApi {
       int i = 0;
       for(String org: orgs) {
         if ((checkMsg = CheckParameters.checkAlphanumString(org)) != null) {
-          throw new InvalidParameterException("invalid organization "+org+" : "+checkMsg);
+          throw new IllegalArgumentException("invalid organization "+org+" : "+checkMsg);
         }
-        indexes[i] = conf.get("elasticSearchDevicesIndex-"+org.toLowerCase(), null);
+        indexes[i] = conf.get(confPfx+"-"+org.toLowerCase(), null);
         if(indexes[i]==null)
-          throw new InvalidParameterException("invalid organization "+org+" index not set");
+          throw new IllegalArgumentException("invalid organization "+org+" index not set");
         i++;
       }
       return indexes;
     } else {
-      return conf.get("elasticSearchDevicesIndex", "devices-state-all").split(";");
+      if(serviceUris!=null) {
+        Set<String> orgs = new HashSet();
+        for(String suri: serviceUris) {
+          orgs.add(extractOrganization(suri));
+        }
+        String[] indexes = orgs.toArray(new String[0]);
+        boolean ok = true;
+        for(int i=0; i<indexes.length; i++) {
+          String org = indexes[i].toLowerCase();
+          indexes[i] = conf.get(confPfx+"-"+org, null);
+          if(indexes[i]==null) {
+            ok = false;
+            ServiceMap.notifyWarning("cannot find index for "+org+" from serviceUris "+Arrays.toString(serviceUris));
+            break;
+          }
+        }
+        if(ok)
+          return indexes;
+      }
+      if(coords != null) {
+        //TBD infer organization from position
+      }
+      return conf.get(confPfx, defaultIndexes).split(";");
     }
   }
 
-  public int iotSearch(JspWriter out, final String organizations, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String notHealthy, String forceCheck) throws Exception {
+  public int iotSearch(JspWriter out, 
+          final String organizations, 
+          final String[] coords, 
+          String[] serviceUris, 
+          String categories, 
+          String model, 
+          final String maxDist, 
+          String condition, 
+          User user, 
+          String offset, 
+          String limit, 
+          String fields, 
+          String sortField, 
+          String text, 
+          String notHealthy, 
+          String forceCheck) throws Exception {
+    
     Configuration conf = Configuration.getInstance();
 
-    String[] index = getIndexes(organizations, coords);
+    String[] index = getIndexes("elasticSearchDevicesIndex", "devices-state-all", organizations, coords, maxDist, serviceUris);
 
     Set<String> fieldList = new HashSet<>();
     if (fields != null) {
@@ -643,11 +723,26 @@ public class IoTSearchApi {
     return q;
   }
 
-  public int iotSearchOverTimeRange(JspWriter out, final String[] coords, String[] serviceUris, String categories, String model, final String maxDist, String condition, User user, String offset, String limit, String fields, String sortField, String text, String fromTime, String toTime, String aggregate) throws Exception {
+  public int iotSearchOverTimeRange(JspWriter out, 
+          final String organizations, 
+          final String[] coords, 
+          String[] serviceUris, 
+          String categories, 
+          String model, 
+          final String maxDist, 
+          String condition, 
+          User user, 
+          String offset, 
+          String limit, 
+          String fields, 
+          String sortField, 
+          String text, 
+          String fromTime, 
+          String toTime, 
+          String aggregate) throws Exception {
     Configuration conf = Configuration.getInstance();
 
-    RestHighLevelClient client = ServiceMap.getSharedElasticSearchClient(conf);
-    String[] index = conf.get("elasticSearchFullDevicesIndex", "ot-devices-state-disit").split(";");
+    String[] index = getIndexes("elasticSearchFullDevicesIndex", "ot-devices-state-disit", organizations, coords, maxDist, serviceUris);
 
     Set<String> fieldList = new HashSet<>();
     if (fields != null) {
