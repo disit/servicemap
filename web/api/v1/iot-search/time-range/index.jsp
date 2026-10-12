@@ -60,6 +60,7 @@
   }
 
   String selection = request.getParameter("selection");
+  String organizations = request.getParameter("organizations");
   String serviceUri = request.getParameter("serviceUri");
   String model = request.getParameter("model");
   String fromResult = request.getParameter("fromResult");
@@ -242,7 +243,7 @@
     // get services by lat/long
     if (coords == null || coords.length == 2 || coords.length == 4 ) {
       try {
-        int results = iotSearchApi.iotSearchOverTimeRange(out, coords, suris, categories, model, maxDists, valueFilters, u, fromResult, maxResults, values, sortOnValue, text, fromTime, toTime, aggregate);
+        int results = iotSearchApi.iotSearchOverTimeRange(out, organizations, coords, suris, categories, model, maxDists, valueFilters, u, fromResult, maxResults, values, sortOnValue, text, fromTime, toTime, aggregate);
         ServiceMap.updateResultsPerIP(ip, requestType, results);
         ServiceMap.logAccess(request, null, selection, categories, null, "api-iot-search-time-range", maxResults, maxDists, null, null, "json", null, reqFrom);
       } catch (IllegalArgumentException e) {
