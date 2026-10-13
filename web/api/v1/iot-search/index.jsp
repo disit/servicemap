@@ -66,6 +66,7 @@
   String fromResult = request.getParameter("fromResult");
   String valueFilters = request.getParameter("valueFilters");
   String values = request.getParameter("values");
+  String properties = request.getParameter("properties");
   String sortOnValue = request.getParameter("sortOnValue");
   String categories = request.getParameter("categories");
   String maxDists = request.getParameter("maxDists");
@@ -203,7 +204,7 @@
     // get services by lat/long
     if (coords == null || coords.length == 2 || coords.length == 4 ) {
       try {
-        int results = iotSearchApi.iotSearch(out, organizations, coords, suris, categories, model, maxDists, valueFilters, u, fromResult, maxResults, values, sortOnValue, text, notHealty, forceAccessCheck);
+        int results = iotSearchApi.iotSearch(out, organizations, coords, suris, categories, model, maxDists, valueFilters, u, fromResult, maxResults, values, properties, sortOnValue, text, notHealty, forceAccessCheck);
         ServiceMap.updateResultsPerIP(ip, requestType, results);
         ServiceMap.logAccess(request, null, selection, categories, null, "api-iot-search", maxResults, maxDists, null, null, "json", null, reqFrom);
       } catch (IllegalArgumentException e) {

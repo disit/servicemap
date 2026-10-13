@@ -187,7 +187,8 @@ public class IoTSearchApi {
           User user, 
           String offset, 
           String limit, 
-          String fields, 
+          String fields,
+          String properties,
           String sortField, 
           String text, 
           String notHealthy, 
@@ -203,6 +204,10 @@ public class IoTSearchApi {
       fieldList.add("serviceUri");
       fieldList.add("nature");
       fieldList.add("subnature");
+    }
+    Set<String> propertiesList = new HashSet<>();
+    if (properties != null) {
+      Collections.addAll(propertiesList, properties.split(";"));
     }
     Set<String> skipFields = new HashSet<>(Arrays.asList("src", "uuid", "username",
             "user_delegations", "organization_delegations", "sensorID", "latlon",
@@ -399,6 +404,9 @@ public class IoTSearchApi {
       out.println(", \"properties\":{");
       int p = 0;
       for (String f : stdFields) {
+        if(properties !=null && !propertiesList.contains(f)) {
+          continue;
+        }
         Object value = src.get(f);
         if (value == null) {
           continue;
@@ -415,13 +423,13 @@ public class IoTSearchApi {
         }
         out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
       }
-      if(sortOnDelay) {
-        out.println(",\"deviceDelay_s\":" + hits[i].getSortValues()[0]);
+      if(sortOnDelay && (properties == null || propertiesList.contains("deviceDelay_s"))) {
+        out.println((p++ > 0 ? "," : "") + "\"deviceDelay_s\":" + hits[i].getSortValues()[0]);
       }
-      if (coords != null) {
-        out.println(",\"geo_distance\":" + fld.get("geo_distance").getValue());
+      if (coords != null && (properties == null || propertiesList.contains("geo_distance"))) {
+        out.println((p++ > 0 ? "," : "") + "\"geo_distance\":" + fld.get("geo_distance").getValue());
       }
-      out.println(",\"values\":{");
+      out.println((p++ > 0 ? "," : "") + "\"values\":{");
       p = 0;
       Set<String> flds;
       if (fieldList.isEmpty()) {
@@ -734,7 +742,8 @@ public class IoTSearchApi {
           User user, 
           String offset, 
           String limit, 
-          String fields, 
+          String fields,
+          String properties,
           String sortField, 
           String text, 
           String fromTime, 
@@ -750,6 +759,10 @@ public class IoTSearchApi {
       fieldList.add("serviceUri");
       fieldList.add("nature");
       fieldList.add("subnature");
+    }
+    Set<String> propertiesList = new HashSet<>();
+    if (properties != null) {
+      Collections.addAll(propertiesList, properties.split(";"));
     }
     Set<String> skipFields = new HashSet<>(Arrays.asList("src", "uuid", "username",
             "user_delegations", "organization_delegations", "sensorID", "latlon",
@@ -926,6 +939,9 @@ public class IoTSearchApi {
         out.println(", \"properties\":{");
         int p = 0;
         for (String f : stdFields) {
+          if(properties!=null && !propertiesList.contains(f)) {
+            continue;
+          }
           Object value = src.get(f);
           if (value == null) {
             continue;
@@ -945,9 +961,9 @@ public class IoTSearchApi {
           out.println((p++ > 0 ? "," : "") + "\"" + f + "\":" + value);
         }
         if (coords != null) {
-          out.println(",\"geo_distance\":" + fld.get("geo_distance").getValue());
+          out.println((p++ > 0 ? "," : "") + "\"geo_distance\":" + fld.get("geo_distance").getValue());
         }
-        out.println(",\"values\":{");
+        out.println((p++ > 0 ? "," : "") + "\"values\":{");
         p = 0;
         Set<String> flds;
         if (fieldList.isEmpty()) {
