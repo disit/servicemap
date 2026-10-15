@@ -17,11 +17,8 @@ package org.disit.servicemap.api;
 
 import com.google.gson.Gson;
 import com.unboundid.ldap.sdk.LDAPException;
-import java.io.IOException;
-import java.io.PrintStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.InvalidParameterException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -33,10 +30,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.servlet.jsp.JspWriter;
 import org.apache.lucene.queryparser.classic.QueryParserBase;
 import org.disit.servicemap.Configuration;
@@ -47,7 +41,6 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -56,13 +49,10 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.Aggregations;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
-import org.elasticsearch.search.aggregations.bucket.terms.TermsAggregator;
 import org.elasticsearch.search.aggregations.metrics.tophits.TopHits;
-import org.elasticsearch.search.aggregations.pipeline.PipelineAggregatorBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 import org.elasticsearch.search.sort.GeoDistanceSortBuilder;
@@ -242,10 +232,6 @@ public class IoTSearchApi {
       q = notHealthyQuery(q, conf);
     }
 
-    SearchRequest sr = new SearchRequest();
-
-    SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-
     QueryBuilder geoQuery = QueryBuilders.matchAllQuery();
     double lat = 0, lon = 0;
     if (coords != null) {
@@ -285,6 +271,7 @@ public class IoTSearchApi {
       boolQuery.filter(QueryBuilders.scriptQuery(delay_s_script));
     }
 
+    SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
     searchSourceBuilder.query(boolQuery);
     searchSourceBuilder.size(limit == null ? 100 : Integer.parseInt(limit));
     searchSourceBuilder.from(offset == null ? 0 : Integer.parseInt(offset));
@@ -340,6 +327,7 @@ public class IoTSearchApi {
     }
 
     searchSourceBuilder.fetchSource(true);
+    SearchRequest sr = new SearchRequest();
     sr.source(searchSourceBuilder);
 
     sr.indices(index);
@@ -354,10 +342,16 @@ public class IoTSearchApi {
     
     long ts = System.currentTimeMillis();
     SearchResponse r = ServiceMap.search(sr, RequestOptions.DEFAULT);
+    
     ShardSearchFailure[] failures = r.getShardFailures();
+    String failure = "";
     for(ShardSearchFailure sf: failures) {
-        ServiceMap.println("failure:" + sf);
+      failure += "index: "+sf.index()+" reason:"+sf.reason()+"\n";
     }
+    if(!failure.isEmpty()) {
+      ServiceMap.notifyError("iot-search OpenSearh "+failure);
+    }
+    
     SearchHit[] hits = r.getHits().getHits();
     long nfound = r.getHits().totalHits;
     
@@ -915,6 +909,16 @@ public class IoTSearchApi {
         e.printStackTrace();
       }
     }
+        
+    ShardSearchFailure[] failures = r.getShardFailures();
+    String failure = "";
+    for(ShardSearchFailure sf: failures) {
+      failure += "index: "+sf.index()+" reason:"+sf.reason()+"\n";
+    }
+    if(!failure.isEmpty()) {
+      ServiceMap.notifyError("iot-search/time-range OpenSearh "+failure);
+    }
+    
     if(!aggreg) {
       SearchHit[] hits = r.getHits().getHits();
       long nfound = r.getHits().totalHits;

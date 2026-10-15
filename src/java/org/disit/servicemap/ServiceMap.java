@@ -94,6 +94,8 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.core.CountRequest;
+import org.elasticsearch.client.core.CountResponse;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -2515,6 +2517,61 @@ public class ServiceMap {
 
         String msg = String.format(
             "ES failure elapsedMs=%d active=%d maxActive=%d indices=%s query=%s\n",
+            elapsed,
+            active,
+            maxActiveEsRequests.get(),
+            Arrays.toString(request.indices()),
+            request.source()
+        );
+        System.out.println("ERROR "+new Date()+" "+msg);
+        ServiceMap.notifyError(msg);
+
+        throw e;
+    } finally {
+        activeEsRequests.decrementAndGet();
+    }
+  }
+
+  public static CountResponse count(
+        CountRequest request,
+        RequestOptions options) throws IOException {
+
+    int active = activeEsRequests.incrementAndGet();
+    maxActiveEsRequests.accumulateAndGet(active, Math::max);
+
+    long start = System.nanoTime();
+
+    try {
+        Configuration conf = Configuration.getInstance();
+        int slowQueryTimeMs = Integer.parseInt(conf.get("elasticSearchSlowQueryTimeMs", "5000"));
+        CountResponse response = ServiceMap.getSharedElasticSearchClient(conf).count(request, options);
+
+        long elapsed = TimeUnit.NANOSECONDS.toMillis(
+            System.nanoTime() - start
+        );
+
+        if (elapsed > slowQueryTimeMs) {
+          String msg = String.format(
+                  "Slow ES count request elapsedMs=%d > %d active=%d maxActive=%d indices=%s query=%s\n",
+                  elapsed,
+                  slowQueryTimeMs,
+                  active,
+                  maxActiveEsRequests.get(),
+                  Arrays.toString(request.indices()),
+                  request.source());
+          System.out.println("WARN "+new Date()+" "+msg);
+          ServiceMap.notifyWarning(msg);
+        }
+
+        return response;
+
+    } catch (IOException e) {
+        long elapsed = TimeUnit.NANOSECONDS.toMillis(
+            System.nanoTime() - start
+        );
+
+        String msg = String.format(
+            "ES failure count elapsedMs=%d active=%d maxActive=%d indices=%s query=%s\n",
             elapsed,
             active,
             maxActiveEsRequests.get(),
