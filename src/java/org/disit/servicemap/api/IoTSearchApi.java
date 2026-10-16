@@ -391,10 +391,12 @@ public class IoTSearchApi {
     ShardSearchFailure[] failures = r.getShardFailures();
     String failure = "";
     for(ShardSearchFailure sf: failures) {
-      failure += "index: "+sf.index()+" reason:"+sf.reason()+"\n";
+      if(!sf.reason().contains("Result window is too large")) {
+        failure += "index: "+sf.index()+" reason:"+sf.reason()+"\n";
+      }
     }
     if(!failure.isEmpty()) {
-      ServiceMap.notifyError("iot-search OpenSearh "+failure);
+      ServiceMap.notifyError("iot-search OpenSearch failure "+failure);
     }
     
     SearchHit[] hits = r.getHits().getHits();
@@ -958,10 +960,12 @@ public class IoTSearchApi {
     ShardSearchFailure[] failures = r.getShardFailures();
     String failure = "";
     for(ShardSearchFailure sf: failures) {
-      failure += "index: "+sf.index()+" reason:"+sf.reason()+"\n";
+      if(!sf.reason().contains("Result window is too large")) {
+        failure += "index: "+sf.index()+" reason:"+sf.reason()+"\n";
+      }
     }
     if(!failure.isEmpty()) {
-      ServiceMap.notifyError("iot-search/time-range OpenSearh "+failure);
+      ServiceMap.notifyError("iot-search/time-range OpenSearch failure "+failure);
     }
     
     if(!aggreg) {
