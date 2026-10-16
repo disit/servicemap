@@ -121,7 +121,7 @@ public class IoTSearchApi {
       }
   }
 
-  private String[] getIndexes(String confPfx, String defaultIndexes, String organizations, String[] coords, String maxDist, String[] serviceUris) {
+  private String[] getIndexes(String confPfx, String defaultIndexes, String organizations, String[] coords, String maxDist, String[] serviceUris, String model, User user) {
     Configuration conf = Configuration.getInstance();
     
     if(organizations !=null) {
@@ -159,6 +159,51 @@ public class IoTSearchApi {
         if(ok)
           return indexes;
       }
+      if(model!=null) {
+        String[] orgs = conf.get("iotSearchOrgsForModel", "").split(";");
+        model = model.toLowerCase();
+        for(String org: orgs) {
+          if(!org.isEmpty()) {
+            org = org.toLowerCase();
+            if(model.contains(org)) {
+              String index = conf.get(confPfx+"-"+org, null);
+              if(index != null) {
+                return new String[] {index};
+              } else {
+                ServiceMap.notifyWarning("cannot find index for " + org + " from model " + model);
+                break;
+              }            
+            }
+          }
+        }
+      }
+      if(user !=null && !user.isWrong()) {
+        if(conf.get("iotSearchGetOrgsFromUser", "false").equals("true")) {
+          try {
+            user.setLdapOrgsAndGroups();
+            if(!user.orgs.isEmpty()) {
+              String[] indexes = new String[ user.orgs.size() ];
+              int i=0;
+              boolean ok = true;
+              for(String org:user.orgs) {
+                indexes[i] = conf.get(confPfx+"-"+org.toLowerCase(), null);
+                if(indexes[i]==null) {
+                  ServiceMap.notifyWarning("cannot find index for "+org+" from user "+user.username+" "+user.orgs);
+                  ok = false;
+                  break;
+                }
+              }
+              if(ok)
+                return indexes;
+            } else {
+              ServiceMap.notifyWarning("IotSearch.getIngex user "+user.username+" no orgs from ldap");
+            }
+          } catch (LDAPException e) {
+            ServiceMap.notifyException(e, "getIndex");
+            //continue with default indexes
+          }
+        }
+      }
       if(coords != null) {
         //TBD infer organization from position
       }
@@ -186,7 +231,7 @@ public class IoTSearchApi {
     
     Configuration conf = Configuration.getInstance();
 
-    String[] index = getIndexes("elasticSearchDevicesIndex", "devices-state-all", organizations, coords, maxDist, serviceUris);
+    String[] index = getIndexes("elasticSearchDevicesIndex", "devices-state-all", organizations, coords, maxDist, serviceUris, model, user);
 
     Set<String> fieldList = new HashSet<>();
     if (fields != null) {
@@ -745,7 +790,7 @@ public class IoTSearchApi {
           String aggregate) throws Exception {
     Configuration conf = Configuration.getInstance();
 
-    String[] index = getIndexes("elasticSearchFullDevicesIndex", "ot-devices-state-disit", organizations, coords, maxDist, serviceUris);
+    String[] index = getIndexes("elasticSearchFullDevicesIndex", "ot-devices-state-disit", organizations, coords, maxDist, serviceUris, model, user);
 
     Set<String> fieldList = new HashSet<>();
     if (fields != null) {
@@ -1151,19 +1196,12 @@ public class IoTSearchApi {
         q += " OR username:" + encUsername + " OR user_delegations:" + encUsername;
         if(Configuration.getInstance().get("enableLdapSearch", "false").equals("true")) {
           try {
-            LdapSearch ldap = LdapSearch.getInstance();
-            List<String> organizations = ldap.getOrganization(user.username);
-            if(!organizations.isEmpty()) {
-              Set<String> groups = new HashSet<String>();
-              for(String organization : organizations) {
+            user.setLdapOrgsAndGroups();
+            if(!user.orgs.isEmpty()) {
+              for(String organization : user.orgs) {
                 q += " OR organization_delegations:" + organization;
-                groups.addAll(ldap.getGroups(user.username, organization));
               }
-              groups.addAll(ldap.getGroups(user.username, null)); //groups outside organization
-              groups.remove("Dashboard");
-              groups.remove("ProcessLoader");
-              groups.remove("IoTDirectory");
-              for(String grp : groups) {
+              for(String grp : user.groups) {
                 q += " OR groups:" + grp;
               }
             } else {

@@ -8,6 +8,7 @@ package org.disit.servicemap;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.unboundid.ldap.sdk.LDAPException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
@@ -26,9 +27,12 @@ import java.security.PublicKey;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.servlet.http.HttpServletRequest;
+import org.disit.servicemap.api.LdapSearch;
 
 /**
  *
@@ -61,6 +65,8 @@ public class JwtUtil {
     final public String role;
     final public String accessToken;
     final public String error;
+    public List<String> orgs = null;
+    public Set<String> groups = null;
     
     User(String u, String r, String at) {
       username = u;
@@ -78,6 +84,24 @@ public class JwtUtil {
     
     public boolean isWrong() {
         return error != null;
+    }
+    
+    public void setLdapOrgsAndGroups() throws LDAPException {
+      if(this.orgs == null || this.groups == null) {
+        LdapSearch ldap = LdapSearch.getInstance();
+        if(this.orgs == null)
+          this.orgs =  ldap.getOrganization(this.username);
+        if(!this.orgs.isEmpty()) {
+            this.groups = new HashSet<String>();
+            for(String organization : this.orgs) {
+              groups.addAll(ldap.getGroups(this.username, organization));
+            }
+            groups.addAll(ldap.getGroups(this.username, null)); //groups outside organization
+            groups.remove("Dashboard");
+            groups.remove("ProcessLoader");
+            groups.remove("IoTDirectory");      
+        }
+      }
     }
   }
   
@@ -199,4 +223,4 @@ public class JwtUtil {
   static public void reset() {
     skr = null;
   }
-}
+  }
