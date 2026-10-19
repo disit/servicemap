@@ -165,7 +165,7 @@ public class IoTSearchApi {
         for(String org: orgs) {
           if(!org.isEmpty()) {
             org = org.toLowerCase();
-            if(model.contains(org)) {
+            if(model.startsWith(org)) {
               String index = conf.get(confPfx+"-"+org, null);
               if(index != null) {
                 return new String[] {index};
@@ -178,7 +178,7 @@ public class IoTSearchApi {
         }
       }
       if(user !=null && !user.isWrong()) {
-        if(conf.get("iotSearchGetOrgsFromUser", "false").equals("true")) {
+        if(conf.get("iotSearchOrgsFromUser", "false").equals("true")) {
           try {
             user.setLdapOrgsAndGroups();
             if(!user.orgs.isEmpty()) {
