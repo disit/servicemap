@@ -1,3 +1,4 @@
+<%@page import="org.disit.servicemap.api.LdapSearch"%>
 <%@page import="org.disit.servicemap.JwtUtil"%>
 <%@page import="org.disit.servicemap.api.IoTChecker"%>
 <%@page import="org.disit.servicemap.ServiceMapping"%>
@@ -36,12 +37,14 @@
       if(ipAddress.startsWith(conf.get("internalNetworkIpPrefix", "192.168.0.")) || ipAddress.equals("127.0.0.1")) {
         if(request.getParameter("reset")!=null) {
           conf.load();
+          LdapSearch.getInstance().resetCache();
           ServiceMapping.reset();
           ServiceMap.reset();
           JwtUtil.reset();
           IoTChecker.reset();
         } else if(request.getParameter("reload")!=null) {
           conf.load();
+          LdapSearch.getInstance().resetCache();
         }
         out.println(conf.asHtml());
         out.println("<ul>");
@@ -53,6 +56,7 @@
         out.println(ServiceMapping.getInstance().asHtml());
         out.println(IoTChecker.print());
         out.println(ServiceMap.getElasticSearchStats()+"<br>");
+        out.println(LdapSearch.getInstance().getCacheStats()+"<br>");
         out.println("<small>from: "+ipAddress+"</small>");
       }
       else {
