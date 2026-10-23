@@ -1184,6 +1184,7 @@ public class IoTSearchApi {
   }
 
   private static String anonymous = null;
+  private static String anonymousLC = null;
   
   private static String userQueryBuilder(String q, User user) throws Exception {
     if (user == null || !user.role.equals("RootAdmin")) {
@@ -1195,10 +1196,19 @@ public class IoTSearchApi {
       if(anonymous == null)
         anonymous = Encrypter.encrypt("ANONYMOUS");
       q += " (user_delegations:" + anonymous;
+      
+      Configuration conf = Configuration.getInstance();
+      
+      if(conf.get("iotSearchFixAnonymous","false").equals("true")) {
+        if(anonymousLC == null)
+          anonymousLC = Encrypter.encrypt("anonymous");
+        q += " OR user_delegations:" + anonymousLC;
+      }
+      
       if (user != null && !user.isWrong()) {
         String encUsername = Encrypter.encrypt(user.username);
         q += " OR username:" + encUsername + " OR user_delegations:" + encUsername;
-        if(Configuration.getInstance().get("enableLdapSearch", "false").equals("true")) {
+        if(conf.get("enableLdapSearch", "false").equals("true")) {
           try {
             user.setLdapOrgsAndGroups();
             if(!user.orgs.isEmpty()) {
